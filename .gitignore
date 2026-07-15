@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Secrets
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/*.log
+
+# PID
+*.pid
+
+# Large binary knowledge files (tracked separately if needed)
+Knowledge/**/*.pdf
+Knowledge/**/*.pptx
+Knowledge/**/*.docx
+Knowledge/**/*.xlsx
+Knowledge/**/*.xls
+Knowledge/**/*.doc
