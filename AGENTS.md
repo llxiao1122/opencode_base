@@ -13,7 +13,7 @@ B·安排/待办/排班/完成/清理 → `python3 tools/task_manager/manage_tas
 C·改/跑/排查/部署/编辑/修复 → Bash/Edit/Read/Grep
 D·制度/流程/手册/台账/规范 → `python3 tools/knowledge_router/query_knowledge.py`
   D2·看知识库文件内容(已知路径) → `python3 tools/knowledge_router/read_doc.py "{文件名}"`
-E·团队/领导/分配/汇报/纪要 → `python3 tools/state_analyzer/analyze_state.py`
+E·团队/工班/领导/分配/汇报/纪要 → `python3 tools/state_analyzer/analyze_state.py`
   收尾必:
     write_observation + append_log "[系统] Route E"
   observation自判事件类型: 变动/决策/待跟进/风险 (漏斗=智能体判别, 不靠关键词)

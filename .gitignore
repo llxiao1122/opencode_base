@@ -18,6 +18,13 @@ logs/*.log
 # PID
 *.pid
 
+# Session data (contains conversation history)
+memory/sessions/
+
+# Runtime data
+memory/log.md
+tools/task_manager/task_log.txt
+
 # Large binary knowledge files (tracked separately if needed)
 Knowledge/**/*.pdf
 Knowledge/**/*.pptx
