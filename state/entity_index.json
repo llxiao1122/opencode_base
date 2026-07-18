@@ -1,0 +1,30 @@
+{
+  "_meta": {
+    "version": 1,
+    "updated": "2026-07-18",
+    "source": "state/members/*.md, state/leaders.md, state/org.md"
+  },
+  "confirmed_entities": [
+    { "name": "李林骁", "aliases": [], "route_hint": ["G"], "weight": 1.0, "role": "工班长", "source": "state/org.md" },
+    { "name": "陈红洁", "aliases": [], "route_hint": ["G"], "weight": 1.0, "role": "保管员·安全员", "source": "state/members/陈红洁.md" },
+    { "name": "杨梦卓", "aliases": [], "route_hint": ["G"], "weight": 1.0, "role": "保管员", "source": "state/members/杨梦卓.md" },
+    { "name": "谭继衡", "aliases": [], "route_hint": ["G"], "weight": 1.0, "role": "保管员", "source": "state/members/谭继衡.md" },
+    { "name": "苗笑天", "aliases": [], "route_hint": ["G"], "weight": 1.0, "role": "保管员", "source": "state/members/苗笑天.md" },
+    { "name": "张志斌", "aliases": [], "route_hint": ["G"], "weight": 1.0, "role": "保管员", "source": "state/members/张志斌.md" },
+    { "name": "王超",   "aliases": [], "route_hint": ["G"], "weight": 1.0, "role": "危废联络", "source": "state/leaders.md" },
+    { "name": "荆幸斌", "aliases": [], "route_hint": ["G"], "weight": 1.0, "role": "资产危废废旧", "source": "state/leaders.md" },
+    { "name": "董文静", "aliases": [], "route_hint": ["G"], "weight": 1.0, "role": "包保", "source": "state/leaders.md" },
+    { "name": "王亮",   "aliases": [], "route_hint": ["G"], "weight": 1.0, "role": "安全管理岗", "source": "state/leaders.md" },
+    { "name": "刘欢",   "aliases": [], "route_hint": ["G"], "weight": 1.0, "role": "安全配合", "source": "state/leaders.md" },
+    { "name": "张梦圆", "aliases": [], "route_hint": ["G"], "weight": 1.0, "role": "科室内勤", "source": "state/leaders.md" },
+    { "name": "王红义", "aliases": [], "route_hint": ["G"], "weight": 1.0, "role": "捐赠验收", "source": "state/leaders.md" },
+    { "name": "靳攀",   "aliases": [], "route_hint": ["G"], "weight": 1.0, "role": "建设移交", "source": "state/leaders.md" },
+    { "name": "王敬宇", "aliases": [], "route_hint": ["G"], "weight": 1.0, "role": "主任", "source": "state/leaders.md" },
+    { "name": "卢丽英", "aliases": [], "route_hint": ["G"], "weight": 1.0, "role": "副主任·安全", "source": "state/leaders.md" },
+    { "name": "商丽娜", "aliases": [], "route_hint": ["G"], "weight": 1.0, "role": "分管领导", "source": "state/leaders.md" },
+    { "name": "李彦奎", "aliases": [], "route_hint": ["G"], "weight": 1.0, "role": "物资部长", "source": "state/leaders.md" },
+    { "name": "张新宇", "aliases": [], "route_hint": ["G"], "weight": 1.0, "role": "副部长", "source": "state/leaders.md" },
+    { "name": "刘朋",   "aliases": [], "route_hint": ["G"], "weight": 1.0, "role": "管理", "source": "state/org.md" }
+  ],
+  "pending_entities": []
+}

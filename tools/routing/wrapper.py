@@ -1,0 +1,417 @@
+#!/usr/bin/env python3
+"""
+wrapper.py — 硬编码路由分发层
+取代 opencode 的 LLM 自决路由。LLM 仅在合成自然回复时被调用。
+所有用户输入先经 route_request.py 判定，再执行对应模块，LLM 不可绕过。
+
+路由标签:
+  A = 闲聊/兜底   B = 总结汇报   C = 分析排查
+  D = 制度规范    E = 台账报表   F = 防汛安全
+  G = 排班考勤    H = 任务分配   I = 知识学习
+
+用法:
+  python3 tools/routing/wrapper.py "你的问题"
+  python3 tools/routing/wrapper.py --interactive
+"""
+
+import sys, json, subprocess, os
+from pathlib import Path
+
+# ── auto-detect venv ──
+_VENV_PYTHON = Path(__file__).resolve().parent.parent.parent / ".venv" / "bin" / "python3"
+if _VENV_PYTHON.exists() and sys.executable != str(_VENV_PYTHON):
+    os.execve(str(_VENV_PYTHON), [str(_VENV_PYTHON)] + sys.argv, os.environ)
+
+TOOLS_DIR = Path(__file__).resolve().parent.parent
+ROOT_DIR = TOOLS_DIR.parent
+sys.path.insert(0, str(TOOLS_DIR))
+
+from reasoning.llm_client import call as _llm_call
+from routing.route_request import route_request
+from routing.composer import execute_plan
+
+conversation_history = []  # [(role, content), ...]
+
+
+# ══════════════════════════════════════════════════════════════
+# LLM synthesis helper
+# ══════════════════════════════════════════════════════════════
+
+def _llm(prompt, system_prompt=None, max_tokens=1024, temperature=0.3, use_history=False):
+    messages = _build_llm_messages(prompt, system_prompt, use_history)
+    merged = "\n".join(f"[{m['role']}] {m['content'][:2000]}" for m in messages)
+    result = _llm_call(merged, system_prompt=system_prompt, max_tokens=max_tokens, temperature=temperature)
+    if isinstance(result, dict) and "error" in result:
+        return f"[LLM 错误] {result['error']}"
+    return str(result) if result else ""
+
+
+def _build_llm_messages(prompt, system_prompt, use_history):
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    if use_history:
+        for role, content in conversation_history[-20:]:
+            messages.append({"role": role, "content": content[:2000]})
+    messages.append({"role": "user", "content": prompt})
+    return messages
+
+
+def _add_history(role, content):
+    conversation_history.append((role, content[:500]))
+    if len(conversation_history) > 40:
+        conversation_history[:] = conversation_history[-40:]
+
+
+# ══════════════════════════════════════════════════════════════
+# lazy imports (avoid model loading on lightweight routes)
+# ══════════════════════════════════════════════════════════════
+
+def _load_core():
+    from memory.memory_core import MemoryCore
+    return MemoryCore(root_path=str(ROOT_DIR))
+
+
+def _subprocess_script(rel_path, *args, timeout=30):
+    """Run a tools/ subprocess script, return stdout text."""
+    script = TOOLS_DIR / rel_path
+    cmd = [str(_VENV_PYTHON) if _VENV_PYTHON.exists() else sys.executable, str(script)] + list(args)
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        return (result.stdout or "") + (result.stderr or "")
+    except subprocess.TimeoutExpired:
+        return "命令执行超时"
+    except Exception as e:
+        return f"执行失败: {e}"
+
+
+# ══════════════════════════════════════════════════════════════
+# A · 闲聊/兜底
+# ══════════════════════════════════════════════════════════════
+
+def handle_A(user_input, context=None):
+    """A·闲聊/兜底：日常寒暄、情绪倾诉、无工班实质内容"""
+    return _llm(user_input,
+                system_prompt="你是工班AI助手，回答简洁直接，用口语化中文。",
+                use_history=True)
+
+
+# ══════════════════════════════════════════════════════════════
+# G · 排班考勤：请假、排班、值班、调休
+# ══════════════════════════════════════════════════════════════
+
+def handle_B(user_input, context=None):
+    """G·排班考勤：请假、排班、值班、调休"""
+    raw = _subprocess_script("plugins/task_manager/manage_tasks.py", user_input)
+    if not raw.strip():
+        return "任务管理执行完成（无输出）"
+    return _llm(f"格式化以下待办信息:\n{raw[:2000]}\n用户原话: {user_input}",
+                system_prompt="将待办数据格式化为清晰的工作提醒。",
+                max_tokens=800)
+
+
+# ══════════════════════════════════════════════════════════════
+# （已弃用于新路由，原 改/跑/编辑/部署）
+# ══════════════════════════════════════════════════════════════
+
+def handle_C(user_input, context=None):
+    """（已弃用于新路由，原 改/跑/编辑/部署）"""
+    import re as _re
+
+    # "跑 X" / "执行 X" → subprocess
+    m = _re.match(r"(?:跑|执行|运行|启动)\s+(.+)", user_input)
+    if m:
+        cmd = m.group(1)
+        try:
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=60)
+            out = (result.stdout or "") + (result.stderr or "")
+            return out[:2000] or "命令执行完成"
+        except subprocess.TimeoutExpired:
+            return "命令执行超时（>60s）"
+        except Exception as e:
+            return f"执行失败: {e}"
+
+    # "改 X Y" / "编辑 X Y" → file edit
+    m = _re.match(r"(?:改|编辑|修改)\s+(\S+)\s+(.+)", user_input)
+    if m:
+        raw_path = m.group(1)
+        fpath = Path(raw_path)
+        if not fpath.is_absolute():
+            fpath = ROOT_DIR / fpath
+        if not fpath.exists():
+            return f"文件不存在: {fpath}"
+        old_content = fpath.read_text(encoding="utf-8")
+        instruction = m.group(2)
+        new_content = _llm(
+            f"当前文件:\n```\n{old_content[:4000]}\n```\n\n用户要求: {instruction}\n\n输出修改后的完整文件内容。",
+            system_prompt="你是文件编辑器。只输出修改后的完整文件内容，不含任何额外文字。",
+            max_tokens=4000, temperature=0.2)
+        if new_content and not new_content.startswith("[LLM 错误]"):
+            fpath.write_text(new_content, encoding="utf-8")
+            return f"文件已更新: {fpath}"
+        return f"编辑失败: {new_content}"
+
+    # fallback: ask LLM what to do
+    return _llm(f"用户希望执行: {user_input}\n请输出建议的 shell 命令或操作步骤。",
+                system_prompt="你是工班助手。输出具体的操作命令。",
+                max_tokens=500)
+
+
+# ══════════════════════════════════════════════════════════════
+# D·制度规范 / F·防汛安全 / I·知识学习：知识库检索
+# ══════════════════════════════════════════════════════════════
+
+def handle_D(user_input, context=None):
+    """D·制度规范 / F·防汛安全 / I·知识学习：知识库检索与规范查询"""
+    core = _load_core()
+    result = core.search(user_input, types=["semantic"], top_k=5)
+    hits = result.get("hits", [])
+
+    if not hits:
+        raw = _subprocess_script("plugins/knowledge_router/query_knowledge.py", user_input, timeout=15)
+        base = f"关键词回退结果:\n{raw[:1500]}"
+    else:
+        base = json.dumps([{"c": h["c"][:500], "s": h.get("s", "")} for h in hits],
+                          ensure_ascii=False)
+
+    event_context = ""
+    try:
+        sys.path.insert(0, str(TOOLS_DIR))
+        from memory.event_context import get_related_event_context
+        event_context = get_related_event_context(user_input)
+    except Exception:
+        pass
+
+    return _llm(f"用户问: {user_input}\n\n检索结果:\n{base}{event_context}",
+                system_prompt="你是工班制度助手。基于检索到的条款和事件状态用口语化中文回答。引用来源。",
+                use_history=True)
+
+
+# ══════════════════════════════════════════════════════════════
+# E·台账报表 / H·任务分配：状态分析、团队分配
+# ══════════════════════════════════════════════════════════════
+
+def handle_E(user_input, context=None):
+    """E·台账报表 / H·任务分配：状态分析、团队分配"""
+    core = _load_core()
+
+    # 1. 个人工作查询分支
+    import re as _re_e
+    _work_patterns = ["我.*工作", "有什么[待要]办", "我的任务", "今天做", "明天做", "周一做"]
+    if any(_re_e.search(p, user_input) for p in _work_patterns):
+        try:
+            sys.path.insert(0, str(TOOLS_DIR))
+            from work.work_query import get_my_tasks
+            from routing.context_builder import build_work_context
+            work_result = get_my_tasks(user_input)
+            if work_result.get("person"):
+                work_ctx = build_work_context(work_result)
+                answer = _llm(
+                    f"用户问: {user_input}\n\n{work_ctx}",
+                    system_prompt="你是工班管理助手。基于工作视图生成工作汇报。口语化中文。",
+                    use_history=True)
+                return answer
+        except Exception:
+            pass
+
+    # 2. episodic memory search
+    hist = core.search(user_input, types=["episodic"], top_k=3)
+
+    # 2. state analysis
+    state_data = _subprocess_script("plugins/state_analyzer/analyze_state.py", user_input, timeout=15)
+
+    # 3. event context
+    event_context = ""
+    try:
+        sys.path.insert(0, str(TOOLS_DIR))
+        from memory.event_context import get_related_event_context
+        event_context = get_related_event_context(user_input)
+    except Exception:
+        pass
+
+    # 4. LLM synthesis
+    answer = _llm(
+        f"用户问: {user_input}\n\n历史经验:\n"
+        f"{json.dumps([h['c'][:300] for h in hist.get('hits', [])], ensure_ascii=False)}\n\n"
+        f"当前状态:\n{state_data[:2000]}{event_context}",
+        system_prompt="你是工班管理助手。分析团队状态，给出建议。口语化中文。",
+        use_history=True)
+
+    # 5. save to memory
+    core.save(situation=user_input, action="状态分析", outcome=answer[:200])
+
+    # 6. reflect
+    core.reflect(since_days=1)
+
+    # 7. write observation
+    _subprocess_script("memory/observation_writer/write_observation.py",
+                       "团队状态", user_input[:80], timeout=10)
+
+    return answer
+
+
+# ══════════════════════════════════════════════════════════════
+# （已合并到 handle_D）
+# ══════════════════════════════════════════════════════════════
+
+def handle_F(user_input, context=None):
+    """（已合并到 handle_D：防汛安全 → 知识库检索）"""
+    return handle_D(user_input, context=context)
+
+
+# ══════════════════════════════════════════════════════════════
+# B · 总结汇报：保存记忆 + 触发反思
+# ══════════════════════════════════════════════════════════════
+
+def handle_G(user_input, context=None):
+    """B·总结汇报：保存记忆 + 触发反思"""
+    core = _load_core()
+    result = core.save(situation=user_input, action="经验总结",
+                       outcome="用户主动总结", importance="medium")
+    core.reflect(since_days=1)
+
+    # trigger curiosity engine
+    try:
+        from memory.curiosity_engine import CuriosityEngine
+        ce = CuriosityEngine(core)
+        tasks = ce.scan_and_generate_tasks()
+        task_list = "\n".join(f"  · {t['trigger'][:60]}" for t in tasks[:5])
+        extra = f"\n好奇心扫描: {len(tasks)} 个待探索任务\n{task_list}" if tasks else ""
+    except Exception:
+        extra = ""
+
+    return f"经验已保存 (id: {result['id']}, 重要性: {result['importance']}){extra}"
+
+
+# ══════════════════════════════════════════════════════════════
+# （已合并到 handle_E）
+# ══════════════════════════════════════════════════════════════
+
+def handle_H(user_input, context=None):
+    """（已合并到 handle_E：任务分配 → 状态分析、团队分配）"""
+    return handle_E(user_input, context=context)
+
+
+# ══════════════════════════════════════════════════════════════
+# C · 分析排查：慢思考引擎
+# ══════════════════════════════════════════════════════════════
+
+def handle_I(user_input, context=None):
+    """C·分析排查：慢思考引擎"""
+    from reasoning.slow_think import think
+    result = think(user_input)
+
+    lines = ["【思维树】"]
+    for t in result.get("tree", []):
+        label = t["hypothesis"][:60]
+        risk = t.get("risk", "?")
+        lines.append(f"  • {label}  (风险:{risk})")
+        if t.get("past_case"):
+            lines.append(f"    参考: {t['past_case'][:60]}")
+
+    arb = result.get("arbitration", {})
+    best = arb.get("best")
+    if best:
+        lines.append(f"\n【推荐】{best['option'][:80]}")
+        lines.append(f"  得分: {best['total_score']} | veto: {best.get('vetoed', False)}")
+    lines.append(f"\n{arb.get('rationale', '')}")
+
+    conflicts = result.get("conflicts", [])
+    if conflicts:
+        lines.append(f"\n⚠️ 发现 {len(conflicts)} 条记忆矛盾:")
+        for c in conflicts:
+            lines.append(f"  · {c.get('detail', '')[:60]}")
+
+    return "\n".join(lines)
+
+
+# ══════════════════════════════════════════════════════════════
+# Dispatch
+# ══════════════════════════════════════════════════════════════
+
+HANDLERS = {
+    # A（闲聊/兜底）—— 保持不变
+    "A": handle_A,
+    # B（总结汇报）—— 原 G，memory_save + reflect
+    "B": handle_G,
+    # C（分析排查）—— 原 I，slow_think
+    "C": handle_I,
+    # D（制度规范）—— 保持不变
+    "D": handle_D,
+    # E（台账报表）—— 保持不变
+    "E": handle_E,
+    # F（防汛安全）—— 同 D，知识库检索
+    "F": handle_D,
+    # G（排班考勤）—— 原 B，task_manager
+    "G": handle_B,
+    # H（任务分配）—— 同 E，团队分配
+    "H": handle_E,
+    # I（知识学习）—— 同 D，知识库检索
+    "I": handle_D,
+}
+
+
+CAPABILITY_HANDLERS = {
+    "casual_chat":        handle_A,
+    "generate_summary":   handle_G,
+    "fault_analysis":     handle_I,
+    "compliance_lookup":  handle_D,
+    "query_records":      handle_E,
+    "safety_check":       handle_D,
+    "schedule_check":     handle_B,
+    "task_assign":        handle_E,
+    "knowledge_retrieve": handle_D,
+}
+
+
+def handle(user_input, mode=None):
+    import os
+    if mode is None:
+        mode = os.environ.get("COMPOSER_MODE", "composite")
+    routes = route_request(user_input)
+    primary = routes[0]
+
+    if mode == "single" or len(routes) == 1:
+        handler = HANDLERS.get(primary)
+        try:
+            answer = handler(user_input, context=routes)
+        except Exception as e:
+            answer = f"[Route {primary} 异常] {type(e).__name__}: {e}"
+    else:
+        answer = execute_plan(routes, user_input, CAPABILITY_HANDLERS)
+
+    _add_history("user", user_input)
+    _add_history("assistant", answer[:500])
+    label = "/".join(routes)
+    return f"[Route {label}]\n{answer}"
+
+
+# ══════════════════════════════════════════════════════════════
+# CLI
+# ══════════════════════════════════════════════════════════════
+
+def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "--interactive":
+        print("工班AI (wrapper 硬路由模式)。输入 exit 退出。")
+        while True:
+            try:
+                user_input = input("\n> ").strip()
+                if not user_input or user_input.lower() in ("exit", "quit"):
+                    break
+                print(handle(user_input))
+            except (KeyboardInterrupt, EOFError):
+                break
+        return
+
+    user_input = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else ""
+    if not user_input and not sys.stdin.isatty():
+        user_input = sys.stdin.read().strip()
+
+    if user_input:
+        print(handle(user_input))
+    else:
+        print("用法: python3 tools/routing/wrapper.py '<问题>'\n  或: python3 tools/routing/wrapper.py --interactive")
+
+
+if __name__ == "__main__":
+    main()

@@ -1,30 +1,18 @@
 # 工班AI助手
 
-CRITICAL: 必须严格按以下路由规则执行，禁止跳过、禁止先读文件再判断。
+> ⚠️ 本文档为路由规则的可读说明，不可执行。实际执行逻辑以 `tools/routing/route_request.py` 为准，修改路由规则请直接改代码。
+> **路由实现**: `tools/routing/route_request.py`（三层防御：初始关键词 → LLM语义标签 → 兜底）。
 
-## 路由（顺序判定，命中即止）
-A·闲聊/天气/推荐 → 直答
-B·安排/待办/排班/完成/清理 → `python3 tools/task_manager/manage_tasks.py`
-  涉及"今天/明天/本周/本月"工作查询时, 读取且仅读取以下文件按日期筛出当日该做的事:
-    Knowledge/00-日常工作指引/工班日常固定工作.md
-    Knowledge/00-日常工作指引/工作查询展现格式.md (输出格式模板)
-  汇总 tasks.md + 固定工作 → 完整工作提醒
-  若本月未预填固定工作, 先执行: `python3 tools/task_manager/prefill_tasks.py`
-C·改/跑/排查/部署/编辑/修复 → Bash/Edit/Read/Grep
-D·制度/流程/手册/台账/规范 → `python3 tools/knowledge_router/query_knowledge.py`
-  D2·看知识库文件内容(已知路径) → `python3 tools/knowledge_router/read_doc.py "{文件名}"`
-E·团队/工班/领导/分配/汇报/纪要 → `python3 tools/state_analyzer/analyze_state.py`
-  收尾必:
-    write_observation + append_log "[系统] Route E"
-  observation自判事件类型: 变动/决策/待跟进/风险 (漏斗=智能体判别, 不靠关键词)
-F·成员名 → `python3 tools/team_router/route_member.py "{name}"`
-  收尾必: append_log "[系统] Route F: 查询 {name}"
-  涉及人员调整/评价/借调等变化时执行 write_observation, 主题前缀【成员】
-H·此心安处/心累/焦虑 → 先问后读 Knowledge/此心安处/*.md 前800字，共情+引用
+## 路由定义
 
-## 约束
-单次≤3文件 | 禁全量扫描 | A类不读不调工具 | C类不读非目标文件
-log格式: [分类] 描述。分类: [分配][人员][任务][风险][汇报][外部][系统]
-
-## 异常
-无法判断→A询问 | 工具失败→手动+记迭代日志 | 需超3文件→询问 | 按A→H优先级
+| 标签 | 类型 | 典型输入 |
+|------|------|---------|
+| A | 闲聊/兜底 | 寒暄、情绪倾诉、无法分类的输入 |
+| B | 总结汇报 | 工作总结、周报生成、复盘回顾 |
+| C | 分析排查 | 故障诊断、原因分析、方案评估 |
+| D | 制度规范 | 安全制度、操作规程、规范查询 |
+| E | 台账报表 | 台账、报表、归档、日志 |
+| F | 防汛安全 | 暴雨、积水、边坡、排水、应急预案 |
+| G | 排班考勤 | 请假、排班、值班、调休、加班 |
+| H | 任务分配 | 安排人员、分工、派谁去 |
+| I | 知识学习 | 资料查询、培训、术语解释 |
