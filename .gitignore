@@ -56,3 +56,6 @@ memory/observations/2026-07-19.md
 
 # Generated profile (runtime)
 memory/values_profile.json
+
+# User-level opencode config (env-specific, not tracked)
+~/.config/opencode/

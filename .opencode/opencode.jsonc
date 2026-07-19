@@ -1,0 +1,73 @@
+{
+  // ============================================================
+  // 项目级配置 — 与代码一起同步到 GitHub
+  // 放所有环境通用的 MCP 工具定义和能力声明
+  // 不要放密钥、API地址等环境相关配置
+  // ============================================================
+
+  "provider": {
+    "deepseek": {
+      "options": {
+        "model": "deepseek-chat"
+        // apiKey 和 baseURL 在 ~/.config/opencode/opencode.jsonc 中按环境配置
+      }
+    }
+  },
+
+  "mcp": {
+    // 项目专属 MCP — 本地和 VPS 都需要的能力
+    // 示例：如果需要连接项目数据库的工具，放这里
+    // "project-db": {
+    //   "type": "remote",
+    //   "url": "${PROJECT_DB_MCP_URL}",
+    //   "headers": {
+    //     "Authorization": "Bearer ${PROJECT_DB_MCP_TOKEN}"
+    //   }
+    // }
+  },
+
+  "permissions": {
+    "allow": [
+      "Bash(curl:*)",
+      "Bash(git:*)",
+      "Bash(python3:*)",
+      "Bash(pip:*)",
+      "Bash(npm:*)",
+      "Bash(mkdir:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(echo:*)",
+      "Bash(cd:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(rm:*)",
+      "Bash(grep:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)",
+      "Bash(find:*)",
+      "Bash(source:*)",
+      "Bash(.venv/bin/python3:*)",
+      "Read",
+      "Write",
+      "Edit",
+      "Glob",
+      "Grep",
+      "WebFetch",
+      "WebSearch"
+    ],
+    "deny": [
+      "Bash(rm -rf /*)",
+      "Bash(sudo:*)",
+      "Bash(systemctl:*)",
+      "Bash(shutdown:*)",
+      "Bash(reboot:*)"
+    ]
+  },
+
+  "env": {
+    // 项目所需的环境变量声明（值在各环境的 ~/.config/opencode/ 中配置）
+    "LLM_API_KEY": "",
+    "DINGTALK_WEBHOOK_TOKEN": ""
+  }
+}
