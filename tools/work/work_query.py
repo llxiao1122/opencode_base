@@ -9,14 +9,17 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
+from tools.shared.entity import TEAM_MAP
+
 ROOT = Path(__file__).resolve().parent.parent.parent
 TASKS_FILE = ROOT / "memory" / "tasks.md"
 PROFILE_FILE = ROOT / "state" / "user_profile.md"
 sys.path.insert(0, str(ROOT / "tools"))
 
-TEAM_MEMBERS = {
-    "铁炉西工班": ["李林骁", "陈红洁", "杨梦卓", "谭继衡", "苗笑天", "张志斌"],
-}
+# Deprecated: use tools/shared/entity.py TEAM_MAP
+TEAM_MEMBERS = {"铁炉西工班": sorted([k for k, v in TEAM_MAP.items() if v == "铁炉西工班"])}
 
 
 def _resolve_person(user_input):

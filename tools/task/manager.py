@@ -5,8 +5,11 @@ Creates tasks from Event + Context, with subtask splitting.
 No LLM, pure rules.
 """
 
+import sys
 from datetime import datetime
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 TOOLS_DIR = Path(__file__).resolve().parent.parent
 
@@ -250,17 +253,5 @@ class TaskManager:
 
 
 def _is_known_person(name: str) -> bool:
-    """Check if a person exists in entity_index.json."""
-    import json
-    from pathlib import Path
-    idx_path = Path(__file__).resolve().parent.parent.parent / "state" / "entity_index.json"
-    if not idx_path.exists():
-        return False
-    try:
-        data = json.loads(idx_path.read_text(encoding="utf-8"))
-        for e in data.get("confirmed_entities", []):
-            if e["name"] == name:
-                return True
-    except (json.JSONDecodeError, FileNotFoundError):
-        pass
-    return False
+    from tools.shared import get_role
+    return bool(get_role(name))

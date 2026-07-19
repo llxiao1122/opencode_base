@@ -25,6 +25,10 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
+from tools.shared.entity import TEAM_MAP as _TEAM_MAP, TEAM_LEADER_MAP as _TEAM_LEADER_MAP
+
 ROOT = Path(__file__).resolve().parent.parent.parent
 INDEX_FILE = ROOT / "memory" / "events" / "index.json"
 EVENTS_DIR = ROOT / "memory" / "events"
@@ -398,18 +402,7 @@ def _extract_participants(text):
     return results
 
 
-_TEAM_MAP = {
-    "李林骁": "铁炉西工班",
-    "陈红洁": "铁炉西工班",
-    "杨梦卓": "铁炉西工班",
-    "谭继衡": "铁炉西工班",
-    "苗笑天": "铁炉西工班",
-    "张志斌": "铁炉西工班",
-}
 
-_TEAM_LEADER_MAP = {
-    "铁炉西工班": "李林骁",
-}
 
 _HAZWASTE_CONSTRAINTS = [
     "须佩戴执法记录仪全程录像",

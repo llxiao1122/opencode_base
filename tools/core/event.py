@@ -9,6 +9,11 @@ Output: Event dict
 """
 
 from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
+from tools.shared import get_role, has_known_entity, find_entities_in_text
 
 TOOLS_DIR = Path(__file__).resolve().parent.parent
 
@@ -67,17 +72,9 @@ def _empty_event(text: str) -> dict:
 
 
 def _build_actors_from_text(text: str) -> list:
-    """Build actor list from raw text — for feedback messages where detect() found nothing."""
     actors = []
-    try:
-        import json
-        idx = Path(__file__).resolve().parent.parent.parent / "state" / "entity_index.json"
-        data = json.loads(idx.read_text(encoding="utf-8"))
-        for e in data.get("confirmed_entities", []):
-            if e["name"] in text:
-                actors.append({"name": e["name"], "role": e.get("role", ""), "position": "entity"})
-    except Exception:
-        pass
+    for e in find_entities_in_text(text):
+        actors.append({"name": e["name"], "role": e["role"], "position": "entity"})
     return actors
 
 
@@ -85,10 +82,10 @@ def _build_actors(raw_evt: dict) -> list:
     actors = []
     requester = raw_evt.get("requester", "")
     if requester:
-        actors.append({"name": requester, "role": _get_role(requester), "position": "requester"})
+        actors.append({"name": requester, "role": get_role(requester), "position": "requester"})
     executor = raw_evt.get("executor", "")
     if executor and executor != requester:
-        actors.append({"name": executor, "role": _get_role(executor), "position": "executor"})
+        actors.append({"name": executor, "role": get_role(executor), "position": "executor"})
     for e in raw_evt.get("entities", []):
         name = e.get("name", "") if isinstance(e, dict) else str(e)
         role = e.get("role", "") if isinstance(e, dict) else ""
@@ -116,35 +113,8 @@ def _infer_event_type(text: str, raw_evt: dict) -> str:
     # Feedback: short message + known entity + completion keywords
     feedback_kw = any(kw in text for kw in ["完成", "好了", "做完", "已做", "做完了", "搞定"])
     if feedback_kw and len(text) < 30:
-        has_person = bool(entities) or _has_known_entity(text)
+        has_person = bool(entities) or has_known_entity(text)
         if has_person:
             return "feedback"
 
     return "unknown"
-
-
-def _get_role(name: str) -> str:
-    try:
-        import json
-        idx = Path(__file__).resolve().parent.parent.parent / "state" / "entity_index.json"
-        data = json.loads(idx.read_text(encoding="utf-8"))
-        for e in data.get("confirmed_entities", []):
-            if e["name"] == name:
-                return e.get("role", "")
-    except Exception:
-        pass
-    return ""
-
-
-def _has_known_entity(text: str) -> bool:
-    """Check if text contains any known entity name from entity_index."""
-    try:
-        import json
-        idx = Path(__file__).resolve().parent.parent.parent / "state" / "entity_index.json"
-        data = json.loads(idx.read_text(encoding="utf-8"))
-        for e in data.get("confirmed_entities", []):
-            if e["name"] in text:
-                return True
-    except Exception:
-        pass
-    return False

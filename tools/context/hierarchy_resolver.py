@@ -9,31 +9,16 @@ say "安排王亮" when 王亮 is a safety manager giving directives.
 """
 
 import json
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
+from tools.shared import get_role as _shared_get_role
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 LEADERS_PATH = ROOT / "state" / "leaders.md"
 ORG_PATH = ROOT / "state" / "org.md"
-ENTITY_INDEX_PATH = ROOT / "state" / "entity_index.json"
-
-_entity_cache: dict = {}
-_loaded = False
-
-
-def _load():
-    global _entity_cache, _loaded
-    if _loaded:
-        return
-    try:
-        raw = ENTITY_INDEX_PATH.read_text(encoding="utf-8")
-        data = json.loads(raw)
-        for e in data.get("confirmed_entities", []):
-            _entity_cache[e["name"]] = {"role": e.get("role", ""), "source": e.get("source", "")}
-        for e in data.get("pending_entities", []):
-            _entity_cache[e["name"]] = {"role": e.get("role", ""), "source": e.get("source", "")}
-    except Exception:
-        pass
-    _loaded = True
 
 
 def _parse_leaders_category(name: str) -> str:
@@ -57,8 +42,7 @@ def _parse_leaders_category(name: str) -> str:
 
 
 def _get_role(name: str) -> str:
-    _load()
-    return _entity_cache.get(name, {}).get("role", "")
+    return _shared_get_role(name)
 
 
 def resolve(event, user):

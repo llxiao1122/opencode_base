@@ -8,21 +8,18 @@ Two modes:
 """
 
 import json
+import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
+from tools.shared import load_entities
+
 ROOT = Path(__file__).resolve().parent.parent.parent
-ENTITY_INDEX_PATH = ROOT / "state" / "entity_index.json"
 
 
 def _load_known_names() -> set:
-    """Load all known entity names from entity_index.json."""
-    if not ENTITY_INDEX_PATH.exists():
-        return set()
-    try:
-        data = json.loads(ENTITY_INDEX_PATH.read_text(encoding="utf-8"))
-        return {e["name"] for e in data.get("confirmed_entities", [])}
-    except (json.JSONDecodeError, KeyError):
-        return set()
+    return {e["name"] for e in load_entities()}
 
 
 def validate(text: str) -> dict:

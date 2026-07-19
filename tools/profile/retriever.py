@@ -10,15 +10,19 @@ No pre-computation. No profiles.json. No LLM.
 """
 
 import json
+import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 from datetime import datetime
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
+from tools.shared import get_role
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 
 TASK_PATH = ROOT / "data" / "tasks.json"
 ORG_PATH = ROOT / "data" / "org_memory.json"
-ENTITY_PATH = ROOT / "state" / "entity_index.json"
 
 ALLOWED_PATTERN_TYPES = {"completion", "frequency", "event_role", "collaboration", "instruction_source"}
 ACTION_KEYWORDS = [
@@ -28,7 +32,6 @@ ACTION_KEYWORDS = [
 
 _cache_tasks = None
 _cache_org = None
-_cache_entity = None
 
 
 def _tasks():
@@ -55,22 +58,6 @@ def _org():
         else:
             _cache_org = {}
     return _cache_org
-
-
-def _entity_role(name: str) -> str:
-    global _cache_entity
-    if _cache_entity is None:
-        if ENTITY_PATH.exists():
-            try:
-                _cache_entity = json.loads(ENTITY_PATH.read_text(encoding="utf-8"))
-            except (json.JSONDecodeError, FileNotFoundError):
-                _cache_entity = {}
-        else:
-            _cache_entity = {}
-    for e in _cache_entity.get("confirmed_entities", []):
-        if e["name"] == name:
-            return e.get("role", "")
-    return ""
 
 
 def _person_tasks(name: str) -> list:
@@ -227,7 +214,7 @@ def get_person_context(name: str) -> dict:
     """
     org_people = _org().get("people", {})
     org_person = org_people.get(name, {})
-    entity_role = _entity_role(name)
+    entity_role = get_role(name)
     tasks = _person_tasks(name)
     exec_tasks = _executor_tasks(name)
     events = _load_events()

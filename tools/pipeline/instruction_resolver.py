@@ -18,28 +18,13 @@ Priority: direct → chain → broadcast → default
 """
 
 from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+
+from tools.shared import BROADCAST_WORDS, ASSIGN_WORDS, get_role
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-
-BROADCAST_WORDS = [
-    "各班组", "各工班", "各工班长", "全体人员", "所有工班",
-    "各部门", "相关人员", "责任人", "负责人",
-]
-
-ASSIGN_WORDS = ["通知", "安排", "要求", "指定", "负责", "完成"]
-
-
-def _get_role(name: str) -> str:
-    try:
-        import json
-        idx = ROOT / "state" / "entity_index.json"
-        data = json.loads(idx.read_text(encoding="utf-8"))
-        for e in data.get("confirmed_entities", []):
-            if e["name"] == name:
-                return e.get("role", "")
-    except Exception:
-        pass
-    return ""
 
 
 def _is_broadcast(text: str) -> bool:
@@ -82,7 +67,7 @@ def resolve_instruction(event: dict, user: dict) -> dict:
     user_role = user.get("role", "")
     user_team = user.get("team", "")
 
-    issuer_role = _get_role(issuer) if issuer else ""
+    issuer_role = get_role(issuer) if issuer else ""
 
     current_actor = {"name": user_name, "role": user_role, "team": user_team}
     result = {
