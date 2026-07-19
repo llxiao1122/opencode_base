@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from memory.memory_core import MemoryCore
 
-ROOT = os.environ.get("MEMORY_DIR", "/home/admin/opencode")
+ROOT = os.environ.get("MEMORY_DIR", str(Path(__file__).resolve().parent.parent.parent))
 core = MemoryCore(root_path=ROOT)
 
 TOOLS = [

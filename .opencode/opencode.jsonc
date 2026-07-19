@@ -1,4 +1,5 @@
 {
+  "$schema": "https://opencode.ai/config.json",
   // ============================================================
   // 项目级配置 — 与代码一起同步到 GitHub
   // 放所有环境通用的 MCP 工具定义和能力声明
@@ -8,7 +9,8 @@
   "provider": {
     "deepseek": {
       "options": {
-        "model": "deepseek-chat"
+        "apiKey": "sk-4ae560695baa49828ba96d7ab5fd0bbd",
+        "baseURL": "https://api.deepseek.com",
         // apiKey 和 baseURL 在 ~/.config/opencode/opencode.jsonc 中按环境配置
       }
     }
@@ -25,49 +27,4 @@
     //   }
     // }
   },
-
-  "permissions": {
-    "allow": [
-      "Bash(curl:*)",
-      "Bash(git:*)",
-      "Bash(python3:*)",
-      "Bash(pip:*)",
-      "Bash(npm:*)",
-      "Bash(mkdir:*)",
-      "Bash(ls:*)",
-      "Bash(cat:*)",
-      "Bash(echo:*)",
-      "Bash(cd:*)",
-      "Bash(cp:*)",
-      "Bash(mv:*)",
-      "Bash(rm:*)",
-      "Bash(grep:*)",
-      "Bash(head:*)",
-      "Bash(tail:*)",
-      "Bash(wc:*)",
-      "Bash(find:*)",
-      "Bash(source:*)",
-      "Bash(.venv/bin/python3:*)",
-      "Read",
-      "Write",
-      "Edit",
-      "Glob",
-      "Grep",
-      "WebFetch",
-      "WebSearch"
-    ],
-    "deny": [
-      "Bash(rm -rf /*)",
-      "Bash(sudo:*)",
-      "Bash(systemctl:*)",
-      "Bash(shutdown:*)",
-      "Bash(reboot:*)"
-    ]
-  },
-
-  "env": {
-    // 项目所需的环境变量声明（值在各环境的 ~/.config/opencode/ 中配置）
-    "LLM_API_KEY": "",
-    "DINGTALK_WEBHOOK_TOKEN": ""
-  }
 }

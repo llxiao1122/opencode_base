@@ -95,9 +95,9 @@ def _subprocess_script(rel_path, *args, timeout=30):
 
 
 def _detect_and_enrich(tracer, user_input):
-    """Phase 1.7.7-C: detect events in user message, run section_parser +
-    ai_content_extractor, persist ai_content to event detail file.
-    Called from handle() before lifecycle update."""
+    """Phase 1.7.7-C: detect events in user message, delegate AI enrichment
+    to pipeline/event_enricher, persist enriched detail to file.
+    Called from handle() after lifecycle update."""
     if len(user_input) < 15:
         return
     trigger_words = ["通知", "安排", "发布", "执行", "检查", "清理",
@@ -114,9 +114,8 @@ def _detect_and_enrich(tracer, user_input):
         if not events:
             return
 
-        from parse.section_parser import parse_sections
-        from extract.ai_content_extractor import extract_content
-        import json, time
+        from pipeline.event_enricher import enrich_event
+        import json
         _EVENTS_DIR = TOOLS_DIR.parent / "memory" / "events"
 
         for evt in events:
@@ -127,33 +126,13 @@ def _detect_and_enrich(tracer, user_input):
             if not target.exists():
                 continue
             detail = json.loads(target.read_text(encoding="utf-8"))
-            if detail.get("ai_content"):
+            if detail.get("ai_content_status"):
                 continue
 
-            sections = parse_sections(
-                user_input,
-                parent_event=evt.get("title", ""),
-                target_role=evt.get("executor", ""),
-            )
-            sections = (sections.get("sections", [])
-                        if isinstance(sections, dict) else list(sections))
-            if not sections:
-                continue
+            enrich_event(detail, user_input, tracer=tracer)
 
-            t0 = time.time()
-            ai_content = extract_content(sections, event_meta={
-                "title": evt.get("title", ""),
-                "target_role": evt.get("executor", ""),
-            })
-            elapsed = int((time.time() - t0) * 1000)
-
-            if ai_content:
-                detail["ai_content"] = ai_content
-                target.write_text(json.dumps(detail, ensure_ascii=False, indent=2),
-                                  encoding="utf-8")
-                if tracer:
-                    tracer.set_ai_extraction(elapsed, len(sections),
-                                             sum(len(s.get("actions",[])) for s in ai_content))
+            target.write_text(json.dumps(detail, ensure_ascii=False, indent=2),
+                              encoding="utf-8")
     except Exception:
         pass
 
@@ -525,7 +504,10 @@ def handle(user_input, mode=None):
     try:
         if mode == "single" or len(routes) == 1:
             handler = HANDLERS.get(primary)
-            answer = handler(user_input, context=routes)
+            if not handler:
+                answer = f"[Route {primary}] 未注册 handler"
+            else:
+                answer = handler(user_input, context=routes)
         else:
             answer = execute_plan(routes, user_input, CAPABILITY_HANDLERS)
     except Exception as e:
