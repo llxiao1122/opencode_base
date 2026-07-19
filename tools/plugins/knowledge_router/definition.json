@@ -1,7 +1,0 @@
-{
-  "name": "query_knowledge",
-  "description": "在Knowledge/目录中搜索制度/规范/流程文档",
-  "trigger_keywords": ["制度", "规定", "安全标准", "流程", "手册", "台账", "规范"],
-  "action": "python3 tools/knowledge_router/query_knowledge.py",
-  "reads_files": ["Knowledge/INDEX.md", "Knowledge/**/*.md"]
-}

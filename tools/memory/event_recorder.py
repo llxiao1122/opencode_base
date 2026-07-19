@@ -34,10 +34,23 @@ def record(event: dict):
         "target": event.get("target", ""),
         "deadline": event.get("time", {}).get("deadline", ""),
         "confidence": event.get("confidence", 0),
+        "action_summary": event.get("action_summary", ""),
         "source": event.get("source", ""),
         "raw_preview": (event.get("raw", "") or "")[:200],
-        "recorded_at": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+        "event_time": event.get("detected_at") or event.get("time", {}).get("start", ""),
+        "import_time": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+        "recorded_at": event.get("processed_at") or datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
     }
+    if event.get("source_type"):
+        entry["source_type"] = event["source_type"]
+    if event.get("source_file"):
+        entry["source_file"] = event["source_file"]
+    if event.get("mode"):
+        entry["mode"] = event["mode"]
+    if event.get("source_quality"):
+        entry["source_quality"] = event["source_quality"]
+    if event.get("related_task"):
+        entry["related_task"] = event["related_task"]
 
     with open(LOG_PATH, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")

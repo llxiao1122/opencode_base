@@ -107,36 +107,7 @@ def _next_id():
 
 
 def _persist(event):
-    status = event.get("status", "active")
-    dir_map = {
-        "active": EVENTS_DIR / "active",
-        "detected": EVENTS_DIR / "detected",
-        "completed": EVENTS_DIR / "completed",
-        "archived": EVENTS_DIR / "archived",
-        "cancelled": EVENTS_DIR / "cancelled",
-        "expired": EVENTS_DIR / "expired",
-        "ignored": EVENTS_DIR / "ignored",
-    }
-    target_dir = dir_map.get(status, EVENTS_DIR / "active")
-    target_dir.mkdir(parents=True, exist_ok=True)
-
-    filepath = target_dir / f"{event['id']}.json"
-    with open(filepath, "w", encoding="utf-8") as f:
-        json.dump(event, f, ensure_ascii=False, indent=2)
-
-    index = _load_index()
-    meta = {
-        "id": event["id"],
-        "title": event.get("title", ""),
-        "status": status,
-        "owners": [e["name"] for e in event.get("entities", [])],
-        "deadline": event.get("time", {}).get("deadline", ""),
-        "updated": datetime.now().strftime("%Y-%m-%d"),
-    }
-    existing = [e for e in index["events"] if e["id"] != event["id"]]
-    existing.append(meta)
-    index["events"] = existing
-    _save_index(index)
+    return  # 旧格式事件文件写入已关闭，所有事件经 event_recorder → log.jsonl 统一存储
 
 
 def _signal_count(text, entities_found, participants):

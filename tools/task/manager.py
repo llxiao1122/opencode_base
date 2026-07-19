@@ -101,6 +101,7 @@ class TaskManager:
                 "done": False,
             })
 
+        event_time = event.get("detected_at") or event.get("time", {}).get("start", "")
         task = {
             "id": self._next_id(event_id),
             "source_event_id": event_id,
@@ -112,7 +113,8 @@ class TaskManager:
             "subtasks": subtasks,
             "deadline": deadline,
             "status": IN_PROGRESS,
-            "created_at": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+            "created_at": event_time if event_time else datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+            "created_source": "event_time" if event_time else "import_time",
         }
 
         save(task)
@@ -153,12 +155,28 @@ class TaskManager:
                 executor_name = a.get("name", "")
                 break
         if not executor_name:
-            return {"matched": False, "reason": "无法从反馈中识别人名"}
+            return {"matched": False, "match_type": "unmatched", "reason": "无法从反馈中识别人名"}
 
         # Find matching active task
         owner_name = self._org.get_leader(executor_name)
         if not owner_name:
-            return {"matched": False, "reason": f"{executor_name} 无归属工班"}
+            # Person not in 铁炉西工班 — try org-wide search for known persons
+            if _is_known_person(executor_name):
+                import json
+                tasks = json.loads((TOOLS_DIR.parent / "data" / "tasks.json").read_text(encoding="utf-8"))
+                from task.status import IN_PROGRESS
+                for t in tasks:
+                    if t.get("status") != IN_PROGRESS:
+                        continue
+                    for ex in t.get("executors", []):
+                        if ex["name"] == executor_name:
+                            owner_name = t.get("owner", {}).get("name", "")
+                            matched = t
+                            break
+                    if matched:
+                        break
+            if not owner_name:
+                return {"matched": False, "match_type": "unmatched", "reason": f"{executor_name} 无归属工班"}
 
         active = get_active_tasks(owner_name)
         matched = None
@@ -171,9 +189,23 @@ class TaskManager:
                 break
 
         if not matched:
-            return {"matched": False, "reason": f"{executor_name} 不在活跃任务中"}
+            # Try related match: find tasks executor might be connected to
+            candidate_tasks = []
+            for t in active:
+                for ex in t.get("executors", []):
+                    if ex["name"] == executor_name:
+                        candidate_tasks.append({"task_id": t["id"], "action": t.get("action", "")[:60]})
+                        break
+            if candidate_tasks:
+                return {
+                    "matched": False,
+                    "match_type": "candidate",
+                    "reason": f"{executor_name} 存在关联任务但不在当前执行人中",
+                    "candidate_tasks": candidate_tasks,
+                }
+            return {"matched": False, "match_type": "unmatched", "reason": f"{executor_name} 不在活跃任务中"}
 
-        # Update status
+        # Update status (direct match)
         from task.status import EXECUTOR_DONE
         updated = update_executor_status(matched["id"], executor_name, EXECUTOR_DONE)
 
@@ -184,6 +216,7 @@ class TaskManager:
 
         return {
             "matched": True,
+            "match_type": "direct",
             "task_id": matched["id"],
             "executor": executor_name,
             "all_done": all_done,
@@ -214,3 +247,20 @@ class TaskManager:
                     st["done"] = True
             return True
         return False
+
+
+def _is_known_person(name: str) -> bool:
+    """Check if a person exists in entity_index.json."""
+    import json
+    from pathlib import Path
+    idx_path = Path(__file__).resolve().parent.parent.parent / "state" / "entity_index.json"
+    if not idx_path.exists():
+        return False
+    try:
+        data = json.loads(idx_path.read_text(encoding="utf-8"))
+        for e in data.get("confirmed_entities", []):
+            if e["name"] == name:
+                return True
+    except (json.JSONDecodeError, FileNotFoundError):
+        pass
+    return False

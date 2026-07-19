@@ -14,6 +14,7 @@ Thumbs.db
 
 # Logs
 logs/*.log
+tools/logs/
 
 # PID
 *.pid
@@ -50,6 +51,17 @@ memory/events/archived/
 memory/events/cancelled/
 memory/events/expired/
 memory/events/ignored/
+memory/events/log.jsonl
+memory/events/index.json
+
+# Runtime data store
+data/
+
+# Import history files (user data, large)
+files/*.rtf
+files/*.txt
+files/*.doc
+files/*.docx
 
 # User observation logs (runtime)
 memory/observations/2026-07-19.md
