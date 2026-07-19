@@ -8,6 +8,8 @@ Consolidates duplicate implementations from:
 All time parsing now goes through this module.
 """
 
+from __future__ import annotations
+
 import re
 from datetime import datetime, timedelta, date
 
