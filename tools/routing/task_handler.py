@@ -38,14 +38,12 @@ def handle(user_input, ctx):
     tasks = _load_tasks()
     matched = _filter_tasks(tasks, date_range)
 
+    daily_work = _get_daily_work(user_input)
+
     sys_prompt = (
         f"你是 Cipher，{user_name}的企业认知系统助手。"
-        "基于任务数据，整理成简洁的待办清单。只陈述事实。"
+        "基于任务数据和固定工作，整理成简洁的待办清单。只陈述事实。"
     )
-
-    if not matched:
-        week_day = WEEKDAY_ZH[today.weekday()]
-        return f"[Cipher:task]\n{label} {today.strftime('%Y-%m-%d')} {week_day} 暂未找到进行中的任务。"
 
     task_lines = []
     for i, t in enumerate(matched):
@@ -69,14 +67,21 @@ def handle(user_input, ctx):
     prompt = (
         f"当前用户 {user_name} 查询了{label}的工作安排。\n"
         f"日期: {today.strftime('%Y-%m-%d')} {WEEKDAY_ZH[today.weekday()]}\n"
-        f"\n{label}的 {total} 项任务:\n\n{task_text}\n\n"
-        f"请整理成简洁的{label}工作安排，按\"待办 / 进行中 / 关注\"分组。禁止编造。"
     )
+    if daily_work:
+        prompt += f"\n{label}的固定工作:\n{daily_work}\n"
+    if task_text:
+        prompt += f"\n{label}的 {total} 项动态任务:\n\n{task_text}\n"
+    if not daily_work and not task_text:
+        week_day = WEEKDAY_ZH[today.weekday()]
+        return f"[Cipher:task]\n{label} {today.strftime('%Y-%m-%d')} {week_day} 暂未找到进行中的任务。"
+
+    prompt += "\n请整理成简洁的工作安排清单。禁止编造。"
 
     from routing.entry import _cached_llm
-    answer = _cached_llm(prompt, sys_prompt, user=user_name, ttl=60, max_tokens=400, temperature=0.3)
+    answer = _cached_llm(prompt, sys_prompt, user=user_name, ttl=60, max_tokens=600, temperature=0.3)
     if not answer:
-        answer = f"{label} 进行中的任务 ({total} 项)"
+        answer = _format_fallback(label, today, week_day=daily_work, tasks=task_lines)
     return f"[Cipher:task]\n{answer}"
 
 
@@ -99,25 +104,124 @@ def _load_tasks():
 
 def _filter_tasks(tasks, date_range):
     start, end = date_range
-    result = []
+    active = []
     for t in tasks:
         if t.get("status") == "completed":
             continue
-        deadline = t.get("deadline", "")
-        if deadline:
-            try:
-                dl = datetime.strptime(deadline, "%Y-%m-%d").date()
-                if not (start <= dl <= end):
-                    continue
-            except ValueError:
-                pass
-        created = t.get("created_at", "")
-        if created:
-            try:
-                ct = datetime.strptime(created[:10], "%Y-%m-%d").date()
-                if not (start <= ct <= end):
-                    continue
-            except ValueError:
-                pass
-        result.append(t)
-    return result
+        active.append(t)
+    return active
+
+
+def _format_fallback(label, today, week_day="", tasks=None):
+    lines = []
+    if week_day:
+        lines.append(week_day)
+    if tasks:
+        lines.append(f"\n{label} 进行中的任务 ({len(tasks)} 项)")
+    return "\n".join(lines) if lines else f"{label} 暂未找到进行中的任务。"
+
+
+def _get_daily_work(user_input):
+    """Parse Knowledge/00-日常工作指引.md for today/tomorrow/week routines."""
+    md_path = ROOT_DIR / "Knowledge" / "00-日常工作指引.md"
+    if not md_path.exists():
+        return ""
+    md = md_path.read_text(encoding="utf-8")
+
+    now = datetime.now()
+    if "明天" in user_input:
+        target = now + timedelta(days=1)
+        label = f"明天（{target.strftime('%Y-%m-%d')}）"
+    elif "今天" in user_input:
+        target = now
+        label = f"今天（{target.strftime('%Y-%m-%d')}）"
+    else:
+        target = now
+        label = f"今日工作（{target.strftime('%Y-%m-%d')}）"
+
+    weekday_zh = ["周一","周二","周三","周四","周五","周六","周日"][target.weekday()]
+    label += f" {weekday_zh}"
+
+    lines_out = []
+
+    lines_out.append("【每日固定工作】")
+    daily = _parse_table_section(md, "## 每日")
+    for row in daily:
+        lines_out.append(f"  {row.get('#', '')}. {row.get('工作项', '')} — {row.get('负责人', '')}")
+
+    if target.weekday() == 4:
+        lines_out.append("")
+        lines_out.append("【每周五固定工作】")
+        weekly = _parse_table_section(md, "## 每周五")
+        for row in weekly:
+            lines_out.append(f"  {row.get('#', '')}. {row.get('工作项', '')} — {row.get('负责人', '')}")
+
+    day = target.day
+    lines_out.append("")
+    lines_out.append(f"【本月{day}日固定工作】")
+    monthly = _parse_monthly_table(md, "## 每月固定日期")
+    matched = [r for r in monthly if r.get("日期") == f"{day}日"]
+    if matched:
+        for row in matched:
+            lines_out.append(f"  {row.get('#', '')}. {row.get('工作项', '')} — {row.get('负责人', '')}")
+    else:
+        lines_out.append("  （无）")
+
+    yr = target.year
+    mon = target.month
+    for line in md.split("\n"):
+        if "应急演练" in line and "月份" in line:
+            continue
+        if f"{mon}月" in line and "应急演练" in line:
+            exercise = line.strip().lstrip("|").split("|")
+            if len(exercise) >= 3:
+                lines_out.append("")
+                lines_out.append(f"【本月演练】{exercise[1].strip()} — {exercise[2].strip()}")
+
+    return "\n".join(lines_out)
+
+
+def _parse_table_section(md, section_header):
+    """Parse a markdown table section into list of dicts."""
+    import re as _re
+    pos = md.find(section_header)
+    if pos < 0:
+        return []
+    section = md[pos:].split("\n## ")[0]
+    lines = section.split("\n")
+    headers = None
+    rows = []
+    for line in lines:
+        line = line.strip()
+        if not line.startswith("|"):
+            continue
+        cells = [c.strip() for c in line.strip("|").split("|")]
+        if headers is None:
+            headers = cells
+        else:
+            if len(cells) >= len(headers):
+                rows.append(dict(zip(headers, cells)))
+    return rows
+
+
+def _parse_monthly_table(md, section_header):
+    """Parse monthly table (day-based) into list of dicts."""
+    import re as _re
+    pos = md.find(section_header)
+    if pos < 0:
+        return []
+    section = md[pos:].split("\n## ")[0]
+    lines = section.split("\n")
+    headers = None
+    rows = []
+    for line in lines:
+        line = line.strip()
+        if not line.startswith("|"):
+            continue
+        cells = [c.strip() for c in line.strip("|").split("|")]
+        if headers is None:
+            headers = cells
+        else:
+            if len(cells) >= len(headers):
+                rows.append(dict(zip(headers, cells)))
+    return rows

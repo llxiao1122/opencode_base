@@ -4,7 +4,7 @@ llm_client.py - 统一 LLM 调用封装
 供 simulator、memory_core 等模块共享 DeepSeek API 调用。
 """
 
-import os, json, urllib.request
+import os, json, re, urllib.request
 from pathlib import Path
 
 
@@ -15,17 +15,17 @@ DEFAULT_MODEL = "deepseek-chat"
 def _resolve_config():
     """获取 API 配置，优先级：env > opencode.jsonc > 默认值"""
     url = os.environ.get("LLM_API_URL", "")
-    key = os.environ.get("LLM_API_KEY", "")
+    key = os.environ.get("LLM_API_KEY", "") or os.environ.get("DEEPSEEK_API_KEY", "")
     model = os.environ.get("LLM_MODEL", "")
 
     if not key:
         config_path = Path.home() / ".config" / "opencode" / "opencode.jsonc"
         if config_path.exists():
-            try:
-                import json5
-                cfg = json5.loads(config_path.read_text())
-            except Exception:
-                cfg = json.loads(config_path.read_text())
+            raw = config_path.read_text()
+            raw = re.sub(r'//.*$', '', raw, flags=re.MULTILINE)
+            raw = re.sub(r'/\*.*?\*/', '', raw, flags=re.DOTALL)
+            raw = re.sub(r',\s*([}\]])', r'\1', raw)
+            cfg = json.loads(raw)
 
             provider = cfg.get("provider", {}).get("deepseek", {})
             options = provider.get("options", {})
@@ -33,9 +33,14 @@ def _resolve_config():
                 base = options.get("baseURL", "")
                 url = base.rstrip("/") + "/v1/chat/completions" if base else DEFAULT_URL
             if not key:
-                key = options.get("apiKey", "")
+                raw_key = options.get("apiKey", "")
+                if isinstance(raw_key, str) and raw_key.startswith("{env:") and raw_key.endswith("}"):
+                    env_var = raw_key[5:-1]
+                    key = os.environ.get(env_var, "")
+                else:
+                    key = raw_key
             if not model:
-                model = "deepseek-chat"  # deepseek default
+                model = "deepseek-chat"
 
     return url or DEFAULT_URL, key, model or DEFAULT_MODEL
 

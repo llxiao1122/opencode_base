@@ -10,6 +10,7 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 TOOLS_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR))
+sys.path.insert(0, str(TOOLS_DIR))
 
 _llm_cache = {}
 

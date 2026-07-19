@@ -7,6 +7,8 @@ import sys, os
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
+TOOLS_DIR = ROOT_DIR / "tools"
+sys.path.insert(0, str(TOOLS_DIR))
 sys.path.insert(0, str(ROOT_DIR))
 
 _VENV_PYTHON = ROOT_DIR / ".venv" / "bin" / "python3"

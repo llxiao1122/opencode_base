@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """能力编排集成测试"""
 import os, sys
-sys.path.insert(0, "/home/admin/opencode/tools")
+sys.path.insert(0, "/home/admin/opencode_base/tools")
 
 os.environ["COMPOSER_MODE"] = "composite"
 

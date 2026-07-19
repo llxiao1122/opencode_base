@@ -2,7 +2,7 @@
 """路由测试 —— 验证三层路由框架"""
 
 import sys, time
-sys.path.insert(0, "/home/admin/opencode/tools")
+sys.path.insert(0, "/home/admin/opencode_base/tools")
 from routing.route_request import route_request, route_request_detailed
 
 TESTS = [
