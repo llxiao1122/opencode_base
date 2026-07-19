@@ -38,6 +38,20 @@ def handle_core(user_input):
         fb_tm = TaskManager(OrganizationModel())
         result = fb_tm.update_from_event(event)
         if result.get("matched"):
+            # Feedback closure: enrich event with completion data and re-record
+            event["related_task"] = result.get("task_id", "")
+            event["feedback_status"] = result.get("status", "")
+            try:
+                record(event)
+            except Exception:
+                pass
+            try:
+                from memory.observation_writer.write_observation import write_observation
+                status_label = "全部完成" if result.get("all_done") else "部分完成"
+                write_observation("任务完成",
+                    f"{result['executor']}：{result.get('task_id', '')} {status_label}")
+            except Exception:
+                pass
             if result.get("all_done"):
                 msg = f"✅ {result['executor']} 已完成。全员完成，任务 {result['task_id']} 已关闭。"
             else:
