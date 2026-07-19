@@ -577,18 +577,24 @@ def handle_core(user_input):
             msg = result.get("reason", "未匹配到任务")
         return f"[Core:feedback]\n{msg}"
 
-    position_ctx = ctx_resolve(event, user)
+    subject_ctx = ctx_resolve(event, user)
 
     # ── Task Manager: create task from event + context ──
     from organization.model import OrganizationModel
     from task.manager import TaskManager
     org = OrganizationModel()
     tm = TaskManager(org)
-    managed_task = tm.create(event, position_ctx, user)
+    managed_task = tm.create(event, subject_ctx, user)
 
-    pos = position_ctx.get("my_position", {})
+    pos = subject_ctx.get("my_position", {})
     pos_type = pos.get("type", "observer")
-    reason = position_ctx.get("reason", "")
+    reason = subject_ctx.get("reason", "")
+
+    dl_feasibility = subject_ctx.get("deadline_feasibility", {})
+    dl_warning = ""
+    if dl_feasibility.get("feasible") in (False, "tight"):
+        dl_warning = f"\n⚠️ 截止可行性: {dl_feasibility.get('reason', '')}"
+
     act = managed_task.get("action", "")
     deadline = event.get("time", {}).get("deadline", "")
     actors = event.get("actors", [])
@@ -628,6 +634,7 @@ def handle_core(user_input):
         + (f"{contact_info}\n" if contact_info else "")
         + (f"执行人员: {', '.join(executors)}\n" if executors else "")
         + (f"子任务:\n{subtasks_summary}\n" if subtasks_summary else "")
+        + (dl_warning if dl_warning else "")
         + "\n请按以下格式输出（每项一行）：\n"
           f"【事件】<一句话概括>\n"
           f"【位置】{pos_type} — <含义>\n"

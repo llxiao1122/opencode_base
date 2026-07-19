@@ -29,7 +29,9 @@ def _atomic_write(filepath, data):
 # ═══════════════════════════════════════════════════════════════════════
 
 class MemoryCore:
-    def __init__(self, root_path="/home/admin/opencode"):
+    def __init__(self, root_path=""):
+        if not root_path:
+            root_path = str(Path(__file__).resolve().parent.parent.parent)
         self.root = Path(root_path)
         self.vec_dir = self.root / "memory" / ".vector"
         self.vec_dir.mkdir(parents=True, exist_ok=True)
@@ -582,7 +584,7 @@ if __name__ == "__main__":
     p.add_argument("--save", nargs=3, metavar=("SITUATION","ACTION","OUTCOME"), help="测试保存经验")
     args = p.parse_args()
 
-    core = MemoryCore(root_path=os.environ.get("MEMORY_DIR", "/home/admin/opencode"))
+    core = MemoryCore(root_path=os.environ.get("MEMORY_DIR", ""))
 
     if args.rebuild:
         core._rebuild_full()

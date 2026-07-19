@@ -158,7 +158,8 @@ class CausalSimulator:
 # CLI test
 # ══════════════════════════════════════════════════════════════
 if __name__ == "__main__":
-    core = MemoryCore(root_path="/home/admin/opencode")
+    ROOT = Path(__file__).resolve().parent.parent.parent
+    core = MemoryCore(root_path=str(ROOT))
     sim = CausalSimulator(core)
 
     scenario = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else "明天暴雨若不停工，库房会怎样"

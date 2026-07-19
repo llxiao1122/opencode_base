@@ -9,7 +9,8 @@ import json
 from pathlib import Path
 from datetime import date
 
-OBS_DIR = Path("/home/admin/opencode/memory/observations")
+ROOT = Path(__file__).resolve().parent.parent.parent.parent
+OBS_DIR = ROOT / "memory" / "observations"
 INDEX_FILE = OBS_DIR / "_index.md"
 
 

@@ -8,8 +8,9 @@ import json
 from pathlib import Path
 from datetime import datetime
 
-STATE_DIR = Path("/home/admin/opencode/state")
-MEMORY_DIR = Path("/home/admin/opencode/memory")
+ROOT = Path(__file__).resolve().parent.parent.parent.parent
+STATE_DIR = ROOT / "state"
+MEMORY_DIR = ROOT / "memory"
 INDEX_FILE = STATE_DIR / "_index.md"
 
 KEYWORD_FILE_MAP = {

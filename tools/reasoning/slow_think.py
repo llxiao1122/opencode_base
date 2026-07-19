@@ -13,7 +13,8 @@ from memory.user_model import UserContextTracer
 from reasoning.value_arbiter import ValueArbiter
 from reasoning.simulator import CausalSimulator
 
-core = MemoryCore(root_path="/home/admin/opencode")
+ROOT = Path(__file__).resolve().parent.parent.parent
+core = MemoryCore(root_path=str(ROOT))
 user_tracer = UserContextTracer(core)
 arbiter = ValueArbiter()
 simulator = CausalSimulator(core)
