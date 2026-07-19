@@ -51,6 +51,8 @@ def record(event: dict):
         entry["source_quality"] = event["source_quality"]
     if event.get("related_task"):
         entry["related_task"] = event["related_task"]
+    if event.get("response_hours") is not None:
+        entry["response_hours"] = event["response_hours"]
 
     with open(LOG_PATH, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")

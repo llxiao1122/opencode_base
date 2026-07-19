@@ -20,7 +20,7 @@ TASK_PATH = ROOT / "data" / "tasks.json"
 ORG_PATH = ROOT / "data" / "org_memory.json"
 ENTITY_PATH = ROOT / "state" / "entity_index.json"
 
-ALLOWED_PATTERN_TYPES = {"completion", "frequency", "event_role", "collaboration"}
+ALLOWED_PATTERN_TYPES = {"completion", "frequency", "event_role", "collaboration", "instruction_source"}
 ACTION_KEYWORDS = [
     "消防", "安全", "防汛", "入库", "废旧", "巡检", "台账", "迎检",
     "考勤", "检查", "培训", "演练", "考试", "施工",
@@ -96,6 +96,21 @@ def _executor_tasks(name: str) -> list:
                 result.append(t)
                 break
     return result
+
+
+def _load_events() -> list:
+    """Load all events from log.jsonl."""
+    EVENT_LOG_PATH = ROOT / "memory" / "events" / "log.jsonl"
+    if not EVENT_LOG_PATH.exists():
+        return []
+    events = []
+    with open(EVENT_LOG_PATH, "r", encoding="utf-8") as f:
+        for line in f:
+            try:
+                events.append(json.loads(line.strip()))
+            except (json.JSONDecodeError, KeyError):
+                continue
+    return events
 
 
 # ── trends ───────────────────────────────────────────────────────────
@@ -215,6 +230,7 @@ def get_person_context(name: str) -> dict:
     entity_role = _entity_role(name)
     tasks = _person_tasks(name)
     exec_tasks = _executor_tasks(name)
+    events = _load_events()
 
     if not tasks and not org_person:
         return {"name": name, "error": "no_data"}
@@ -294,6 +310,38 @@ def get_person_context(name: str) -> dict:
                     "type": "action_keyword",
                     "keyword": kw,
                     "task_ids": kw_task_ids,
+                },
+            })
+
+    # ── instruction_source patterns (from events) ──
+    source_counter = Counter()
+    source_event_ids = defaultdict(list)
+    for e in events:
+        requester = ""
+        for a in e.get("actors", []):
+            if a.get("position") == "requester":
+                requester = a.get("name", "")
+                break
+        if not requester or requester == name:
+            continue
+        for a in e.get("actors", []):
+            if a.get("name") == name and a.get("position") in ("entity", "executor"):
+                source_counter[requester] += 1
+                source_event_ids[requester].append(e.get("id", ""))
+        if name in str(e.get("target", "")):
+            source_counter[requester] += 1
+            source_event_ids[requester].append(e.get("id", ""))
+
+    for src, cnt in source_counter.most_common(3):
+        if cnt >= 1:
+            patterns.append({
+                "type": "instruction_source",
+                "fact": f"主要接收{src}指令{cnt}次",
+                "confidence": round(min(0.65 + cnt * 0.05, 0.88), 2),
+                "source": {
+                    "type": "event_instruction",
+                    "requester": src,
+                    "event_ids": source_event_ids[src],
                 },
             })
 

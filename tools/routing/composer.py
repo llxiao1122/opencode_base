@@ -12,6 +12,26 @@ _sys.path.insert(0, str(TOOLS_DIR))
 
 from routing.protocol import CapabilityResult, error_result
 
+SERIOUS_KEYWORDS = ["安全", "事故", "火灾", "伤亡", "处罚", "考核", "转正", "人事", "排班"]
+
+PERSONALITY_PATH = Path(__file__).resolve().parent.parent.parent / "state" / "personality.md"
+
+
+def _load_personality() -> str:
+    """Load Fairy personality config if file exists."""
+    if PERSONALITY_PATH.exists():
+        return PERSONALITY_PATH.read_text(encoding="utf-8")
+    return ""
+
+
+def _select_mode(user_input: str) -> str:
+    """Select response mode from user input.
+    Deadpan (Fairy) is the default. Only safety/HR keywords lock to professional.
+    """
+    if any(k in user_input for k in SERIOUS_KEYWORDS):
+        return "professional"
+    return "deadpan"
+
 
 ROUTE_TO_CAPABILITY = {
     "A": "casual_chat",       "B": "generate_summary",
@@ -88,10 +108,29 @@ def _compose(steps, user_input, ctx=None):
         from reasoning.llm_client import call as _llm
         from context.request_context import inject_user_prompt
         user_prompt = inject_user_prompt(ctx) if ctx else ""
-        sys_prompt = (
-            "你是工班AI助手。优先使用指令关系理解消息：issuer是任务来源不是对话对象。"
+        mode = _select_mode(user_input)
+        base_prompt = (
+            "你是 Cipher，工班AI助手。自称'Cipher'（第三人称），不说'我'。"
+            "优先使用指令关系理解消息：issuer是任务来源不是对话对象。"
             "回复当前用户为你的对话对象。口语化中文。"
         )
+        if mode == "deadpan":
+            personality = _load_personality()
+            if personality:
+                sys_prompt = f"{base_prompt}\n\n{personality}\n\n当前模式: Cipher。保持事实准确，语气平静。"
+            else:
+                sys_prompt = base_prompt
+        else:
+            sys_prompt = base_prompt
+
+        # Inject personal context (preferences + recent thoughts)
+        try:
+            from personal.retriever import format_personal_context
+            personal = format_personal_context()
+            if personal:
+                sys_prompt = f"{sys_prompt}\n\n{personal}"
+        except Exception:
+            pass
         full_prompt = (
             f"{user_prompt}\n\n"
             f"用户问: {user_input}\n\n"

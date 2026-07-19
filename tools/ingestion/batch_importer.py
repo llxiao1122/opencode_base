@@ -146,6 +146,17 @@ def import_batch(
                     event["related_task"] = task_id
                 if result.get("matched"):
                     feedback_matched += 1
+                    # Record response time
+                    try:
+                        from datetime import datetime as _dt
+                        task = _load_task_by_id(task_id)
+                        if task and task.get("created_at"):
+                            t1 = _dt.fromisoformat(task["created_at"])
+                            t2 = _dt.fromisoformat(processed_at)
+                            entry["response_hours"] = round((t2 - t1).total_seconds() / 3600, 1)
+                            event["response_hours"] = entry["response_hours"]
+                    except Exception:
+                        entry["response_hours"] = None
                 events_created += 1
                 _record_event(event)
                 log.append(entry)
@@ -389,6 +400,22 @@ def _record_event(event):
         record(event)
     except Exception:
         pass
+
+
+def _load_task_by_id(task_id: str):
+    """Load a single task by ID from tasks.json."""
+    import json as _j
+    task_path = ROOT / "data" / "tasks.json"
+    if not task_path.exists():
+        return None
+    try:
+        tasks = _j.loads(task_path.read_text(encoding="utf-8"))
+        for t in tasks:
+            if t.get("id") == task_id:
+                return t
+    except (_j.JSONDecodeError, FileNotFoundError):
+        pass
+    return None
 
 
 # ── import registry helpers ─────────────────────────────────────────────

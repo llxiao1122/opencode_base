@@ -18,6 +18,8 @@ Deadline feasibility:
     Flags unreasonable deadlines (e.g. Friday after-hours notice → Monday 9am).
 """
 
+from __future__ import annotations
+
 import json
 import re
 from pathlib import Path

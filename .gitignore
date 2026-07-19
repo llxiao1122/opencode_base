@@ -56,6 +56,7 @@ memory/events/index.json
 
 # Runtime data store
 data/
+!data/personal/
 
 # Import history files (user data, large)
 files/*.rtf
