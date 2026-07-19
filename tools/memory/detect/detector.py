@@ -1,7 +1,7 @@
 """
 memory/detect/detector.py — Main event detection entry point.
 
-Orchestrates: signals → extraction → persistence → hazwaste enrichment.
+Orchestrates: signals → extraction → persistence.
 """
 
 from datetime import datetime
@@ -17,7 +17,6 @@ from .extractors import (
     _extract_sender, _resolve_executor, _resolve_target,
 )
 from .persistence import _next_id, _persist
-from .hazwaste import _enrich_hazwaste
 
 
 def _guess_priority(text):
