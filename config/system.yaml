@@ -1,0 +1,39 @@
+# system.yaml — Runtime configuration
+# Switch between production and debug mode
+
+system:
+  mode: production       # production | debug
+
+# LLM model configuration
+# Phase 1.7.7-B: ai_content_extractor uses llm.extraction
+llm:
+  default:
+    provider: ollama
+    model: qwen2.5:7b
+
+  extraction:
+    provider: ollama
+    model: qwen2.5:7b
+    temperature: 0.0
+
+debug:
+  show_route: false      # show [Route X/Y] in output
+  show_confidence: false # show confidence scores
+  show_source: false     # show data source (files, indexes)
+  show_pipeline: false   # show pipeline steps
+  trace_verbose: false   # extra detail in trace.log
+
+context:
+  max_events: 3          # max events in event_context
+  max_items: 5           # max items per event
+  max_chars: 12000       # max prompt chars
+
+work_view:
+  max_coordinate: 5      # max items in coordinate section
+  max_attention: 5       # max items in attention section
+  max_constraints: 3     # max constraints per item
+  max_actions: 5         # max actions per item
+
+response:
+  style: work_report     # work_report | chat | debug
+  cite_sources: false    # include source attribution

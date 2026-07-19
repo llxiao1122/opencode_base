@@ -34,7 +34,8 @@ ACTION_VERBS = [
     "开展", "催促", "对接", "检查", "整改", "办理", "上报", "审批",
     "验收", "移交", "排查", "登记", "发放", "领取", "关闭", "启动",
     "暂停", "恢复", "调整", "分配", "部署", "汇总", "跟踪",
-    "组织", "拍摄", "建立", "发送", "参加",
+    "组织", "拍摄", "建立", "发送", "参加", "请假", "值班", "巡检",
+    "发布", "执行", "回复",
 ]
 
 TIME_PATTERNS = [
@@ -54,6 +55,7 @@ ANNOUNCE_PATTERNS = [
     r"通知", r"知悉", r"请各", r"各工班",
     r"根据.*指示", r"按照.*要求", r"根据.*安排",
     r"经.*研究", r"经.*决定",
+    r"预警(信号)?", r"应急(预案|响应)?", r"演练",
 ]
 
 NUMBERED_PATTERN = re.compile(r"(?:^|\n)\s*\d+[.、)]\s*", re.MULTILINE)
@@ -138,9 +140,14 @@ def _signal_count(text, entities_found):
     if NUMBERED_PATTERN.search(text) and has_action:
         signals += 1
 
-    # ④ 通知类标题 + 时间词
+    # ④ 通知类标题 + (时间词 或 动作词)
     has_announce = any(re.search(p, text) for p in ANNOUNCE_PATTERNS)
-    if has_announce and has_time:
+    if has_announce and (has_time or has_action):
+        signals += 1
+
+    # ⑤ 角色/团队词 + 动作词（覆盖无时间无实体的任务分配）
+    ROLE_WORDS = ["各工班长", "各工班", "各库区", "全体人员", "所有工班"]
+    if has_action and any(r in text for r in ROLE_WORDS):
         signals += 1
 
     return signals
@@ -179,6 +186,29 @@ def _extract_time(text):
                 result["start"] = result["deadline"]
         elif label == "today":
             result["start"] = now.strftime("%Y-%m-%d")
+        elif label == "weekday":
+            for wd in re.finditer(r"(下?周)([一二三四五六日])", text):
+                day_map = {"一": 0, "二": 1, "三": 2, "四": 3, "五": 4, "六": 5, "日": 6}
+                target = day_map.get(wd.group(2), 0)
+                days_ahead = (target - now.weekday()) % 7
+                has_xia = "下周" in wd.group(1)
+                if not has_xia and days_ahead == 0:
+                    days_ahead = 0
+                elif days_ahead == 0:
+                    days_ahead = 7
+                if has_xia:
+                    days_ahead += 7
+                dt = now + timedelta(days=days_ahead)
+                result["deadline"] = dt.strftime("%Y-%m-%d")
+            # bare "周日" without 下 prefix (e.g. "最晚周日")
+            for wd in re.finditer(r"(?<!下)周([一二三四五六日])", text):
+                day_map = {"一": 0, "二": 1, "三": 2, "四": 3, "五": 4, "六": 5, "日": 6}
+                target = day_map.get(wd.group(1), 0)
+                days_ahead = (target - now.weekday()) % 7
+                if days_ahead != 0:
+                    pass
+                dt = now + timedelta(days=days_ahead)
+                result["deadline"] = dt.strftime("%Y-%m-%d")
         elif label == "within_days":
             n = int(m.group(1))
             result["deadline"] = (now + timedelta(days=n)).strftime("%Y-%m-%d")
@@ -205,7 +235,9 @@ def _extract_actions(text):
 
 def _extract_required_actions(text):
     results = []
-    noise = ["时间", "商", "之前", "之后", "计划如下", "如下：", "如下:"]
+    noise = ["时间", "商", "之前", "之后", "计划如下", "如下：", "如下:", "距", "距离"]
+    distance_chars = "距离防以免被可已正用"
+    compound_suffix = "组员部处室院局队站所科委办"
     for clause in re.split(r"[，。；；\n]", text):
         clause = clause.strip()
         if len(clause) < 5:
@@ -214,9 +246,16 @@ def _extract_required_actions(text):
             idx = clause.find(v)
             if idx < 0:
                 continue
-            action = clause[idx:].strip("，。；、")
+            if idx > 0 and clause[idx - 1] in distance_chars:
+                break
+            after = clause[idx + len(v):idx + len(v) + 1] if idx + len(v) < len(clause) else ""
+            if after in compound_suffix:
+                break
+            action = clause[idx:].strip("，。；、").rstrip("）)】□■▲★●◎◆→←")
             if 5 <= len(action) <= 40 and not any(n in action[:6] for n in noise):
-                results.append(action)
+                if action.startswith(v):
+                    if not action.startswith("通知："):
+                        results.append(action)
             break
     return results
 
@@ -314,6 +353,12 @@ def _extract_participants(text):
         r"(产废中心)",
         r"(生产中心)",
         r"(全体人员)",
+        r"(全员)",
+    ]
+    role_fragments = [
+        (r"工班长", "工班长"),
+        (r"科室副主任", "科室副主任"),
+        (r"线路包保管理岗", "线路包保管理岗"),
     ]
     results = []
     for pat in patterns:
@@ -321,6 +366,9 @@ def _extract_participants(text):
             p = m.group(1).strip()
             if p and p not in results and len(p) <= 20:
                 results.append(p)
+    for pat, label in role_fragments:
+        if pat in text and label not in results:
+            results.append(label)
     return results
 
 
@@ -332,6 +380,34 @@ _TEAM_MAP = {
     "苗笑天": "铁炉西工班",
     "张志斌": "铁炉西工班",
 }
+
+_TEAM_LEADER_MAP = {
+    "铁炉西工班": "李林骁",
+}
+
+_HAZWASTE_CONSTRAINTS = [
+    "须佩戴执法记录仪全程录像",
+    "须确认车辆信息与联单派遣信息一致",
+    "须签署《外来人员安全告知书》并登记",
+    "须2名工班人员用校准过的称重工具共同核对重量",
+    "双方须在i物资上签字确认后才可装车",
+    "须拍摄装车前、装车后带水印照片（各≥2张）发钉钉群",
+    "处置完成后须在OA流程上及时办理",
+    "须2个工作日内完成台账更新",
+]
+
+_HAZWASTE_TASKS = [
+    "确认处置单据对应的OA单号",
+    "确认处置车辆进段场前信息一致性（车牌号与联单）",
+    "对处置单位人员进行安全交底，签署《外来人员安全告知书》",
+    "2名工班人员用校准过的称重工具与处置单位共同核对重量",
+    "双方在i物资上签字确认",
+    "全程佩戴执法记录仪，网盘留存录像",
+    "拍摄装车前、装车后带水印照片各≥2张，发钉钉工作群",
+    "处置完成后在OA流程上及时办理",
+    "2个工作日内完成台账更新",
+    "每月30日前将处置单据移交模块责任人",
+]
 
 
 def _extract_related_teams(entities):
@@ -357,6 +433,88 @@ def _build_executor_analysis(participants):
         "confidence": conf,
         "evidence": list(participants),
     }
+
+
+_NOTICE_WORDS = {"迎检", "紧急", "重要", "工作", "会议", "安全", "临时", "最新", "消防", "防汛"}
+
+def _extract_sender(text, entities):
+    m = re.match(r"(\S+)通知", text)
+    if m:
+        sender_name = m.group(1)
+        if sender_name in _NOTICE_WORDS:
+            pass
+        else:
+            for e in entities:
+                if e["name"] == sender_name:
+                    return e["name"]
+            return sender_name
+    m2 = re.search(r"(\S{2,4})\d{1,2}[日晚]通知", text)
+    if m2:
+        sender_name = m2.group(1)
+        for e in entities:
+            if e["name"] == sender_name:
+                return e["name"]
+        if sender_name not in _NOTICE_WORDS:
+            return sender_name
+    m3 = re.search(r"([\u4e00-\u9fff]{2,4}发?布?通知)", text)
+    if m3:
+        sender_name = m3.group(1).rstrip("发布通知通知")
+        for e in entities:
+            if e["name"] == sender_name:
+                return e["name"]
+    if entities:
+        last_entity = entities[-1]["name"]
+        tail = text[-200:]
+        if last_entity in tail[-80:]:
+            return last_entity
+    return None
+
+def _resolve_executor(participants):
+    for p in participants:
+        if p in _TEAM_LEADER_MAP:
+            return _TEAM_LEADER_MAP[p]
+    for p in participants:
+        if "工班长" in p:
+            try:
+                up = ROOT / "state" / "user_profile.md"
+                for line in up.read_text(encoding="utf-8").split("\n"):
+                    if line.strip().startswith("name:"):
+                        return line.split(":", 1)[1].strip()
+            except Exception:
+                pass
+    team_words = ["各工班", "各工班长", "铁炉西工班", "各库区", "全体人员"]
+    if any(w in participants for w in team_words):
+        try:
+            up = ROOT / "state" / "user_profile.md"
+            for line in up.read_text(encoding="utf-8").split("\n"):
+                if line.strip().startswith("name:"):
+                    return line.split(":", 1)[1].strip()
+        except Exception:
+            pass
+    return None
+
+def _resolve_affected(participants):
+    for p in participants:
+        if p in _TEAM_LEADER_MAP:
+            return p
+    if participants:
+        return participants[0]
+    return None
+
+def _enrich_hazwaste(event, text):
+    if not any(kw in text for kw in ["危废", "危险废物"]):
+        return event
+    existing_actions = event.get("required_actions", [])
+    for t in _HAZWASTE_TASKS:
+        if t not in existing_actions:
+            existing_actions.append(t)
+    existing_constraints = event.get("constraints", [])
+    for c in _HAZWASTE_CONSTRAINTS:
+        if c not in existing_constraints:
+            existing_constraints.append(c)
+    event["required_actions"] = existing_actions
+    event["constraints"] = existing_constraints
+    return event
 
 
 def _extract_title(text):
@@ -422,11 +580,17 @@ def detect(text: str) -> list[dict]:
         return []
 
     entities = _extract_entities(text)
+    participants = _extract_participants(text)
+
     signals = _signal_count(text, entities)
-    if signals < 2:
+    # 短消息（≤15字）+ 实体 + 动作词：接受单信号
+    min_signals = 1 if (len(text) <= 15 and entities and any(v in text for v in ACTION_VERBS)) else 2
+    if signals < min_signals:
         return []
 
     time_info = _extract_time(text)
+    if not time_info.get("start") and not time_info.get("deadline"):
+        time_info["start"] = datetime.now().strftime("%Y-%m-%d")
     actions = _extract_actions(text)
     items = _extract_items(text)
     title = _extract_title(text)
@@ -438,26 +602,29 @@ def detect(text: str) -> list[dict]:
         time_found=bool(time_info.get("deadline") or time_info.get("start")),
     )
 
-    constraints = _extract_constraints(text)
+    publisher = _extract_sender(text, entities)
+    executor = _resolve_executor(participants)
+    affected = _resolve_affected(participants)
 
     event = {
         "id": _next_id(),
         "type": "work_event",
         "title": title,
+        "publisher": publisher,
+        "executor": executor,
+        "affected": affected,
         "entities": entities,
         "actions": actions,
-        "required_actions": _extract_required_actions(text),
+        "required_actions": [],
         "time": time_info,
-        "items": items,
+        "items": [],
         "priority": _guess_priority(text),
         "confidence": confidence,
-        "constraints": constraints,
-        "evidence": [e for e in _extract_evidence(text)
-                     if not any(c in e or e in c for c in constraints)],
+        "constraints": [],
+        "evidence": [],
         "report_to": _extract_report_to(text),
-        "participants": _extract_participants(text),
+        "participants": participants,
         "related_teams": _extract_related_teams(entities),
-        "executor_analysis": _build_executor_analysis(_extract_participants(text)),
         "source": {
             "type": "text",
             "raw": text[:1000],

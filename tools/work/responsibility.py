@@ -111,7 +111,7 @@ def resolve(event_context, user_profile=None):
 
     # 3. team_attention: 团队影响（与 role_task 可共存，不同维度）
     if user_team:
-        generic_execs = {"各工班", "各工班长", "各库区", "全体人员", "所有工班"}
+        generic_execs = {"各工班", "各工班长", "各库区", "全体人员", "所有工班", "全员"}
         team_hit = generic_execs & set(executors)
         team_name_hit = user_team in " ".join(executors)
         if team_hit or team_name_hit:

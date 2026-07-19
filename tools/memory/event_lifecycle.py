@@ -114,6 +114,14 @@ def _score_event_for_message(event_meta, entity_names, text):
             score += 2
             break
 
+    # Title words in user message → strong signal
+    for sep in "，,、：；":
+        title = title.replace(sep, ",")
+    for tw in title.split(","):
+        tw = tw.strip()
+        if len(tw) >= 2 and tw in text:
+            score += 2
+
     detail_text = _event_detail_text(event_meta["id"])
     if not detail_text:
         return score
@@ -124,13 +132,18 @@ def _score_event_for_message(event_meta, entity_names, text):
         if len(w) >= 2 and w not in ("已经", "处理", "完成", "本次", "可能", "进行", "具体"):
             keywords.append(w)
 
+    STOP_NGRAMS = {"完成", "处理", "已经", "本次", "可能", "进行", "具体", "通知", "安排"}
+
     for kw in keywords:
         if kw in detail_text:
             score += 2
         else:
             for n in (2, 3):
                 for i in range(len(kw) - n + 1):
-                    if kw[i : i + n] in detail_text:
+                    ng = kw[i : i + n]
+                    if ng in STOP_NGRAMS:
+                        continue
+                    if ng in detail_text:
                         score += 1
 
     return score
@@ -154,6 +167,10 @@ def update_from_message(text):
     affected = []
     for evt in active_events:
         score = _score_event_for_message(evt, entity_names, text)
+        # Completion intent bonus: if message has completion word AND any topic
+        # overlap exists, treat as enough to trigger completion
+        if has_complete and score > 0:
+            score += 1
         if score < 2:
             continue
 

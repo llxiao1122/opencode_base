@@ -1,0 +1,35 @@
+{
+  "_description": "Event detail JSON schema — produced by event_detector.detect() and persisted by _persist()",
+  "_source": "tools/memory/event_detector.py",
+  "required": ["id", "type", "title", "status"],
+  "properties": {
+    "id":           {"type": "string",  "example": "evt_20260718_001"},
+    "type":         {"type": "string",  "example": "work_event"},
+    "title":        {"type": "string",  "example": "王超通知铁炉西工班做好危废处置"},
+    "publisher":    {"type": ["string","null"]},
+    "executor":     {"type": ["string","null"]},
+    "affected":     {"type": ["string","null"]},
+    "entities":     {"type": "array",  "items": {"type": "object", "keys": ["name","role","source"]}},
+    "actions":      {"type": "array",  "items": {"type": "string"}},
+    "required_actions": {"type": "array", "items": {"type": "string"}},
+    "time":         {"type": "object",  "keys": {"start": "string","deadline": "string"}},
+    "items":        {"type": "array",  "items": {"type": "object", "keys": ["seq","text","actions","required_actions"]}},
+    "priority":     {"type": "string", "enum": ["high","normal"]},
+    "confidence":   {"type": "number"},
+    "constraints":  {"type": "array",  "items": {"type": "string"}},
+    "evidence":     {"type": "array",  "items": {"type": "string"}},
+    "report_to":    {"type": "array",  "items": {"type": "string"}},
+    "participants": {"type": "array",  "items": {"type": "string"}},
+    "related_teams":{"type": "array",  "items": {"type": "string"}},
+    "source":       {"type": "object", "keys": {"type":"string","raw":"string"}},
+    "detected_at":  {"type": "string", "format": "iso-datetime"},
+    "status":       {"type": "string", "enum": ["detected","active","completed","cancelled","expired","archived","ignored"]}
+  },
+  "consumers": [
+    "tools/memory/event_search.py:_load_detail()",
+    "tools/memory/event_search.py:build_event_context()",
+    "tools/memory/event_lifecycle.py:_event_detail_text()",
+    "tools/memory/event_lifecycle.py:_event_matches_message()"
+  ],
+  "known_drift": []
+}

@@ -11,7 +11,37 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
 
 
-def get_related_event_context(user_input, limit=3, max_items=5):
+def _trim_context(ctx, max_chars=3000):
+    """Priority-layered truncation: cut P3 first, then P2, then P1. P0 never cut."""
+    current = json.dumps(ctx, ensure_ascii=False)
+    if len(current) <= max_chars:
+        return ctx
+
+    # P3: trim task actions per task
+    for t in ctx.get("tasks", []):
+        if isinstance(t, dict) and "actions" in t:
+            t["actions"] = t["actions"][:3]
+
+    current = json.dumps(ctx, ensure_ascii=False)
+    if len(current) <= max_chars:
+        return ctx
+
+    # P2: drop evidence
+    ctx["evidence"] = []
+    current = json.dumps(ctx, ensure_ascii=False)
+    if len(current) <= max_chars:
+        return ctx
+
+    # P1: keep only first 2 constraints, drop detailed task content
+    ctx["constraints"] = ctx.get("constraints", [])[:2]
+    for t in ctx.get("tasks", []):
+        if isinstance(t, dict) and "content" in t:
+            t["content"] = t["content"][:200]
+
+    return ctx
+
+
+def get_related_event_context(user_input, limit=3, max_items=5, max_chars=3000):
     from routing.entity_resolver import resolve_entities
     from memory.event_search import search_events, build_event_context
 
@@ -28,6 +58,7 @@ def get_related_event_context(user_input, limit=3, max_items=5):
             continue
         ctx = build_event_context(ev["id"], max_items=max_items)
         if ctx:
+            ctx = _trim_context(ctx, max_chars // max(limit, 1))
             contexts.append(ctx)
 
     if not contexts:

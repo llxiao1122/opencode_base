@@ -32,3 +32,27 @@ Knowledge/**/*.docx
 Knowledge/**/*.xlsx
 Knowledge/**/*.xls
 Knowledge/**/*.doc
+
+# Virtual env
+.venv/
+
+# Archive
+.archive/
+
+# Vector index (runtime)
+memory/.vector/
+
+# Event store (runtime data)
+memory/events/active/
+memory/events/detected/
+memory/events/completed/
+memory/events/archived/
+memory/events/cancelled/
+memory/events/expired/
+memory/events/ignored/
+
+# User observation logs (runtime)
+memory/observations/2026-07-19.md
+
+# Generated profile (runtime)
+memory/values_profile.json

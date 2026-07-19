@@ -147,9 +147,11 @@ def _extract_people(detail):
         elif isinstance(e, str):
             if e:
                 owner_names.append(e)
-    for o in detail.get("owners", []):
-        if o not in owner_names:
-            owner_names.append(o)
+    for o in detail.get("entities", []):
+        if isinstance(o, dict):
+            oname = o.get("name", "")
+            if oname and oname not in owner_names:
+                owner_names.append(oname)
 
     return {
         "owner": owner_names,
@@ -180,8 +182,30 @@ def build_event_context(event_id, max_items=5):
     items = detail.get("items", [])[:max_items]
     constraints = detail.get("constraints", [])
     evidence = detail.get("evidence", [])
+    ai_content = detail.get("ai_content", [])  # Phase 1.7.7-C
 
-    if items:
+    tasks = []
+    if ai_content:
+        for section in ai_content:
+            for a in section.get("actions", []):
+                tasks.append({
+                    "content": a.get("text", ""),
+                    "actions": [a.get("text", "")],
+                    "source_section_id": a.get("source_section_id", ""),
+                    "source_text": a.get("source_text", ""),
+                })
+            for c in section.get("constraints", []):
+                tasks.append({
+                    "content": c.get("text", ""),
+                    "actions": [],
+                    "constraint_type": c.get("type", ""),
+                    "source_section_id": c.get("source_section_id", ""),
+                })
+        for section in ai_content:
+            for c in section.get("constraints", []):
+                constraints.append(c.get("text", ""))
+
+    elif items:
         tasks = [
             {
                 "content": item.get("text", ""),
@@ -196,11 +220,11 @@ def build_event_context(event_id, max_items=5):
             "content": detail.get("title", ""),
             "actions": detail.get("required_actions", []),
         }]
-    else:
-        tasks = []
 
     return {
         "title": detail.get("title", ""),
+        "executor": detail.get("executor"),
+        "ai_content": ai_content,
         "people": _extract_people(detail),
         "time": {
             "start": detail.get("time", {}).get("start", ""),

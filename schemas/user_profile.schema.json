@@ -1,0 +1,26 @@
+{
+  "_description": "user_profile schema — parsed from state/user_profile.md, used by work_query._resolve_person() and responsibility.resolve()",
+  "_source": "state/user_profile.md",
+  "required": ["name"],
+  "properties": {
+    "name":          {"type": "string", "example": "李林骁"},
+    "role":          {"type": "string", "example": "工班长"},
+    "team":          {"type": "string", "example": "铁炉西工班"},
+    "authority":     {"type": "array", "items": "string"},
+    "not_authority": {"type": "array", "items": "string"},
+    "reports_to":    {"type": "array", "items": "string"}
+  },
+  "aliases": {
+    "role": ["position", "title", "job_title", "岗位"],
+    "team": ["department", "group", "部门", "班组", "工班"],
+    "authority": ["permissions", "can", "auth", "权限", "可以"],
+    "not_authority": ["cant", "cannot", "limit", "限制", "不可以"]
+  },
+  "consumers": [
+    "tools/work/work_query.py:_resolve_person()",
+    "tools/work/responsibility.py:resolve()"
+  ],
+  "known_drift": [
+    "WARNING: if user_profile.md renames 'role' to 'position' or 'team' to 'department', responsibility.resolve() silently breaks"
+  ]
+}

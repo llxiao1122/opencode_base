@@ -1,0 +1,181 @@
+[
+  {"text": "请李林骁今天完成防火检查", "user": "李林骁",
+   "expect": {"direct_task": true, "role_task": false, "team_attention": false}},
+
+  {"text": "各工班长安排人员完成危废回收", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": true, "team_attention": true}},
+
+  {"text": "王超通知铁炉西工班做好危废处置", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": false, "team_attention": true}},
+
+  {"text": "陈红洁汇报本周防火检查已完成", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": false, "team_attention": false}},
+
+  {"text": "谭继衡本周五前完成防火检查并更新台账", "user": "谭继衡",
+   "expect": {"direct_task": true, "role_task": false, "team_attention": false}},
+
+  {"text": "请各工班今天下午派人清理库区", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": true, "team_attention": true}},
+
+  {"text": "李林骁请假", "user": "李林骁",
+   "expect": {"direct_task": true, "role_task": false, "team_attention": false}},
+
+  {"text": "杨梦卓值班 - 杂品库应急物资检查", "user": "杨梦卓",
+   "expect": {"direct_task": true, "role_task": false, "team_attention": false}},
+
+  {"text": "苗笑天负责材料棚及废旧物资整理", "user": "苗笑天",
+   "expect": {"direct_task": true, "role_task": false, "team_attention": false}},
+
+  {"text": "张志斌负责大件区一层卫生清扫", "user": "张志斌",
+   "expect": {"direct_task": true, "role_task": false, "team_attention": false}},
+
+  {"text": "李林骁安排谭继衡本周前完成防火检查", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": true, "team_attention": false}},
+
+  {"text": "王超催办铁炉西工班危废处置进度", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": false, "team_attention": true}},
+
+  {"text": "请李林骁今天下午3点之前提交考勤表", "user": "李林骁",
+   "expect": {"direct_task": true, "role_task": false, "team_attention": false}},
+
+  {"text": "各库区负责人检查各自区域灭火器", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": true, "team_attention": true}},
+
+  {"text": "陈红洁整理本周安全台账并上报王亮", "user": "陈红洁",
+   "expect": {"direct_task": true, "role_task": false, "team_attention": false}},
+
+  {"text": "荆幸斌通知各工班废旧物资统一回收时间", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": false, "team_attention": true}},
+
+  {"text": "请所有工班人员今天下班前完成库区巡查", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": true, "team_attention": true}},
+
+  {"text": "张梦圆通知考勤制度变更", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": false, "team_attention": true}},
+
+  {"text": "李彦奎要求各工班核查不合格物资清单", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": false, "team_attention": true}},
+
+  {"text": "卢丽英通知明天安全专项检查", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": false, "team_attention": true}},
+
+  {"text": "陈红洁把灭火器检查表给谭继衡", "user": "陈红洁",
+   "expect": {"direct_task": true, "role_task": false, "team_attention": false}},
+
+  {"text": "值班人员今天负责断电登记", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": true, "team_attention": false}},
+
+  {"text": "请工班长安排人员配合明天的应急演练", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": true, "team_attention": true}},
+
+  {"text": "杨梦卓汇报叉车充电记录表已完成", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": false, "team_attention": false}},
+
+  {"text": "今天谁值班？", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": false, "team_attention": false}},
+
+  {"text": "王敬宇要求本周内完成隐患排查整改", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": true, "team_attention": true}},
+
+  {"text": "苗笑天确认材料棚物资数量无误", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": false, "team_attention": false}},
+
+  {"text": "张志斌确认大件区标识标签已更新", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": false, "team_attention": false}},
+
+  {"text": "请李林骁今天下午5点前向王敬宇汇报库区安全情况", "user": "李林骁",
+   "expect": {"direct_task": true, "role_task": false, "team_attention": false}},
+
+  {"text": "刘欢提醒明天消防设施巡检", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": false, "team_attention": true}},
+
+  {"text": "董文静要求各工班核对人员名单", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": true, "team_attention": true}},
+
+  {"text": "商丽娜通知下周物资盘点", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": false, "team_attention": true}},
+
+  {"text": "铁炉西工班全体人员今天参加消防安全培训", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": true, "team_attention": true}},
+
+  {"text": "谭继衡负责立体库区卫生检查并登记", "user": "谭继衡",
+   "expect": {"direct_task": true, "role_task": false, "team_attention": false}},
+
+  {"text": "靳攀通知仓库今天停电检修", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": false, "team_attention": true}},
+
+  {"text": "请陈红洁今天内完成安全台账更新并交王亮", "user": "陈红洁",
+   "expect": {"direct_task": true, "role_task": false, "team_attention": false}},
+
+  {"text": "各工班负责人本周内完成消防器材检查", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": true, "team_attention": true}},
+
+  {"text": "程智通知物资到货验收流程变更", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": false, "team_attention": true}},
+
+  {"text": "王超要求铁炉西工班今天完成危废联单上传", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": false, "team_attention": true}},
+
+  {"text": "请明天组织人员清理大件区一层地面", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": true, "team_attention": true}},
+
+  {"text": "杨梦卓你负责叉车保养和记录", "user": "杨梦卓",
+   "expect": {"direct_task": true, "role_task": false, "team_attention": false}},
+
+  {"text": "各库区做好明天迎检准备", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": true, "team_attention": true}},
+
+  {"text": "请安排苗笑天检查防汛物资", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": true, "team_attention": false}},
+
+  {"text": "今天下午李林骁去向王敬宇汇报工作", "user": "李林骁",
+   "expect": {"direct_task": true, "role_task": false, "team_attention": false}},
+
+  {"text": "苗笑天确认记录今日入库物资", "user": "苗笑天",
+   "expect": {"direct_task": true, "role_task": false, "team_attention": false}},
+
+  {"text": "各工班长今天提交本周工作总结", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": true, "team_attention": false}},
+
+  {"text": "刘朋通知物料编码变更对照表已更新", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": false, "team_attention": true}},
+
+  {"text": "王红义捐赠物资需各工班协助卸车搬运", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": false, "team_attention": true}},
+
+  {"text": "请李林骁督促陈红洁完成上月台账归档", "user": "李林骁",
+   "expect": {"direct_task": true, "role_task": true, "team_attention": false}},
+
+  {"text": "李林骁通知大家明天部门例会", "user": "李林骁",
+   "expect": {"direct_task": true, "role_task": true, "team_attention": false}},
+
+  {"text": "铁炉西工班今天下班前完成卫生清洁", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": false, "team_attention": true}},
+
+  {"text": "铁炉西工班全体今天配合仓库盘库", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": true, "team_attention": true}},
+
+  {"text": "张志斌你查一下库房湿度计是否过期", "user": "张志斌",
+   "expect": {"direct_task": true, "role_task": false, "team_attention": false}},
+
+  {"text": "王亮通知所有工班安全自查本周完成", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": true, "team_attention": true}},
+
+  {"text": "请尽快回电李彦奎关于物资清单的事", "user": "李林骁",
+   "expect": {"direct_task": true, "role_task": false, "team_attention": false}},
+
+  {"text": "明天上午9点铁炉西工班全体开会", "user": "李林骁",
+   "expect": {"direct_task": true, "role_task": true, "team_attention": true}},
+
+  {"text": "请安排明天有人去杂品库帮忙整理", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": true, "team_attention": true}},
+
+  {"text": "谭继衡汇报立体库货架检查完毕", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": false, "team_attention": false}},
+
+  {"text": "请所有人员下班前确认自己的台账已签字", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": false, "team_attention": true}},
+
+  {"text": "今天去库区巡检一下", "user": "李林骁",
+   "expect": {"direct_task": false, "role_task": false, "team_attention": false}}
+]

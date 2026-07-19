@@ -1,0 +1,99 @@
+{
+  "_description": "AI Content Extractor Golden Cases — Phase 1.7.7-B validation",
+  "cases": [
+    {
+      "id": "EX1",
+      "name": "暴雨演练-发布不应是action",
+      "input_sections": [
+        {
+          "section_id": "S0",
+          "section_title": "【信息模拟演练】",
+          "content": "",
+          "level": 1
+        },
+        {
+          "section_id": "S1",
+          "section_title": "【以下消息为叫应信息演练，相关人员仅在群里响应即可，无需赶赴现场】",
+          "content": "郑州市气象台07月18日22:05分发布暴雨橙色预警信号：受强对流云团影响，郑州中原区局部已出现90毫米以上的强降水，预计未来3小时内，中原区所辖乡镇及街道大部分地区降水持续，局部可达70毫米。运营公司执行防汛专项应急预案暴雨橙色预警信号应对措施。科室副主任及以上管理人员、线路包保管理岗、工班长收到请回复。",
+          "level": 1
+        }
+      ],
+      "expect": {
+        "no_action_with_text": ["发布暴雨", "预计未来", "毫米降水", "气象台"],
+        "has_action_with_text": ["回复"],
+        "has_constraint_with_text": ["无需赶赴"],
+        "has_fact_with_text": ["暴雨橙色", "7月18日", "执行防汛"]
+      }
+    },
+    {
+      "id": "EX2",
+      "name": "迎检通知-每个section有对应提取",
+      "input_sections": [
+        {
+          "section_id": "S0",
+          "section_title": "header",
+          "content": "迎检通知：7.20（周一）工作提醒\n巡查组 7.22 抵达郑州，距检查只剩 2 天。",
+          "level": 0
+        },
+        {
+          "section_id": "S1",
+          "section_title": "一、迎检点位",
+          "content": "一级：5号线中大道车辆段\n二级：城南、孟庄车辆段\n未列名单的工班也可能被突击抽查",
+          "level": 1
+        },
+        {
+          "section_id": "S2",
+          "section_title": "二、应知应会",
+          "content": "全员必须熟练掌握以下内容：\n双重预防机制（风险分级管控 + 隐患排查治理）\n防汛应急响应等级与处置措施\n消防设施操作（灭火器、室内消火栓）\n工班疏散通道及逃生路线\n特种设备管理要求\n王亮已汇总应知应会文件，请确认已收到并开始记忆，随时可能被抽问。",
+          "level": 1
+        },
+        {
+          "section_id": "S3",
+          "section_title": "三、现场规范（周一完成）",
+          "content": "风险告知栏：过塑彩打，不得破损脱落\n台账记录：严禁涂改，保持工整\n卫生死角：全面清理（总库、办公区、空调库房、杂品库、材料棚）\n库容库貌：物品分类整齐，通道畅通",
+          "level": 1
+        },
+        {
+          "section_id": "S4",
+          "section_title": "四、迎检纪律（红线）",
+          "content": "严禁拒绝、阻挠检查\n严禁涂改、转移、销毁资料\n严禁与检查组争执\n做好来访登记，统一口径，如实提供资料",
+          "level": 1
+        },
+        {
+          "section_id": "S5",
+          "section_title": "五、本周安排",
+          "content": "管理人员分组全覆盖检查 + 模拟抽问，本周启动。收到通知后立即自查，即查即改，不等催。",
+          "level": 1
+        }
+      ],
+      "expect": {
+        "min_actions_total": 3,
+        "min_constraints_total": 3,
+        "has_fact_with_text": ["5号线", "7.22", "王亮"],
+        "has_action_with_text": ["过塑彩打", "清理", "来访登记"],
+        "has_constraint_with_text": ["严禁涂改", "严禁拒绝", "不得破损"],
+        "constraint_types": ["prohibition"],
+        "no_action_with_text": ["发布暴雨", "预计未来", "双重预防"]
+      }
+    },
+    {
+      "id": "EX3",
+      "name": "普通会议-不产生幻觉",
+      "input_sections": [
+        {
+          "section_id": "S0",
+          "section_title": "header",
+          "content": "明天下午召开会议，请相关人员参加。",
+          "level": 0
+        }
+      ],
+      "expect": {
+        "max_actions_total": 2,
+        "max_constraints_total": 2,
+        "has_action_with_text": ["参加"],
+        "no_action_with_text": ["准备材料", "记录纪要", "汇报工作"],
+        "no_fact_with_text": ["参加"]
+      }
+    }
+  ]
+}

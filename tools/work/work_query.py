@@ -6,7 +6,7 @@ work_query.py — 个人工作视图查询
 import re
 import json
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
@@ -81,18 +81,40 @@ def _parse_tasks_for_person(person, date=None):
     return routine
 
 
-def _search_events_for_person(person):
+def _in_date_range(ev_ctx, query_date):
+    deadline = ev_ctx.get("time", {}).get("deadline", "") if isinstance(ev_ctx.get("time"), dict) else ""
+    start = ev_ctx.get("time", {}).get("start", "") if isinstance(ev_ctx.get("time"), dict) else ""
+    try:
+        from datetime import datetime
+        qd = datetime.strptime(query_date, "%Y-%m-%d")
+        if deadline:
+            dl = datetime.strptime(deadline, "%Y-%m-%d")
+            if dl < qd:
+                return False
+        elif start:
+            sd = datetime.strptime(start, "%Y-%m-%d")
+            if sd < qd:
+                return False
+    except ValueError:
+        pass
+    return True
+
+
+def _search_events_for_person(person, query_date=None):
     from memory.event_search import search_events, build_event_context
 
     events = search_events(status=["active", "detected"], limit=10)
     team = _get_team(person)
     matched = []
 
-    generic_executors = {"各工班长", "各工班", "全体人员", "各库区"}
+    generic_executors = {"各工班长", "各工班", "全体人员", "各库区", "全员"}
 
     for ev in events:
         ctx = build_event_context(ev["id"])
         if not ctx:
+            continue
+
+        if query_date and not _in_date_range(ctx, query_date):
             continue
 
         people = ctx.get("people", {})
@@ -100,13 +122,17 @@ def _search_events_for_person(person):
             executors = people.get("executors", [])
         else:
             executors = []
-        participants = ctx.get("participants", executors)
+        participants = executors
 
         if person in people.get("owner", []):
             matched.append(ctx)
             continue
 
         if person in participants or person in executors:
+            matched.append(ctx)
+            continue
+
+        if person == ctx.get("executor"):
             matched.append(ctx)
             continue
 
@@ -124,16 +150,38 @@ def _search_events_for_person(person):
     return matched
 
 
+WEEKDAY_NAMES = {"周一": 0, "周二": 1, "周三": 2, "周四": 3, "周五": 4, "周六": 5, "周日": 6}
+
+
+def _parse_date_from_query(user_input):
+    today = datetime.now()
+    base = today.date()
+    for name, idx in WEEKDAY_NAMES.items():
+        if name in user_input:
+            days_ahead = idx - base.weekday()
+            if days_ahead <= 0:
+                days_ahead += 7
+            target = base + timedelta(days=days_ahead)
+            return target.strftime("%Y-%m-%d")
+    if "今天" in user_input or "今日" in user_input:
+        return today.strftime("%Y-%m-%d")
+    if "明天" in user_input:
+        return (today + timedelta(days=1)).strftime("%Y-%m-%d")
+    if "后天" in user_input:
+        return (today + timedelta(days=2)).strftime("%Y-%m-%d")
+    return None
+
+
 def get_my_tasks(user_input, date=None):
     if not date:
-        date = datetime.now().strftime("%Y-%m-%d")
+        date = _parse_date_from_query(user_input) or datetime.now().strftime("%Y-%m-%d")
 
     person = _resolve_person(user_input)
     if not person:
         return {"person": None, "error": "无法识别查询对象", "routine": [], "events": [], "responsibility": {}}
 
     routine = _parse_tasks_for_person(person, date)
-    events = _search_events_for_person(person)
+    events = _search_events_for_person(person, query_date=date)
 
     from work.responsibility import resolve as classify
 
@@ -150,4 +198,5 @@ def get_my_tasks(user_input, date=None):
         "date": date,
         "routine": routine,
         "responsibility": responsibility,
+        "events": events,
     }

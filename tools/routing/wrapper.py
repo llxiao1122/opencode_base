@@ -14,7 +14,7 @@ wrapper.py — 硬编码路由分发层
   python3 tools/routing/wrapper.py --interactive
 """
 
-import sys, json, subprocess, os
+import sys, json, subprocess, os, re
 from pathlib import Path
 
 # ── auto-detect venv ──
@@ -39,7 +39,7 @@ conversation_history = []  # [(role, content), ...]
 
 def _llm(prompt, system_prompt=None, max_tokens=1024, temperature=0.3, use_history=False):
     messages = _build_llm_messages(prompt, system_prompt, use_history)
-    merged = "\n".join(f"[{m['role']}] {m['content'][:2000]}" for m in messages)
+    merged = "\n".join(f"[{m['role']}] {m['content'][:8000]}" for m in messages)
     result = _llm_call(merged, system_prompt=system_prompt, max_tokens=max_tokens, temperature=temperature)
     if isinstance(result, dict) and "error" in result:
         return f"[LLM 错误] {result['error']}"
@@ -63,6 +63,15 @@ def _add_history(role, content):
         conversation_history[:] = conversation_history[-40:]
 
 
+def _truncate(text, max_chars):
+    if len(text) <= max_chars:
+        return text
+    # Keep beginning (most important) + ending context (deadlines/actions)
+    head = text[:max_chars * 4 // 5]
+    tail = text[-(max_chars // 5):]
+    return head + "\n...[截断]...\n" + tail
+
+
 # ══════════════════════════════════════════════════════════════
 # lazy imports (avoid model loading on lightweight routes)
 # ══════════════════════════════════════════════════════════════
@@ -83,6 +92,70 @@ def _subprocess_script(rel_path, *args, timeout=30):
         return "命令执行超时"
     except Exception as e:
         return f"执行失败: {e}"
+
+
+def _detect_and_enrich(tracer, user_input):
+    """Phase 1.7.7-C: detect events in user message, run section_parser +
+    ai_content_extractor, persist ai_content to event detail file.
+    Called from handle() before lifecycle update."""
+    if len(user_input) < 15:
+        return
+    trigger_words = ["通知", "安排", "发布", "执行", "检查", "清理",
+                     "严禁", "必须", "请各", "回复", "巡检", "演练",
+                     "值班", "请假", "处置", "确认"]
+    if not any(w in user_input for w in trigger_words):
+        return
+
+    try:
+        import sys as _sys
+        _sys.path.insert(0, str(TOOLS_DIR))
+        from memory.event_detector import detect as _detect_events
+        events = _detect_events(user_input)
+        if not events:
+            return
+
+        from parse.section_parser import parse_sections
+        from extract.ai_content_extractor import extract_content
+        import json, time
+        _EVENTS_DIR = TOOLS_DIR.parent / "memory" / "events"
+
+        for evt in events:
+            if evt.get("confidence", 0) < 0.70:
+                continue
+            target_status = evt.get("status", "detected")
+            target = _EVENTS_DIR / target_status / f'{evt["id"]}.json'
+            if not target.exists():
+                continue
+            detail = json.loads(target.read_text(encoding="utf-8"))
+            if detail.get("ai_content"):
+                continue
+
+            sections = parse_sections(
+                user_input,
+                parent_event=evt.get("title", ""),
+                target_role=evt.get("executor", ""),
+            )
+            sections = (sections.get("sections", [])
+                        if isinstance(sections, dict) else list(sections))
+            if not sections:
+                continue
+
+            t0 = time.time()
+            ai_content = extract_content(sections, event_meta={
+                "title": evt.get("title", ""),
+                "target_role": evt.get("executor", ""),
+            })
+            elapsed = int((time.time() - t0) * 1000)
+
+            if ai_content:
+                detail["ai_content"] = ai_content
+                target.write_text(json.dumps(detail, ensure_ascii=False, indent=2),
+                                  encoding="utf-8")
+                if tracer:
+                    tracer.set_ai_extraction(elapsed, len(sections),
+                                             sum(len(s.get("actions",[])) for s in ai_content))
+    except Exception:
+        pass
 
 
 # ══════════════════════════════════════════════════════════════
@@ -167,12 +240,29 @@ def handle_D(user_input, context=None):
     result = core.search(user_input, types=["semantic"], top_k=5)
     hits = result.get("hits", [])
 
-    if not hits:
+    # 相似度阈值：all-MiniLM-L6-v2 对中文领域术语匹配度差，
+    # 低于 0.55 视为误中，走关键词回退
+    RELEVANCE_THRESHOLD = 0.60
+    _vec_ok = bool(hits) and hits[0]["r"] >= 0.55
+    if _vec_ok:
+        _top = hits[0]
+        _top_text = f'{_top.get("s","")} {_top.get("c","")}'
+        _vec_ok = any(c in _top_text for c in user_input if len(c) > 1)
+
+    if not _vec_ok:
         raw = _subprocess_script("plugins/knowledge_router/query_knowledge.py", user_input, timeout=15)
-        base = f"关键词回退结果:\n{raw[:1500]}"
+        try:
+            kw_data = json.loads(raw)
+            lines = []
+            for fname, ctx_list in kw_data.get("content", {}).items():
+                for ctx in ctx_list[:2]:
+                    lines.append(f"【{fname}】\n{ctx[:600]}")
+            base = "\n\n".join(lines[:4]) if lines else raw[:2000]
+        except (json.JSONDecodeError, Exception):
+            base = raw[:2000]
     else:
-        base = json.dumps([{"c": h["c"][:500], "s": h.get("s", "")} for h in hits],
-                          ensure_ascii=False)
+        from guard.sanitizer import sanitize_hits_as_text
+        base = sanitize_hits_as_text(hits)
 
     event_context = ""
     try:
@@ -182,7 +272,21 @@ def handle_D(user_input, context=None):
     except Exception:
         pass
 
-    return _llm(f"用户问: {user_input}\n\n检索结果:\n{base}{event_context}",
+    entity_ctx = ""
+    try:
+        from routing.entity_resolver import resolve_entities
+        resolved = resolve_entities(user_input)
+        entities = resolved.get("entities", [])
+        if entities:
+            parts = []
+            for e in entities[:3]:
+                role = e.get("role", "")
+                parts.append(f"{e['name']}" + (f"（{role}）" if role else ""))
+            entity_ctx = f"\n已知实体: {'、'.join(parts)}\n"
+    except Exception:
+        pass
+
+    return _llm(_truncate(f"用户问: {user_input}\n\n检索结果:\n{base}{entity_ctx}{event_context}", 12000),
                 system_prompt="你是工班制度助手。基于检索到的条款和事件状态用口语化中文回答。引用来源。",
                 use_history=True)
 
@@ -202,13 +306,20 @@ def handle_E(user_input, context=None):
         try:
             sys.path.insert(0, str(TOOLS_DIR))
             from work.work_query import get_my_tasks
-            from routing.context_builder import build_work_context
+            from work.work_view import build_work_view, render_work_view
             work_result = get_my_tasks(user_input)
             if work_result.get("person"):
-                work_ctx = build_work_context(work_result)
+                from guard.tracer import get_tracer
+                t = get_tracer()
+                if t:
+                    t.set_pipeline(work_result)
+                from guard.sanitizer import sanitize_context
+                view_json = build_work_view(work_result)
+                work_ctx = render_work_view(view_json)
+                work_ctx = sanitize_context(work_ctx)
                 answer = _llm(
-                    f"用户问: {user_input}\n\n{work_ctx}",
-                    system_prompt="你是工班管理助手。基于工作视图生成工作汇报。口语化中文。",
+                    _truncate(f"用户问: {user_input}\n\n请将以下工作报告转换为自然语言，不要修改事实、不要删除截止时间、不要改变责任表述：\n\n{work_ctx}", 10000),
+                    system_prompt="你是工班管理助手。将报告转口语化中文。规则：①开头说'[名字]，[日期]（周一）工作安排' ②保持四栏结构，每栏换行 ③不改日期、人名、截止时间 ④绝不说'今天/明天/昨天'等相对词，只用绝对日期 ⑤不加原文没有的内容。",
                     use_history=True)
                 return answer
         except Exception:
@@ -230,10 +341,12 @@ def handle_E(user_input, context=None):
         pass
 
     # 4. LLM synthesis
+    from guard.sanitizer import sanitize_context
+    prompt_state = f"用户问: {user_input}\n\n历史经验:\n"
+    prompt_state += json.dumps([h['c'][:300] for h in hist.get('hits', [])], ensure_ascii=False)
+    prompt_state += f"\n\n当前状态:\n{sanitize_context(state_data[:2000])}{sanitize_context(event_context)}"
     answer = _llm(
-        f"用户问: {user_input}\n\n历史经验:\n"
-        f"{json.dumps([h['c'][:300] for h in hist.get('hits', [])], ensure_ascii=False)}\n\n"
-        f"当前状态:\n{state_data[:2000]}{event_context}",
+        _truncate(prompt_state, 10000),
         system_prompt="你是工班管理助手。分析团队状态，给出建议。口语化中文。",
         use_history=True)
 
@@ -368,22 +481,63 @@ def handle(user_input, mode=None):
     import os
     if mode is None:
         mode = os.environ.get("COMPOSER_MODE", "composite")
+
+    from guard.tracer import RequestTracer, log_error
+    tracer = RequestTracer(user_input)
+
+    # ── lifecycle: update event states from message ──
+    try:
+        sys.path.insert(0, str(TOOLS_DIR))
+        from memory.event_lifecycle import update_from_message
+        from memory.event_detector import load_index
+        from guard.tracer import log_event_change
+        affected = update_from_message(user_input)
+        tracer.set_lifecycle(affected)
+        if affected:
+            idx = load_index()
+            for action, eid in affected:
+                if action in ("completed", "cancelled"):
+                    meta = next((e for e in idx.get("events", []) if e["id"] == eid), None)
+                    log_event_change(action, eid, meta.get("title", "") if meta else "")
+                    if meta and meta.get("title"):
+                        _subprocess_script(
+                            "plugins/task_manager/manage_tasks.py",
+                            f"完成了 {meta['title']}",
+                            timeout=10)
+    except Exception:
+        pass
+
+    # ── Phase 1.7.7: detect events and enrich with AI content extraction ──
+    # Must run AFTER lifecycle to avoid new events being processed by
+    # update_from_message (e.g. "周一完成" would complete the just-created event)
+    _detect_and_enrich(tracer, user_input)
+
     routes = route_request(user_input)
     primary = routes[0]
 
-    if mode == "single" or len(routes) == 1:
-        handler = HANDLERS.get(primary)
-        try:
+    try:
+        from routing.entity_resolver import resolve_entities
+        entities = resolve_entities(user_input)
+        tracer.set_route(routes, entities)
+    except Exception:
+        tracer.set_route(routes)
+
+    try:
+        if mode == "single" or len(routes) == 1:
+            handler = HANDLERS.get(primary)
             answer = handler(user_input, context=routes)
-        except Exception as e:
-            answer = f"[Route {primary} 异常] {type(e).__name__}: {e}"
-    else:
-        answer = execute_plan(routes, user_input, CAPABILITY_HANDLERS)
+        else:
+            answer = execute_plan(routes, user_input, CAPABILITY_HANDLERS)
+    except Exception as e:
+        answer = f"[Route {primary} 异常] {type(e).__name__}: {e}"
+        log_error(user_input, e)
 
     _add_history("user", user_input)
     _add_history("assistant", answer[:500])
     label = "/".join(routes)
-    return f"[Route {label}]\n{answer}"
+    final = f"[Route {label}]\n{answer}"
+    tracer.finish(final)
+    return final
 
 
 # ══════════════════════════════════════════════════════════════

@@ -1,1 +1,68 @@
-{"events":[]}
+{
+  "events": [
+    {
+      "id": "evt_20260719_001",
+      "title": "7.20（周一）工作提醒",
+      "status": "detected",
+      "owners": [],
+      "deadline": "2026-07-20",
+      "updated": "2026-07-19"
+    },
+    {
+      "id": "evt_20260719_002",
+      "title": "王超通知铁炉西工班做好危废处置",
+      "status": "active",
+      "owners": [
+        "王超"
+      ],
+      "deadline": "",
+      "updated": "2026-07-19"
+    },
+    {
+      "id": "evt_20260719_003",
+      "title": "各工班长安排人员完成危废回收",
+      "status": "detected",
+      "owners": [],
+      "deadline": "",
+      "updated": "2026-07-19"
+    },
+    {
+      "id": "evt_20260719_004",
+      "title": "李林骁请假",
+      "status": "detected",
+      "owners": [
+        "李林骁"
+      ],
+      "deadline": "",
+      "updated": "2026-07-19"
+    },
+    {
+      "id": "evt_20260719_005",
+      "title": "各工班长安排人员完成危废回收",
+      "status": "detected",
+      "owners": [],
+      "deadline": "",
+      "updated": "2026-07-19"
+    },
+    {
+      "id": "evt_20260719_006",
+      "title": "王超通知铁炉西工班做好危废处置",
+      "status": "active",
+      "owners": [
+        "王超"
+      ],
+      "deadline": "",
+      "updated": "2026-07-19"
+    },
+    {
+      "id": "evt_20260719_007",
+      "title": "王超通知铁炉西工班做好危废处置",
+      "status": "active",
+      "owners": [
+        "王超"
+      ],
+      "deadline": "",
+      "updated": "2026-07-19"
+    }
+  ]
+}

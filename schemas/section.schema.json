@@ -1,0 +1,53 @@
+{
+  "_description": "Section Parser output — produced by tools/parse/section_parser.py, input to ai_content_extractor",
+  "_source": "tools/parse/section_parser.py",
+  "_phase": "1.7.7-A",
+  "required": ["sections"],
+  "properties": {
+    "sections": {
+      "type": "array",
+      "items": {
+        "required": ["section_id", "section_title", "content", "level"],
+        "properties": {
+          "section_id": {
+            "type": "string",
+            "pattern": "^S[0-9]+$",
+            "_example": "S0"
+          },
+          "section_title": {
+            "type": "string",
+            "_note": "原标题如 '现场规范'，无标题时值为 'header'"
+          },
+          "content": {
+            "type": "string",
+            "_note": "该节原文，保留原始换行和缩进"
+          },
+          "level": {
+            "type": "integer",
+            "minimum": 0,
+            "_note": "0=header(引言), 1=一级标题(一/二/三), 2=二级标题(1.2.3.)"
+          },
+          "parent_event": {
+            "type": "string",
+            "_note": "所属事件标题"
+          },
+          "target_role": {
+            "type": "string",
+            "_note": "该 section 面向的角色（来自 event_detector 的 executor/affected）"
+          }
+        }
+      }
+    }
+  },
+  "split_rules": [
+    "【】标记 → 独立 section",
+    "空行 → section 边界",
+    "一/二/三/四/五/六/七/八/九/十、.)） → level 1 section title",
+    "1. 2. 3. 编号 → level 2 子项，不拆成独立 section",
+    "首先/其次/此外/另外/同时 → 不拆，归入同一 section",
+    "无标题段落 → 归入 header section (S0)"
+  ],
+  "consumers": [
+    "tools/extract/ai_content_extractor.py:extract_content()"
+  ]
+}

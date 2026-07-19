@@ -1,0 +1,20 @@
+{
+  "_description": "Index entry schema — stored in memory/events/index.json, produced by event_detector._persist()",
+  "_source": "tools/memory/event_detector.py:_persist() lines 106-113",
+  "required": ["id", "title", "status"],
+  "properties": {
+    "id":       {"type": "string"},
+    "title":    {"type": "string"},
+    "status":   {"type": "string", "enum": ["detected","active","completed","cancelled","expired","archived","ignored"]},
+    "owners":   {"type": "array", "items": "string", "_note": "derived from event.entities[].name"},
+    "deadline": {"type": "string", "_note": "flat string from event.time.deadline"},
+    "updated":  {"type": "string", "format": "date"}
+  },
+  "consumers": [
+    "tools/memory/event_search.py:search_events()",
+    "tools/memory/event_detector.py:load_index()",
+    "tools/memory/event_lifecycle.py:update_from_message()",
+    "tools/memory/event_lifecycle.py:load_index()"
+  ],
+  "known_drift": []
+}
