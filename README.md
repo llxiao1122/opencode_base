@@ -1,281 +1,172 @@
 # 工班 AI 助手
 
-企业工班管理智能助手 — 从钉钉消息感知到个人工作视图的完整闭环。
+企业工班管理智能助手 — 从钉钉群消息到任务执行、组织认知、知识检索的完整闭环。
 
 ---
 
-## 架构总览
+## 架构（v2.0）
 
 ```
-钉钉消息 / 用户输入
-       │
-       ▼
-  实体解析        ── entity_resolver     · 从 20 个已知实体中识别人员/角色
-       │
-       ▼
-  路由分发        ── route_request        · 9 条路由(A→I)三层防御
-       │
-       ▼
-  能力编排        ── composer + wrapper   · 单/多能力组合执行
-       │
-       ▼
-  事件检测        ── event_detector       · 4-信号触发, 置信度判定
-       │
-       ▼
-  事件存储        ── memory/events/       · index.json + status 分层目录
-       │                                    active/detected/completed/cancelled/expired/archived
-       ▼
-  事件搜索        ── event_search         · index-first, details-lazy
-       │
-       ▼
-  事件上下文      ── event_context        · search → build_event_context()
-       │                                    {title, people, time, tasks, constraints, evidence, report_to}
-       ▼
-  个人查询层      ── work_query           · tasks.md(固定) + events(动态) 合并
-       │
-       ▼
-  责任解析        ── responsibility       · 三级评定: direct_task / role_task / team_attention
-       │
-       ▼
-  上下文组装      ── context_builder      · 分层 LLM 提示
-       │
-       ▼
-  知识记忆        ── memory_core          · 语义搜索 + 情景记忆 + 反思回路
-       │
-       ▼
-  用户回复
+                          消息输入
+                             │
+          ┌──────────────────┼──────────────────┐
+          ▼                  ▼                  ▼
+      实时消息            历史导入           知识文档
+    wrapper.py          import_history()    import_knowledge()
+          │                  │                  │
+          └──────────────────┼──────────────────┘
+                             ▼
+                    batch_importer (统一管线)
+                             │
+              parse → classify → event → context → task
+                             │
+          ┌──────────────────┼──────────────────┐
+          ▼                  ▼                  ▼
+     event_recorder      task/manager       knowledge/indexer
+     → log.jsonl         → tasks.json       → FAISS semantic index
+          │                  │                  │
+          └──────────────────┼──────────────────┘
+                             ▼
+                    memory_bridge.accumulate()
+                       → org_memory.json
+                             │
+                             ▼
+                    profile/retriever (实时计算)
+                       → 人物画像 + 趋势
 ```
 
 ---
 
-## 路由定义
+## 系统能力
 
-| 标签 | 类型 | 处理函数 |
-|------|------|----------|
-| A | 闲聊/兜底 | LLM 自由回答 |
-| B | 总结汇报 | memory_save + reflect |
-| C | 分析排查 | slow_think 思维树 |
-| D | 制度规范 | 知识库检索 + event_context |
-| E | 台账报表 | state_analyzer + work_query + event_context |
-| F | 防汛安全 | 同 D |
-| G | 排班考勤 | task_manager |
-| H | 任务分配 | 同 E |
-| I | 知识学习 | 同 D |
-
-路由判定：初始关键词 → LLM 语义标签 → 兜底，22 条测试全部通过。
+| 层 | 模块 | 功能 |
+|----|------|------|
+| **Ingestion** | `ingestion/` | 消息解析、分类、批量导入、RTF支持、剪贴板模式 |
+| **Event** | `core/event.py` | 纯事实提取，不判断责任 |
+| **Context** | `core/context.py` | 5种责任类型：executor/coordinator/supervisor/audience/observer |
+| **Task** | `task/manager.py` | 任务创建、拆子任务、feedback匹配、状态跟踪 |
+| **Memory** | `memory/retriever.py` | 统一搜索：Event+Task+Observation+Candidate |
+| **Knowledge** | `knowledge/` | FAISS索引、结构保留解析、版本管理、增量更新 |
+| **Profile** | `profile/retriever.py` | 实时画像：执行率、任务类型、月度趋势、完成周期 |
+| **Organization** | `organization/` | 人物统计、关系图、组织记忆 |
 
 ---
 
-## 事件系统
-
-### 检测触发
-
-6 个信号，任意 ≥2 即触发：
-
-| 序号 | 信号 |
-|------|------|
-| 1 | 动作词 + 时间词 |
-| 2 | 动作词 + 实体 |
-| 3 | 编号结构 + 动作词 |
-| 4 | 通知类标题 + 时间词 |
-| 5 | 显式要求(需/须/应/应) |
-| 6 | 权重结构 + 动作词 |
-
-### 置信度与状态
-
-| 置信度 | 状态 | 含义 |
-|--------|------|------|
-| ≥ 0.85 | active | 高置信度，直接生效 |
-| 0.60 - 0.84 | detected | 候选，待确认 |
-| < 0.60 | 丢弃 | 不保存 |
-
-置信度上限 0.95。
-
-### 事件结构
-
-```json
-{
-  "title": "危废处置计划",
-  "entities": [{"name": "王超", "role": "危废联络"}],
-  "actions": ["通知", "回收", "处置"],
-  "required_actions": ["处置要求各库区全部清空", "安排人员进行交接"],
-  "time": {"start": "2026-07-18", "deadline": "2026-07-29"},
-  "constraints": ["需单独与我联系报备", "须尽快完成回收工作"],
-  "evidence": [],
-  "report_to": ["王超"],
-  "participants": ["各工班", "产废中心"],
-  "related_teams": [],
-  "executor_analysis": {
-    "source": "participants",
-    "scope": "team",
-    "type": "role",
-    "confidence": 0.82,
-    "evidence": ["各工班"]
-  },
-  "items": [{
-    "seq": 1,
-    "text": "...",
-    "actions": ["回收", "处置"],
-    "required_actions": ["处置要求各库区全部清空", "安排人员进行交接"]
-  }],
-  "status": "active",
-  "priority": "high",
-  "confidence": 0.95
-}
-```
-
-### 生命周期
+## 数据流
 
 ```
-detected → active → completed/cancelled/expired → archived
-              ↑
-           (confirm)
-```
-
-消息驱动更新 (`event_lifecycle.update_from_message()`):
-- 完成词(完成/已处理/搞定了) → completed
-- 取消词(取消/暂停/不做了) → cancelled
-- 确认词(确认/开始/执行) → detected→active
-
-定期维护 (`event_maintenance.run_maintenance()`):
-- deadline < today → expired
-
----
-
-## 事件上下文
-
-`build_event_context()` 将磁盘上的 event_detail.json 重组为 LLM 可消费的结构：
-
-```json
-{
-  "title": "根据领导紧急通知",
-  "people": {
-    "owner": ["王超"],
-    "executors": ["各工班", "产废中心"],
-    "report_to": ["王超"]
-  },
-  "time": {"start": "2026-07-18", "deadline": "2026-07-29"},
-  "tasks": [
-    {
-      "content": "危废计划明日开始开展处置工作...",
-      "actions": ["处置要求各库区全部清空", "安排人员进行交接"]
-    }
-  ],
-  "constraints": ["需单独与我联系报备", "须尽快完成回收工作"],
-  "evidence": [],
-  "report_to": ["王超"],
-  "source": "text"
-}
+消息 → Event（发生了什么）
+       Context（对我意味着什么）
+       Task（我要做什么）
+       Feedback（结果如何）
+       Memory（学到了什么）
 ```
 
 ---
 
-## 个人工作视图
+## 导入历史
 
-`get_my_tasks(user_input)` 合并两个数据源：
+```bash
+# 放入群聊导出文件
+cp *.txt *.rtf files/
 
-| 来源 | 类型 | 文件 |
-|------|------|------|
-| 固定台账 | 周期性工作 | `memory/tasks.md` |
-| 动态事件 | 钉钉通知提取 | `memory/events/` |
+# 一键导入
+python3 -c "import sys; sys.path.insert(0,'tools'); from commands.import_history import import_history; import_history()"
 
-用户身份解析优先级：
-1. entity_resolver 提取显式人名
-2. `state/user_profile.md` 会话绑定
-
----
-
-## 责任解析
-
-`responsibility.resolve()` 三级评定：
-
-| 等级 | 触发条件 | 示例输出 |
-|------|---------|---------|
-| `direct_task` | 事件明确点名用户 | 【直接任务】安排人员准备处置材料 |
-| `role_task` | "各工班长" 匹配 user.role="工班长" | 【岗位关注】作为工班长协调本工班 |
-| `team_attention` | "各库区"/"各工班" 影响 user.team | 【涉及事项】危废处置影响铁炉西工班 |
-
-去混淆规则：
-- "各工班长**安排**人员" → role_task（协调层，非执行层）
-- "各工班**完成**清空" → team_attention（集体执行层）
+# 手工粘贴（无时间戳）
+python3 -c "
+from commands.import_history import clipboard_import
+clipboard_import('王亮：请各班组完成消防检查\n苗笑天：已完成')
+"
+```
 
 ---
 
-## 关键文件
+## 查询
+
+```python
+# 统一记忆检索
+from memory.retriever import search_memory, search_period
+search_memory("杨梦卓")                          # 全部历史
+search_period("杨梦卓", "2026-07-18")            # 限定日期
+
+# 人物画像
+from profile.retriever import format_context
+print(format_context("苗笑天"))                  # LLM 可直接注入
+
+# 知识检索
+from knowledge.retriever import retrieve
+print(retrieve("灭火器检查周期"))                 # 制度查询
+```
+
+---
+
+## 知识索引
+
+```bash
+# 初次导入 / 增量更新
+python3 -c "import sys; sys.path.insert(0,'tools'); from commands.import_knowledge import import_knowledge; import_knowledge()"
+```
+
+---
+
+## 项目结构
 
 ```
 tools/
-├── routing/                  · 路由系统
-│   ├── route_request.py      ·   路由判定（三层防御）
-│   ├── composer.py           ·   多能力编排
-│   ├── wrapper.py            ·   硬编码分发层
-│   ├── entity_resolver.py    ·   实体识别
-│   ├── context_builder.py    ·   LLM 上下文组装
-│   └── test_route.py         ·   路由测试（22 条）
-├── memory/                   · 记忆与事件系统
-│   ├── memory_core.py        ·   知识语义搜索
-│   ├── event_detector.py     ·   事件检测提取
-│   ├── event_search.py       ·   事件查询
-│   ├── event_context.py      ·   事件上下文构建
-│   ├── event_lifecycle.py    ·   生命周期管理
-│   ├── event_maintenance.py  ·   定期维护
-│   ├── curiosity_engine.py   ·   好奇心引擎
-│   └── change_detector.py    ·   变更检测
-├── work/                     · 工作查询
-│   ├── work_query.py         ·   个人工作查询
-│   └── responsibility.py     ·   责任解析器
-└── reasoning/                · 推理引擎
-    ├── llm_client.py         ·   LLM 调用
-    └── slow_think.py         ·   慢思考
-state/
-├── entity_index.json         ·   20 个确认实体
-├── user_profile.md           ·   会话用户 + 权限边界
-├── org.md                    ·   组织架构
-├── leaders.md                ·   领导层
-├── members/                  ·   成员档案
-└── _changes/                 ·   变更记录
-memory/
-├── events/                   ·   事件存储（按状态分层）
-│   ├── index.json
-│   ├── active/
-│   ├── detected/
-│   ├── completed/
-│   ├── cancelled/
-│   ├── expired/
-│   ├── archived/
-│   └── ignored/
-├── tasks.md                  ·   固定周期台账
-└── observations/             ·   观察记录
+├── ingestion/           · 消息导入管线
+│   ├── batch_importer.py    · 统一导入入口
+│   ├── message_parser.py    · 消息解析
+│   ├── message_classifier.py· 消息分类（反馈优先）
+│   ├── rtf_parser.py        · RTF 格式支持
+│   └── validator.py         · 质量检查
+├── core/                · 认知核心
+│   ├── event.py             · 事件提取
+│   └── context.py           · 责任判断
+├── task/                · 任务管理
+│   ├── manager.py           · 创建/匹配/闭环
+│   ├── store.py             · JSON 持久化
+│   ├── priority.py          · 优先级推断
+│   └── analyzer.py          · 统计分析
+├── memory/              · 记忆系统
+│   ├── event_recorder.py    · event → log.jsonl
+│   └── retriever.py         · 统一记忆检索
+├── knowledge/           · 知识索引
+│   ├── scanner.py           · 增量扫描
+│   ├── processor.py         · 结构解析+切块
+│   ├── indexer.py           · FAISS 索引
+│   ├── store.py             · 元数据+版本
+│   └── retriever.py         · 知识检索
+├── profile/             · 人物画像
+│   └── retriever.py         · 实时计算画像+趋势
+├── organization/        · 组织认知
+│   ├── model.py             · 团队模型
+│   └── memory_bridge.py     · 事件→统计
+├── commands/            · 用户入口
+│   ├── import_history.py
+│   └── import_knowledge.py
+└── routing/             · 实时消息路由
+    └── wrapper.py
 ```
 
 ---
 
-## 版本历史
+## 测试
+
+```bash
+python3 tests/test_role_resolution.py   # 6 cases
+python3 tests/test_event_flow.py        # 5 cases
+python3 tests/test_context_pipeline.py  # 4 cases
+python3 tests/test_llm_fallback.py      # 4 cases
+# 全部 19/19 通过
+```
+
+---
+
+## 版本
 
 | 版本 | 内容 |
 |------|------|
-| Phase 1.1 | entity_resolver — 实体识别 |
-| Phase 1.2 | change_detector — 变更检测 |
-| Phase 1.3 | event_detector — 事件检测 |
-| Phase 1.4 | event_search + lifecycle + maintenance |
-| Phase 1.4.1 | 事件 schema 升级 (constraints/evidence/report_to/required_actions) |
-| Phase 1.5 | work_query — 个人工作视图 |
-| Phase 1.6 | responsibility — 三级责任解析 |
-
----
-
-## 使用
-
-```bash
-# 单次查询
-python3 tools/routing/wrapper.py "周一我有什么工作要做"
-
-# 交互模式
-python3 tools/routing/wrapper.py --interactive
-
-# 事件检测
-python3 tools/memory/event_detector.py detect "通知原文..."
-
-# 路由测试
-python3 tools/routing/test_route.py
-```
+| v2.0 | 完整企业认知系统：ingestion管线、knowledge索引、profile层、feedback闭环 |
+| v1.8 | 核心管线：Event→Context→Task + 任务管理 + 记忆层 |
+| v1.5-1.7 | 事件检测、责任解析、工作查询 |
