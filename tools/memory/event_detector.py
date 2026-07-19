@@ -30,12 +30,22 @@ INDEX_FILE = ROOT / "memory" / "events" / "index.json"
 EVENTS_DIR = ROOT / "memory" / "events"
 
 ACTION_VERBS = [
-    "安排", "通知", "协调", "交接", "报备", "确认", "回收", "处置",
-    "开展", "催促", "对接", "检查", "整改", "办理", "上报", "审批",
-    "验收", "移交", "排查", "登记", "发放", "领取", "关闭", "启动",
-    "暂停", "恢复", "调整", "分配", "部署", "汇总", "跟踪",
-    "组织", "拍摄", "建立", "发送", "参加", "请假", "值班", "巡检",
-    "发布", "执行", "回复",
+    # 指令/安排类
+    "安排", "通知", "协调", "督促", "要求",
+    # 检查/整改类
+    "检查", "整改", "排查", "巡检",
+    # 流程类
+    "办理", "上报", "审批", "验收", "移交", "登记",
+    # 物资/发放类
+    "发放", "领取",
+    # 状态控制类
+    "启动", "暂停", "恢复", "调整",
+    # 组织/分配类
+    "分配", "部署", "汇总", "跟踪", "组织",
+    # 回复/确认类
+    "回复", "提交", "报备", "确认",
+    # 任务启动信号
+    "执行",
 ]
 
 TIME_PATTERNS = [
@@ -45,10 +55,14 @@ TIME_PATTERNS = [
     (r"明[日天]起?(至|到)?(下?\w{1,3})?", "relative"),
     (r"(今日|今天)(起|开始)?", "today"),
     (r"(下?周[一二三四五六日])", "weekday"),
-    (r"(\d+)日内", "within_days"),
+    (r"(\d+)分钟前", "minutes_ago"),
     (r"即日起", "effective"),
     (r"截止日?期?", "deadline_marker"),
     (r"(\d+)月前", "before_month"),
+    (r"(\d{1,2}日)(下班前|之前|前)?", "day_only"),
+    (r"下?班前", "end_of_work"),
+    (r"立即|马上|尽快|抓紧", "immediate"),
+    (r"至\s*(\d{1,2}月\d{1,2}日)", "date_range_end"),
 ]
 
 ANNOUNCE_PATTERNS = [
@@ -57,6 +71,12 @@ ANNOUNCE_PATTERNS = [
     r"经.*研究", r"经.*决定",
     r"预警(信号)?", r"应急(预案|响应)?", r"演练",
 ]
+
+EVENT_KEYWORDS = ["预警", "迎检", "演练", "会议", "通报", "提醒", "专项", "漏水"]
+EMERGENCY_KEYWORDS = ["漏水", "火灾", "停电", "塌陷", "积水"]
+
+ROLE_WORDS = ["各工班长", "各工班", "各库区", "各班组", "全体人员", "所有工班",
+              "各部门", "相关人员", "责任人", "负责人", "值班人员", "管理人员"]
 
 NUMBERED_PATTERN = re.compile(r"(?:^|\n)\s*\d+[.、)]\s*", re.MULTILINE)
 
@@ -119,7 +139,7 @@ def _persist(event):
     _save_index(index)
 
 
-def _signal_count(text, entities_found):
+def _signal_count(text, entities_found, participants):
     signals = 0
 
     # ① 动作词 + 时间词
@@ -146,8 +166,13 @@ def _signal_count(text, entities_found):
         signals += 1
 
     # ⑤ 角色/团队词 + 动作词（覆盖无时间无实体的任务分配）
-    ROLE_WORDS = ["各工班长", "各工班", "各库区", "全体人员", "所有工班"]
-    if has_action and any(r in text for r in ROLE_WORDS):
+    has_role = any(r in text for r in ROLE_WORDS)
+    if has_action and has_role:
+        signals += 1
+
+    # ⑥ 事件关键词 + 时间/角色（覆盖无强动作词的预警/迎检/会议等）
+    has_keyword = any(kw in text for kw in EVENT_KEYWORDS)
+    if has_keyword and (has_time or has_role or participants):
         signals += 1
 
     return signals
@@ -212,6 +237,39 @@ def _extract_time(text):
         elif label == "within_days":
             n = int(m.group(1))
             result["deadline"] = (now + timedelta(days=n)).strftime("%Y-%m-%d")
+        elif label == "minutes_ago":
+            pass  # "10分钟前" is publication time, not deadline
+        elif label == "day_only":
+            day_match = re.search(r"(\d{1,2})日", m.group(0))
+            if day_match:
+                day = int(day_match.group(1))
+                y, month = now.year, now.month
+                try:
+                    deadline = datetime(y, month, day)
+                except ValueError:
+                    deadline = now + timedelta(days=1)
+                if deadline < now:
+                    if month == 12:
+                        deadline = datetime(y + 1, 1, day)
+                    else:
+                        try:
+                            deadline = datetime(y, month + 1, day)
+                        except ValueError:
+                            deadline = now + timedelta(days=1)
+                result["deadline"] = deadline.strftime("%Y-%m-%d")
+        elif label == "end_of_work":
+            if not result["deadline"]:
+                result["deadline"] = now.strftime("%Y-%m-%d")
+            result["time_note"] = "下班前"
+        elif label == "immediate":
+            if not result["deadline"]:
+                result["deadline"] = now.strftime("%Y-%m-%d")
+        elif label == "date_range_end":
+            m2 = re.search(r"(\d{1,2})月(\d{1,2})日", m.group(1))
+            if m2:
+                month, day = int(m2.group(1)), int(m2.group(2))
+                y = now.year
+                result["deadline"] = f"{y}-{month:02d}-{day:02d}"
 
     return result
 
@@ -227,10 +285,6 @@ def _extract_entities(text):
         return result
     except Exception:
         return []
-
-
-def _extract_actions(text):
-    return [v for v in ACTION_VERBS if v in text]
 
 
 def _extract_required_actions(text):
@@ -349,6 +403,7 @@ def _extract_participants(text):
     patterns = [
         r"(各工班长)",
         r"(各工班)",
+        r"(各班组)",
         r"(铁炉西工班)",
         r"(产废中心)",
         r"(生产中心)",
@@ -443,7 +498,17 @@ def _extract_sender(text, entities):
         sender_name = m.group(1)
         if sender_name in _NOTICE_WORDS:
             pass
+        # Reject non-person senders (titles, dates, etc.)
+        elif len(sender_name) > 10:
+            pass
+        elif any(kw in sender_name for kw in ["关于", "开展", "专题", "培训", "会议", "工作", "组织"]):
+            pass
         else:
+            # Handle "X要求Y通知" → sender is Y, not X
+            if "要求" in sender_name:
+                parts = sender_name.split("要求")
+                if len(parts) >= 2 and len(parts[-1]) <= 6:
+                    sender_name = parts[-1]
             for e in entities:
                 if e["name"] == sender_name:
                     return e["name"]
@@ -469,7 +534,7 @@ def _extract_sender(text, entities):
             return last_entity
     return None
 
-def _resolve_executor(participants):
+def _resolve_executor(participants, current_user=None):
     for p in participants:
         if p in _TEAM_LEADER_MAP:
             return _TEAM_LEADER_MAP[p]
@@ -491,9 +556,11 @@ def _resolve_executor(participants):
                     return line.split(":", 1)[1].strip()
         except Exception:
             pass
+    if current_user and isinstance(current_user, dict):
+        return current_user.get("name")
     return None
 
-def _resolve_affected(participants):
+def _resolve_target(participants):
     for p in participants:
         if p in _TEAM_LEADER_MAP:
             return p
@@ -575,23 +642,33 @@ def _compute_confidence(signals, entities_found, items_found, time_found):
     return round(min(0.95, conf), 2)
 
 
-def detect(text: str) -> list[dict]:
+def detect(text: str, current_user=None) -> list:
+    """事件候选提取。
+    Args:
+        text: 输入文本
+        current_user: 当前用户 {'name', 'role', 'team'}，用于 executor 解析
+    """
     if not text.strip():
         return []
 
     entities = _extract_entities(text)
     participants = _extract_participants(text)
 
-    signals = _signal_count(text, entities)
+    signals = _signal_count(text, entities, participants)
     # 短消息（≤15字）+ 实体 + 动作词：接受单信号
-    min_signals = 1 if (len(text) <= 15 and entities and any(v in text for v in ACTION_VERBS)) else 2
+    # 紧急关键词（漏水/火灾等）：接受单信号
+    is_emergency = any(kw in text for kw in EMERGENCY_KEYWORDS)
+    min_signals = 1 if (
+        is_emergency or
+        (len(text) <= 15 and entities and any(v in text for v in ACTION_VERBS))
+    ) else 2
     if signals < min_signals:
         return []
 
     time_info = _extract_time(text)
     if not time_info.get("start") and not time_info.get("deadline"):
         time_info["start"] = datetime.now().strftime("%Y-%m-%d")
-    actions = _extract_actions(text)
+    actions = []  # raw actions handled by AI Extractor; signal detection uses ACTION_VERBS directly
     items = _extract_items(text)
     title = _extract_title(text)
 
@@ -602,17 +679,17 @@ def detect(text: str) -> list[dict]:
         time_found=bool(time_info.get("deadline") or time_info.get("start")),
     )
 
-    publisher = _extract_sender(text, entities)
-    executor = _resolve_executor(participants)
-    affected = _resolve_affected(participants)
+    requester = _extract_sender(text, entities)
+    executor = _resolve_executor(participants, current_user=current_user)
+    target = _resolve_target(participants)
 
     event = {
         "id": _next_id(),
         "type": "work_event",
         "title": title,
-        "publisher": publisher,
+        "requester": requester,
         "executor": executor,
-        "affected": affected,
+        "target": target,
         "entities": entities,
         "actions": actions,
         "required_actions": [],

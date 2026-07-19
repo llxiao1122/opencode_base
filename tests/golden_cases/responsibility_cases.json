@@ -1,0 +1,84 @@
+{
+  "_description": "Golden test cases for responsibility chain validation (Phase 1.7.8)",
+  "_version": "1.7.8",
+  "cases": [
+    {
+      "id": "001",
+      "name": "上级转交任务 — 王亮督促各班组",
+      "input": "王亮在钉钉群各班组督促一下郑轨学苑内未完成人员，于14日下班前完成。领导15日要求导出最近的文件学习情况。",
+      "expect": {
+        "requester": "王亮",
+        "executor": "李林骁",
+        "target": "各班组",
+        "deadline_has": "14"
+      },
+      "forbid": {
+        "requester_not_current_user": true,
+        "executor_not_target": true,
+        "reply_not_hello_wang": true
+      }
+    },
+    {
+      "id": "002",
+      "name": "直接任务 — 工班长组织库房整理",
+      "input": "请各工班长组织人员完成库房整理，明天下班前完成。",
+      "expect": {
+        "executor": "李林骁",
+        "target_has": "工班长",
+        "deadline_future": true
+      }
+    },
+    {
+      "id": "003",
+      "name": "禁止事项 — 严禁涂改台账",
+      "input": "迎检期间严禁涂改台账，严禁缺少记录。",
+      "expect": {
+        "actions_excluded": ["严禁涂改", "严禁缺少"],
+        "constraints_min": 2
+      }
+    },
+    {
+      "id": "004",
+      "name": "气象通知 — 暴雨橙色预警",
+      "input": "郑州市气象台发布暴雨橙色预警，运营公司立即执行防汛专项应急预案。",
+      "expect": {
+        "actions_excluded": ["发布暴雨橙色预警"]
+      }
+    },
+    {
+      "id": "005",
+      "name": "多人关系 — 李部长要求王亮通知各工班长",
+      "input": "李部长要求王亮通知各工班长完成安全学习。",
+      "expect": {
+        "requester": "王亮",
+        "executor_not_requester": true,
+        "target_has": "各工班长"
+      }
+    },
+    {
+      "id": "006",
+      "name": "群通知 — 各班组设备巡检",
+      "input": "各班组注意，今天完成设备巡检。",
+      "expect": {
+        "target_not_empty": true,
+        "target_has": "各班组"
+      }
+    },
+    {
+      "id": "008",
+      "name": "身份注入 — 王亮要求完成学习",
+      "input": "王亮要求完成学习任务。",
+      "expect": {
+        "context_user": "李林骁",
+        "context_role": "工班长"
+      },
+      "forbid": {
+        "reply_hello_wang": true
+      }
+    }
+  ],
+  "schema_checks": {
+    "event_required_fields": ["id", "type", "requester", "executor", "target", "time", "ai_content_status"],
+    "forbidden_fields": ["_ai_error", "debug", "trace"]
+  }
+}

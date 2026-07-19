@@ -6,6 +6,8 @@ llm_tags.py — 语义标签提取器
 LLM 不可用时返回空列表，不抛异常。
 """
 
+from __future__ import annotations
+
 import json
 from pathlib import Path
 

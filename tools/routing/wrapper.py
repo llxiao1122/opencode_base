@@ -29,6 +29,7 @@ sys.path.insert(0, str(TOOLS_DIR))
 from reasoning.llm_client import call as _llm_call
 from routing.route_request import route_request
 from routing.composer import execute_plan
+from context.request_context import build_request_context, inject_user_prompt
 
 conversation_history = []  # [(role, content), ...]
 
@@ -94,25 +95,27 @@ def _subprocess_script(rel_path, *args, timeout=30):
         return f"执行失败: {e}"
 
 
-def _detect_and_enrich(tracer, user_input):
+def _detect_and_enrich(tracer, user_input, ctx=None):
     """Phase 1.7.7-C: detect events in user message, delegate AI enrichment
     to pipeline/event_enricher, persist enriched detail to file.
-    Called from handle() after lifecycle update."""
+    Called from handle() after lifecycle update.
+    Returns list of detected events."""
     if len(user_input) < 15:
-        return
+        return []
     trigger_words = ["通知", "安排", "发布", "执行", "检查", "清理",
                      "严禁", "必须", "请各", "回复", "巡检", "演练",
                      "值班", "请假", "处置", "确认"]
     if not any(w in user_input for w in trigger_words):
-        return
+        return []
 
     try:
         import sys as _sys
         _sys.path.insert(0, str(TOOLS_DIR))
         from memory.event_detector import detect as _detect_events
-        events = _detect_events(user_input)
+        current_user = ctx.get("user", {}) if ctx else {}
+        events = _detect_events(user_input, current_user=current_user)
         if not events:
-            return
+            return []
 
         from pipeline.event_enricher import enrich_event
         import json
@@ -133,15 +136,16 @@ def _detect_and_enrich(tracer, user_input):
 
             target.write_text(json.dumps(detail, ensure_ascii=False, indent=2),
                               encoding="utf-8")
+        return events
     except Exception:
-        pass
+        return []
 
 
 # ══════════════════════════════════════════════════════════════
 # A · 闲聊/兜底
 # ══════════════════════════════════════════════════════════════
 
-def handle_A(user_input, context=None):
+def handle_A(user_input, ctx=None):
     """A·闲聊/兜底：日常寒暄、情绪倾诉、无工班实质内容"""
     return _llm(user_input,
                 system_prompt="你是工班AI助手，回答简洁直接，用口语化中文。",
@@ -152,7 +156,7 @@ def handle_A(user_input, context=None):
 # G · 排班考勤：请假、排班、值班、调休
 # ══════════════════════════════════════════════════════════════
 
-def handle_B(user_input, context=None):
+def handle_B(user_input, ctx=None):
     """G·排班考勤：请假、排班、值班、调休"""
     raw = _subprocess_script("plugins/task_manager/manage_tasks.py", user_input)
     if not raw.strip():
@@ -166,7 +170,7 @@ def handle_B(user_input, context=None):
 # （已弃用于新路由，原 改/跑/编辑/部署）
 # ══════════════════════════════════════════════════════════════
 
-def handle_C(user_input, context=None):
+def handle_C(user_input, ctx=None):
     """（已弃用于新路由，原 改/跑/编辑/部署）"""
     import re as _re
 
@@ -213,7 +217,7 @@ def handle_C(user_input, context=None):
 # D·制度规范 / F·防汛安全 / I·知识学习：知识库检索
 # ══════════════════════════════════════════════════════════════
 
-def handle_D(user_input, context=None):
+def handle_D(user_input, ctx=None):
     """D·制度规范 / F·防汛安全 / I·知识学习：知识库检索与规范查询"""
     core = _load_core()
     result = core.search(user_input, types=["semantic"], top_k=5)
@@ -265,8 +269,9 @@ def handle_D(user_input, context=None):
     except Exception:
         pass
 
-    return _llm(_truncate(f"用户问: {user_input}\n\n检索结果:\n{base}{entity_ctx}{event_context}", 12000),
-                system_prompt="你是工班制度助手。基于检索到的条款和事件状态用口语化中文回答。引用来源。",
+    user_prompt = inject_user_prompt(ctx) if ctx else ""
+    return _llm(_truncate(f"{user_prompt}\n用户问: {user_input}\n\n检索结果:\n{base}{entity_ctx}{event_context}", 12000),
+                system_prompt="你是工班AI助手。如果消息来自其他人，你是执行方，不要说'建议X做'或'让X做'，直接回答如何落实。口语化中文。",
                 use_history=True)
 
 
@@ -274,7 +279,7 @@ def handle_D(user_input, context=None):
 # E·台账报表 / H·任务分配：状态分析、团队分配
 # ══════════════════════════════════════════════════════════════
 
-def handle_E(user_input, context=None):
+def handle_E(user_input, ctx=None):
     """E·台账报表 / H·任务分配：状态分析、团队分配"""
     core = _load_core()
 
@@ -346,16 +351,16 @@ def handle_E(user_input, context=None):
 # （已合并到 handle_D）
 # ══════════════════════════════════════════════════════════════
 
-def handle_F(user_input, context=None):
+def handle_F(user_input, ctx=None):
     """（已合并到 handle_D：防汛安全 → 知识库检索）"""
-    return handle_D(user_input, context=context)
+    return handle_D(user_input, ctx=ctx)
 
 
 # ══════════════════════════════════════════════════════════════
 # B · 总结汇报：保存记忆 + 触发反思
 # ══════════════════════════════════════════════════════════════
 
-def handle_G(user_input, context=None):
+def handle_G(user_input, ctx=None):
     """B·总结汇报：保存记忆 + 触发反思"""
     core = _load_core()
     result = core.save(situation=user_input, action="经验总结",
@@ -379,16 +384,16 @@ def handle_G(user_input, context=None):
 # （已合并到 handle_E）
 # ══════════════════════════════════════════════════════════════
 
-def handle_H(user_input, context=None):
+def handle_H(user_input, ctx=None):
     """（已合并到 handle_E：任务分配 → 状态分析、团队分配）"""
-    return handle_E(user_input, context=context)
+    return handle_E(user_input, ctx=ctx)
 
 
 # ══════════════════════════════════════════════════════════════
 # C · 分析排查：慢思考引擎
 # ══════════════════════════════════════════════════════════════
 
-def handle_I(user_input, context=None):
+def handle_I(user_input, ctx=None):
     """C·分析排查：慢思考引擎"""
     from reasoning.slow_think import think
     result = think(user_input)
@@ -458,11 +463,16 @@ CAPABILITY_HANDLERS = {
 
 def handle(user_input, mode=None):
     import os
+    if os.environ.get("CORE_MODE") == "1":
+        return handle_core(user_input)
+
     if mode is None:
         mode = os.environ.get("COMPOSER_MODE", "composite")
 
     from guard.tracer import RequestTracer, log_error
     tracer = RequestTracer(user_input)
+
+    ctx = build_request_context()
 
     # ── lifecycle: update event states from message ──
     try:
@@ -489,7 +499,13 @@ def handle(user_input, mode=None):
     # ── Phase 1.7.7: detect events and enrich with AI content extraction ──
     # Must run AFTER lifecycle to avoid new events being processed by
     # update_from_message (e.g. "周一完成" would complete the just-created event)
-    _detect_and_enrich(tracer, user_input)
+    detected = _detect_and_enrich(tracer, user_input, ctx=ctx)
+    if detected:
+        ctx["event"] = detected[0]
+        from pipeline.instruction_resolver import resolve_instruction
+        instruction = resolve_instruction(ctx["event"], ctx["user"])
+        ctx["instruction"] = instruction
+        ctx["event"]["instruction"] = instruction
 
     routes = route_request(user_input)
     primary = routes[0]
@@ -507,9 +523,9 @@ def handle(user_input, mode=None):
             if not handler:
                 answer = f"[Route {primary}] 未注册 handler"
             else:
-                answer = handler(user_input, context=routes)
+                answer = handler(user_input, ctx=ctx)
         else:
-            answer = execute_plan(routes, user_input, CAPABILITY_HANDLERS)
+            answer = execute_plan(routes, user_input, CAPABILITY_HANDLERS, ctx=ctx)
     except Exception as e:
         answer = f"[Route {primary} 异常] {type(e).__name__}: {e}"
         log_error(user_input, e)
@@ -523,10 +539,126 @@ def handle(user_input, mode=None):
 
 
 # ══════════════════════════════════════════════════════════════
+# Core pipeline (Phase 1.8): Event → Context → Task → Reply
+# ══════════════════════════════════════════════════════════════
+
+def handle_core(user_input):
+    """New pipeline: Event → Context → Task → Reply.
+    Enabled via CORE_MODE=1 env var."""
+    from core.event import extract
+    from core.context import resolve as ctx_resolve
+    from reasoning.llm_client import call as _llm
+
+    from context.request_context import build_request_context
+    ctx = build_request_context()
+    user = ctx["user"]
+
+    event = extract(user_input, current_user=user)
+
+    # ── Event Recorder: persist every confirmed Event to memory/events/log.jsonl ──
+    try:
+        from memory.event_recorder import record
+        record(event)
+    except Exception:
+        pass
+
+    # ── Feedback branch: executor reports completion → update task status ──
+    if event.get("event_type") == "feedback":
+        from organization.model import OrganizationModel
+        from task.manager import TaskManager
+        fb_tm = TaskManager(OrganizationModel())
+        result = fb_tm.update_from_event(event)
+        if result.get("matched"):
+            if result.get("all_done"):
+                msg = f"✅ {result['executor']} 已完成。全员完成，任务 {result['task_id']} 已关闭。"
+            else:
+                msg = f"✅ 已记录：{result['executor']} 完成。"
+        else:
+            msg = result.get("reason", "未匹配到任务")
+        return f"[Core:feedback]\n{msg}"
+
+    position_ctx = ctx_resolve(event, user)
+
+    # ── Task Manager: create task from event + context ──
+    from organization.model import OrganizationModel
+    from task.manager import TaskManager
+    org = OrganizationModel()
+    tm = TaskManager(org)
+    managed_task = tm.create(event, position_ctx, user)
+
+    pos = position_ctx.get("my_position", {})
+    pos_type = pos.get("type", "observer")
+    reason = position_ctx.get("reason", "")
+    act = managed_task.get("action", "")
+    deadline = event.get("time", {}).get("deadline", "")
+    actors = event.get("actors", [])
+    requester = ""
+    for a in actors:
+        if a.get("position") == "requester":
+            requester = a.get("name", "")
+
+    event_title = event.get("raw", user_input)[:120]
+    executors = [e["name"] for e in managed_task.get("executors", [])]
+    subtasks_summary = "\n".join(
+        f"  [{task.get('assignee','')}] {task.get('action','')}"
+        for task in managed_task.get("subtasks", [])[:6]
+    )
+
+    sys_prompt = (
+        "你是李林骁的认知系统。基于事件分析客观汇报理解，不替用户决策。"
+        "禁止使用询问语气（\"您看要不要\"\"需要我帮您吗\"\"我来安排\"）。"
+        "直接陈述事实、位置、建议行动、截止时间。用动词开头。"
+    )
+
+    contact_info = ""
+    if requester:
+        role = ""
+        for a in actors:
+            if a["name"] == requester:
+                role = a.get("role", "")
+                break
+        contact_info = f"发起人: {requester}" + (f"（{role}）" if role else "")
+
+    full_prompt = (
+        f"当前用户: 李林骁（工班长，铁炉西工班）\n"
+        f"事件摘要: {event_title}\n"
+        f"责任类型: {pos_type}（{reason}）\n"
+        f"建议行动: {act}\n"
+        + (f"截止时间: {deadline}\n" if deadline else "")
+        + (f"{contact_info}\n" if contact_info else "")
+        + (f"执行人员: {', '.join(executors)}\n" if executors else "")
+        + (f"子任务:\n{subtasks_summary}\n" if subtasks_summary else "")
+        + "\n请按以下格式输出（每项一行）：\n"
+          f"【事件】<一句话概括>\n"
+          f"【位置】{pos_type} — <含义>\n"
+          f"【行动】<动词开头的待办>\n"
+          + (f"【截止】{deadline}\n" if deadline else "")
+          + (f"【发起】{requester}\n" if requester else "")
+          + f"\n📋 任务已创建: {managed_task['id']} ({len(managed_task.get('subtasks',[]))} 子任务)"
+    )
+
+    try:
+        raw = _llm(full_prompt, system_prompt=sys_prompt, max_tokens=400, temperature=0.3)
+        answer = str(raw).strip() if raw and not (isinstance(raw, dict) and "error" in raw) else ""
+    except Exception:
+        answer = ""
+
+    if not answer:
+        answer = f"【事件】{event_title}\n【位置】{pos_type}\n【行动】{act}"
+
+    return f"[Core:{pos_type}]\n{answer}"
+
+
+# ══════════════════════════════════════════════════════════════
 # CLI
 # ══════════════════════════════════════════════════════════════
 
 def main():
+    import os
+    if len(sys.argv) > 1 and sys.argv[1] == "--core":
+        os.environ["CORE_MODE"] = "1"
+        sys.argv.pop(1)
+
     if len(sys.argv) > 1 and sys.argv[1] == "--interactive":
         print("工班AI (wrapper 硬路由模式)。输入 exit 退出。")
         while True:
@@ -546,7 +678,7 @@ def main():
     if user_input:
         print(handle(user_input))
     else:
-        print("用法: python3 tools/routing/wrapper.py '<问题>'\n  或: python3 tools/routing/wrapper.py --interactive")
+        print("用法: python3 tools/routing/wrapper.py '<问题>'\n  或: python3 tools/routing/wrapper.py --interactive\n  或: python3 tools/routing/wrapper.py --core '<问题>'")
 
 
 if __name__ == "__main__":

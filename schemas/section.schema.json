@@ -33,7 +33,7 @@
           },
           "target_role": {
             "type": "string",
-            "_note": "该 section 面向的角色（来自 event_detector 的 executor/affected）"
+            "_note": "该 section 面向的角色（来自 event_detector 的 requester/executor/target）"
           }
         }
       }

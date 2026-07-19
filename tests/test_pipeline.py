@@ -14,16 +14,16 @@ for p in [str(ROOT / "tools"), str(ROOT / "tools" / "work"),
 
 
 REGRESSION_CASES = [
-    # 1: 王超通知 → executor/affected/responsibility 不混
+    # 1: 王超通知 → requester/executor/target 不混
     {
         "name": "王超通知铁炉西工班做好危废处置",
         "input": "王超通知铁炉西工班做好危废处置",
         "assert": lambda evt: (
             evt.get("executor") == "李林骁"
-            and evt.get("publisher") == "王超"
-            and evt.get("affected") == "铁炉西工班"
+            and evt.get("requester") == "王超"
+            and evt.get("target") == "铁炉西工班"
         ),
-        "fail_msg": "executor/publisher/affected mismatch",
+        "fail_msg": "requester/executor/target mismatch",
     },
     # 2: 各工班长安排人员完成危废回收 → role_task, NOT direct_task
     {
@@ -77,7 +77,7 @@ def run_pipeline_tests():
             passed += 1
         else:
             print(f"  FAIL: {case['fail_msg']}")
-            print(f"  Detail: executor={evt.get('executor')} publisher={evt.get('publisher')} affected={evt.get('affected')}")
+            print(f"  Detail: executor={evt.get('executor')} requester={evt.get('requester')} target={evt.get('target')}")
             failed += 1
 
     # ── Case 2 follow-up: verify responsibility ──
