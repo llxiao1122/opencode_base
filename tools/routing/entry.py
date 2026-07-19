@@ -1,20 +1,16 @@
 """
-routing/entry.py — Main pipeline entry (extracted from wrapper.py Phase 9).
+routing/entry.py — Cipher main entry (Phase 13).
 
-Core pipeline: Event → Context → Task → Reply.
-Entry point: handle_core(message) -> result.
-
-Phase 12: Query router (profile/task/knowledge/event) + Cipher identity.
+Route dispatch only. Handlers live in routing/{profile,task,knowledge}_handler.py.
 """
 
-import sys
+import sys, hashlib, time as _time
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 TOOLS_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
-import hashlib, time as _time
 _llm_cache = {}
 
 
@@ -43,102 +39,17 @@ def handle_core(user_input):
     from routing.query_router import classify
     route = classify(user_input)
 
-    # ── Profile route ──
     if route == "profile":
-        return _handle_profile(user_input, user_name)
-    # ── Knowledge route ──
-    elif route == "knowledge":
-        return _handle_knowledge(user_input, user_name)
-    # ── Task/Event route ──
-    else:
-        return _handle_event(user_input, user, user_name, user_role, user_team)
+        from routing.profile_handler import handle as _h
+        return _h(user_input, ctx)
+    if route == "task":
+        from routing.task_handler import handle as _h
+        return _h(user_input, ctx)
+    if route == "knowledge":
+        from routing.knowledge_handler import handle as _h
+        return _h(user_input, ctx)
 
-
-def _handle_profile(user_input, user_name):
-    # Extract target person name from query
-    target_name = _extract_person_name(user_input)
-    if not target_name:
-        return "[Cipher] 请问你想了解谁的情况？"
-
-    sys_prompt = (
-        f"你是 Cipher，{user_name}的企业认知系统助手。"
-        "你的职责：理解工作上下文，辅助任务管理，积累组织经验。"
-        "基于提供的数据，客观陈述事实。不评价、不猜测、不做人格判断。"
-    )
-
-    profile_text = ""
-    memory_text = ""
-    try:
-        from profile.retriever import get_person_context
-        import json
-        profile = get_person_context(target_name)
-        if profile and "error" not in profile:
-            profile_text = f"\n人员画像:\n{json.dumps(profile, ensure_ascii=False, indent=2)[:3000]}"
-    except Exception:
-        pass
-    try:
-        from memory.retriever import search_person
-        memories = search_person(target_name)
-        if memories:
-            memory_text = f"\n近期动态:\n{json.dumps(memories, ensure_ascii=False, indent=2)[:2000]}"
-    except Exception:
-        pass
-
-    if not profile_text and not memory_text:
-        return f"[Cipher] 暂无 {target_name} 的相关记录。"
-
-    prompt = (
-        f"用户 {user_name} 查询了 {target_name} 的情况。\n"
-        f"原始问题: {user_input}\n"
-        f"{profile_text}"
-        f"{memory_text}"
-        f"\n请简要总结 {target_name} 的工作情况。只基于以上数据，不编造。"
-    )
-    answer = _cached_llm(prompt, sys_prompt, user=user_name, ttl=300, max_tokens=300, temperature=0.3)
-    if not answer:
-        answer = f"根据现有数据，{target_name} 暂无足够信息形成画像。"
-    return f"[Cipher:profile]\n{answer}"
-
-
-def _handle_knowledge(user_input, user_name):
-    sys_prompt = (
-        f"你是 Cipher，{user_name}的企业认知系统助手。"
-        "基于提供的制度文档，回答合规性问题。引用具体条目。"
-    )
-
-    knowledge_text = ""
-    try:
-        from knowledge.retriever import search as _k_search
-        hits = _k_search(user_input, top_k=3)
-        if hits:
-            import json
-            from pathlib import Path
-            store_path = Path(__file__).resolve().parent.parent.parent / "data" / "knowledge" / "knowledge_index.json"
-            if store_path.exists():
-                chunks = json.loads(store_path.read_text(encoding="utf-8"))
-                parts = []
-                for score, idx in hits:
-                    if 0 <= idx < len(chunks):
-                        c = chunks[idx]
-                        text = c.get("text", c.get("content", str(c)))[:800]
-                        source = c.get("source_file", c.get("title", ""))
-                        parts.append(f"[{source}] {text}")
-                knowledge_text = "\n---\n".join(parts) if parts else ""
-    except Exception:
-        pass
-
-    if not knowledge_text:
-        return "[Cipher] 制度库中暂无匹配条目。"
-
-    prompt = (
-        f"当前用户 {user_name} 提问: {user_input}\n"
-        f"\n相关制度内容:\n{knowledge_text}\n"
-        f"\n请根据制度内容回答。如果制度未覆盖，如实说明。"
-    )
-    answer = _cached_llm(prompt, sys_prompt, user=user_name, ttl=60, max_tokens=400, temperature=0.2)
-    if not answer:
-        answer = "未能检索到匹配的制度内容。"
-    return f"[Cipher:knowledge]\n{answer}"
+    return _handle_event(user_input, user, user_name, user_role, user_team)
 
 
 def _handle_event(user_input, user, user_name, user_role, user_team):
@@ -258,18 +169,3 @@ def _handle_event(user_input, user, user_name, user_role, user_team):
         answer = f"【事件】{event_title}\n【位置】{pos_type}\n【行动】{act}"
 
     return f"[Cipher:{pos_type}]\n{answer}"
-
-
-def _extract_person_name(text: str) -> str:
-    """Extract person name from query using entity_resolver."""
-    try:
-        import sys as _sys
-        _sys.path.insert(0, str(TOOLS_DIR))
-        from routing.entity_resolver import resolve_entities
-        resolved = resolve_entities(text)
-        entities = resolved.get("entities", [])
-        if entities:
-            return entities[0]["name"]
-    except Exception:
-        pass
-    return ""
