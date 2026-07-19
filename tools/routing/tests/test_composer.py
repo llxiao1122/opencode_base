@@ -5,7 +5,7 @@ sys.path.insert(0, "/home/admin/opencode/tools")
 
 os.environ["COMPOSER_MODE"] = "composite"
 
-from routing.wrapper import handle
+from routing.legacy_pipeline import handle
 
 
 def test(label, text, expected_routes):
