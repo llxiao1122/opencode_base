@@ -41,56 +41,60 @@ def handle(user_input, ctx):
 
     tasks = _load_tasks()
     matched = _filter_tasks(tasks, date_range)
-
     daily_work = _get_daily_work(user_input, target_date)
 
-    sys_prompt = (
-        f"你是 Cipher，{user_name}的企业认知系统助手。"
-        "基于任务数据和固定工作，整理成简洁的待办清单。只陈述事实。"
-    )
-
-    task_lines = []
-    for i, t in enumerate(matched):
-        deadline = t.get("deadline", "")
-        dl_str = f" ⏰ 截止: {deadline}" if deadline else ""
-        exec_names = [e["name"] for e in t.get("executors", [])]
-        exec_str = f" — 负责人: {', '.join(exec_names)}" if exec_names else ""
-        status = "进行中"
-        if t.get("status") == "completed":
-            status = "✅ 已完成"
-        task_lines.append(f"{i+1}. {status} — {t['action'][:60]}{exec_str}{dl_str}")
-
-        subtasks = t.get("subtasks", [])
-        for st in subtasks[:4]:
-            mark = "✅" if st.get("done") else "○"
-            task_lines.append(f"   {mark} [{st.get('assignee', '')}] {st['action'][:50]}")
-
-    task_text = "\n".join(task_lines)
-    total = len(matched)
-
-    contacts = _extract_contacts(matched, daily_work)
-
-    prompt = (
-        f"当前用户 {user_name} 查询了{label}的工作安排。\n"
-        f"日期: {target_date.strftime('%Y-%m-%d')} {WEEKDAY_ZH[target_date.weekday()]}\n"
-    )
-    if daily_work:
-        prompt += f"\n{label}的固定工作:\n{daily_work}\n"
-    if task_text:
-        prompt += f"\n{label}的 {total} 项动态任务:\n\n{task_text}\n"
-    if contacts:
-        prompt += f"\n相关联系人（需配合/关注）:\n{contacts}\n"
-    if not daily_work and not task_text:
+    if not daily_work and not matched:
         week_day = WEEKDAY_ZH[target_date.weekday()]
         return f"[Cipher:task]\n{label} {target_date.strftime('%Y-%m-%d')} {week_day} 暂未找到进行中的任务。"
 
-    prompt += "\n请整理成简洁的工作安排清单。禁止编造。"
+    # Build output directly — no LLM for formatting
+    lines = []
+    week_day = WEEKDAY_ZH[target_date.weekday()]
+    lines.append(f"{user_name}，{target_date.strftime('%Y-%m-%d')} {week_day} {label}待办：")
 
-    from routing.entry import _cached_llm
-    answer = _cached_llm(prompt, sys_prompt, user=user_name, ttl=60, max_tokens=600, temperature=0.3)
-    if not answer:
-        answer = _format_fallback(label, target_date, week_day=daily_work, tasks=task_lines)
-    return f"[Cipher:task]\n{answer}"
+    if daily_work:
+        # Clean table markdown, bold syntax, empty sections
+        raw = daily_work.replace("**", "").replace("（无）", "").replace("(无)", "")
+        cleaned = []
+        for line in raw.split("\n"):
+            l = line.strip()
+            if not l: continue
+            if l.startswith(":") and all(c in ":-. —｜| " for c in l): continue
+            if l.startswith("｜") and all(c in ":-. —｜| " for c in l): continue
+            cleaned.append(l)
+        # Filter empty section headers  
+        filtered = []
+        for i, l in enumerate(cleaned):
+            if l.startswith("【") and l.endswith("】"):
+                next_is_header = (i + 1 < len(cleaned) and cleaned[i+1].startswith("【"))
+                if next_is_header or i + 1 >= len(cleaned):
+                    continue
+            filtered.append(l)
+        lines.append("\n" + "\n".join(filtered))
+
+    if matched:
+        lines.append(f"\n📋 {label}任务 {len(matched)} 项：")
+        for t in matched:
+            deadline = t.get("deadline", "")
+            dl_tag = f" ⏰{deadline}" if deadline else ""
+            # Strip boilerplate prefix
+            action = t['action']
+            action = action.replace("督促铁炉西工班员工", "").strip()
+            if not action:
+                action = "相关任务"
+            lines.append(f"\n  {action}{dl_tag}")
+            for st in t.get("subtasks", []):
+                mark = "✓" if st.get("done") else "○"
+                name = st.get("assignee", "")
+                sub_action = st['action']
+                sub_action = sub_action.replace(f"通知{name}", "").replace("完成", "").strip()
+                lines.append(f"    {mark} {name}{'　' if not sub_action else '：'+sub_action}")
+        
+        contacts = _extract_contacts(matched, daily_work)
+        if contacts:
+            lines.append(f"\n📞 {contacts.strip()}")
+
+    return f"[Cipher:task]\n" + "\n".join(lines)
 
 
 def _detect_scope(text):

@@ -222,13 +222,15 @@ class MemoryCore:
         topic = self._extract_topic(situation)
 
         today = date.today().isoformat()
-        self.obs_dir.mkdir(parents=True, exist_ok=True)
-        obs_file = self.obs_dir / f"{today}.md"
-        entry_text = f"- 【{importance}】{today} {topic}: 情境:{situation} | 行动:{action} | 结果:{outcome}\n"
-        with open(obs_file, "a", encoding="utf-8") as f:
-            f.write(entry_text)
-
         text = f"情境:{situation} 行动:{action} 结果:{outcome}"
+
+        # Write to ObservationStore (auto-routes by entity name)
+        try:
+            from memory.observation_store import write as obs_write
+            obs_write(text, source="mcp_save", obs_type="note", layer="rule",
+                      confidence={"high": 0.9, "medium": 0.7, "low": 0.5}.get(importance, 0.7))
+        except Exception:
+            pass
         vec = self._embed(text)
 
         index = self.epi_index or self._create_index()
@@ -470,21 +472,54 @@ class MemoryCore:
         if not self.obs_dir.exists():
             return {}
 
-        for fpath in sorted(self.obs_dir.glob("*.md")):
+        # Scan old format (top-level date files) + new format (people/teams/leaders/*.md)
+        scan_paths = list(self.obs_dir.glob("*.md"))  # old: 2026-07-19.md
+        for sub in ["people", "teams", "leaders", "system"]:
+            subdir = self.obs_dir / sub
+            if subdir.exists():
+                scan_paths.extend(subdir.glob("*.md"))
+
+        for fpath in scan_paths:
+            if fpath.name.startswith("_"):  # skip index files
+                continue
+
+            # Date-filter old format
             try:
                 file_date = date.fromisoformat(fpath.name.replace(".md", ""))
                 if file_date < since_date:
                     continue
             except ValueError:
-                continue
+                pass  # new format (person names), always include
+
             try:
                 with open(fpath, "r", encoding="utf-8") as f:
-                    for line in f:
-                        line = line.strip()
-                        if not line.startswith("- "):
-                            continue
+                    text = f.read()
+
+                # Parse old format: lines starting with "- "
+                for line in text.split("\n"):
+                    line = line.strip()
+                    if line.startswith("- ") and len(line) > 5:
                         entries.append({"text": line, "file": fpath.name})
                         v = self._embed(line)
+                        vectors.append(v[0])
+
+                # Parse new format: sections between "---"
+                sections = text.split("\n---\n")
+                for sec in sections:
+                    sec = sec.strip()
+                    if not sec or not sec.startswith("##"):
+                        continue
+                    # Extract the fact line (first non-empty line after metadata)
+                    lines = sec.split("\n")
+                    fact_line = ""
+                    for l in lines[1:]:
+                        l = l.strip()
+                        if l and not l.startswith("source:") and not l.startswith("type:") and not l.startswith("layer:") and not l.startswith("evidence:") and not l.startswith("confidence:"):
+                            fact_line = l
+                            break
+                    if fact_line and len(fact_line) > 5:
+                        entries.append({"text": fact_line, "file": fpath.name})
+                        v = self._embed(fact_line)
                         vectors.append(v[0])
             except Exception:
                 continue
@@ -493,6 +528,10 @@ class MemoryCore:
             return {}
 
         vecs = np.array(vectors, dtype=np.float32)
+        if vecs.ndim == 1:
+            vecs = np.expand_dims(vecs, axis=0)
+        if len(vecs) < 2:
+            return {}
         norms = np.linalg.norm(vecs, axis=1, keepdims=True)
         norms = np.where(norms == 0, 1, norms)
         sim = np.dot(vecs, vecs.T) / np.dot(norms, norms.T)

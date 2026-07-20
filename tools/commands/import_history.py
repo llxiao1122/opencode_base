@@ -66,6 +66,15 @@ def import_history(dir_path=None) -> dict:
     print(f"[import_history] 组织记忆: {mem['sources']['events']} 事件, "
           f"{len(mem['people'])} 人物")
 
+    # Curiosity engine: scan for knowledge gaps after import
+    try:
+        from memory.curiosity_engine import CuriosityEngine
+        from memory.memory_core import MemoryCore
+        ce = CuriosityEngine(MemoryCore(root_path=str(Path(__file__).resolve().parent.parent.parent)))
+        ce.scan_and_generate_tasks()
+    except Exception:
+        pass
+
     _record_batch(batch_id, dir_path, started_at, finished_at, result)
 
     return {

@@ -135,7 +135,8 @@ class TaskManager:
     def _next_id(self, event_id: str) -> str:
         self._counter += 1
         short = event_id.replace("evt_", "") if event_id.startswith("evt_") else event_id
-        return f"task_{short}_{self._counter:03d}"
+        stamp = int(datetime.now().timestamp() * 1000)
+        return f"task_{short}_{stamp}_{self._counter:03d}"
 
     def update_from_event(self, event: dict) -> dict:
         """Process a feedback event. Match executor, update status, check completion.

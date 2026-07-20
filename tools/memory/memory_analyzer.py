@@ -33,9 +33,15 @@ def run() -> list:
     candidates.extend(_analyze_work_relation(tasks))
 
     if candidates:
-        from memory.candidate_store import save as store_save
+        from memory.observation_store import write as obs_write
         for c in candidates:
-            store_save(c)
+            obs_write(
+                c["fact"],
+                source="memory_analyzer",
+                obs_type=c.get("type", "behavior"),
+                layer="rule",
+                confidence=c.get("confidence", 0.0),
+            )
 
     return candidates
 

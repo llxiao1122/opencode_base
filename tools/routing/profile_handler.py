@@ -18,13 +18,20 @@ def handle(user_input, ctx):
         return "[Cipher] 请问你想了解谁的情况？"
 
     sys_prompt = (
-        f"你是 Cipher，{user_name}的企业认知系统助手。"
+        f"你是 Cipher，{user_name}的企业认知系统助手。自称'Cipher'（第三人称），不说'我'。"
         "你的职责：理解工作上下文，辅助任务管理，积累组织经验。"
         "基于提供的数据，客观陈述事实。不评价、不猜测、不做人格判断。"
     )
+    from pathlib import Path as _P
+    persona_path = _P(__file__).resolve().parent.parent.parent / "state" / "personality.md"
+    if persona_path.exists():
+        persona = persona_path.read_text(encoding="utf-8")[:600]
+        sys_prompt = f"{sys_prompt}\n\n{persona}"
 
     profile_text = ""
     memory_text = ""
+    observation_text = ""
+    event_text = ""
     try:
         from profile.retriever import get_person_context
         profile = get_person_context(target_name)
@@ -39,8 +46,28 @@ def handle(user_input, ctx):
             memory_text = f"\n近期动态:\n{json.dumps(memories, ensure_ascii=False, indent=2)[:2000]}"
     except Exception:
         pass
+    try:
+        from memory.observation_store import read as obs_read
+        obs = obs_read("people", target_name)
+        if obs:
+            observation_text = f"\n观察记录:\n{obs[-2000:]}"
+    except Exception:
+        pass
+    try:
+        from memory.event_search import search_events, build_event_context
+        evts = search_events(target_name, limit=5)
+        if evts:
+            ctx_list = []
+            for e in evts[:3]:
+                ec = build_event_context(e.get("id", ""))
+                if ec:
+                    ctx_list.append(str(ec)[:300])
+            if ctx_list:
+                event_text = "\n事件上下文:\n" + "\n---\n".join(ctx_list)
+    except Exception:
+        pass
 
-    if not profile_text and not memory_text:
+    if not profile_text and not memory_text and not observation_text:
         return f"[Cipher] 暂无 {target_name} 的相关记录。"
 
     prompt = (
@@ -48,6 +75,8 @@ def handle(user_input, ctx):
         f"原始问题: {user_input}\n"
         f"{profile_text}"
         f"{memory_text}"
+        f"{observation_text}"
+        f"{event_text}"
         f"\n请简要总结 {target_name} 的工作情况。只基于以上数据，不编造。"
     )
 

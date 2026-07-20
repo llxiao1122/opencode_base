@@ -7,7 +7,7 @@ memory_server.py — MCP STDIO wrapper for MemoryCore.
 import sys, json, os, traceback
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from memory.memory_core import MemoryCore
 

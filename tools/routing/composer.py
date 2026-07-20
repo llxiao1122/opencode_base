@@ -12,7 +12,7 @@ _sys.path.insert(0, str(TOOLS_DIR))
 
 from routing.protocol import CapabilityResult, error_result
 
-SERIOUS_KEYWORDS = ["安全", "事故", "火灾", "伤亡", "处罚", "考核", "转正", "人事", "排班"]
+SERIOUS_KEYWORDS = ["事故", "火灾", "伤亡", "处罚", "考核", "转正", "人事"]
 
 PERSONALITY_PATH = Path(__file__).resolve().parent.parent.parent / "state" / "personality.md"
 
@@ -125,10 +125,15 @@ def _compose(steps, user_input, ctx=None):
 
         # Inject personal context (preferences + recent thoughts)
         try:
-            from personal.retriever import format_personal_context
+            from personal.retriever import format_personal_context, has_personal_relevance, format_thought_context
             personal = format_personal_context()
             if personal:
                 sys_prompt = f"{sys_prompt}\n\n{personal}"
+            # Topic-specific thought search
+            if has_personal_relevance(user_input):
+                thoughts = format_thought_context(user_input)
+                if thoughts:
+                    sys_prompt = f"{sys_prompt}\n{thoughts}"
         except Exception:
             pass
         full_prompt = (
@@ -138,6 +143,15 @@ def _compose(steps, user_input, ctx=None):
             "请整合为一段连贯的口语化回复。保留所有关键信息点。"
         )
         raw = _llm(full_prompt, system_prompt=sys_prompt, max_tokens=600, temperature=0.3)
+        
+        # Auto-update preferences after each reply
+        try:
+            from personal.retriever import maybe_update_preferences
+            if raw and isinstance(raw, str):
+                maybe_update_preferences(user_input, str(raw))
+        except Exception:
+            pass
+        
         if raw and not (isinstance(raw, dict) and "error" in raw):
             return str(raw).strip()
     except Exception:

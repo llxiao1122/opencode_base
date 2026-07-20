@@ -157,6 +157,17 @@ def import_batch(
                             event["response_hours"] = entry["response_hours"]
                     except Exception:
                         entry["response_hours"] = None
+                    # Feedback → observation (zero LLM)
+                    try:
+                        executor_name = result.get("executor", "")
+                        text = f"{executor_name} 完成反馈 任务{task_id}"
+                        if entry.get("response_hours"):
+                            text += f" 响应{entry['response_hours']}h"
+                        from memory.observation_store import write as obs_write
+                        obs_write(text, source="feedback", obs_type="execution", layer="rule", confidence=0.9)
+                        _accumulate_org_memory()
+                    except Exception:
+                        pass
                 events_created += 1
                 _record_event(event)
                 log.append(entry)
@@ -416,6 +427,15 @@ def _load_task_by_id(task_id: str):
     except (_j.JSONDecodeError, FileNotFoundError):
         pass
     return None
+
+
+def _accumulate_org_memory():
+    """Update org_memory stats after feedback. Zero LLM."""
+    try:
+        from organization.memory_bridge import accumulate
+        accumulate()
+    except Exception:
+        pass
 
 
 # ── import registry helpers ─────────────────────────────────────────────

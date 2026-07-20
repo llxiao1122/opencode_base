@@ -1,7 +1,7 @@
 {
   "_meta": {
     "version": 1,
-    "updated": "2026-07-20",
+    "updated": "2026-07-21",
     "source": "state/members/*.md, state/leaders.md, state/org.md"
   },
   "confirmed_entities": [
@@ -112,7 +112,7 @@
         "G"
       ],
       "weight": 1.0,
-      "role": "物资管理岗/包保/转达上级",
+      "role": "调整物资信息表述）三菱厂家已初步完成整改",
       "source": "state/leaders.md"
     },
     {
@@ -132,7 +132,7 @@
         "G"
       ],
       "weight": 1.0,
-      "role": "物资管理岗/捐赠验收推进",
+      "role": "调整物资信息表述）三菱厂家已初步完成整改",
       "source": "state/leaders.md"
     },
     {
@@ -142,7 +142,7 @@
         "G"
       ],
       "weight": 1.0,
-      "role": "物资管理岗",
+      "role": "调整物资信息表述）三菱厂家已初步完成整改",
       "source": "state/leaders.md"
     },
     {
@@ -162,7 +162,7 @@
         "G"
       ],
       "weight": 1.0,
-      "role": "安全管理岗/",
+      "role": "调整物资信息表述）三菱厂家已初步完成整改",
       "source": "state/leaders.md"
     },
     {
@@ -172,7 +172,7 @@
         "G"
       ],
       "weight": 1.0,
-      "role": "协助王亮负责安全模块",
+      "role": "调整物资信息表述）三菱厂家已初步完成整改",
       "source": "state/leaders.md"
     },
     {
@@ -192,7 +192,7 @@
         "G"
       ],
       "weight": 1.0,
-      "role": "科室危废负责人/危废系统/联单/催办",
+      "role": "调整物资信息表述）三菱厂家已初步完成整改",
       "source": "state/leaders.md"
     },
     {
@@ -212,7 +212,7 @@
         "G"
       ],
       "weight": 1.0,
-      "role": "工班长",
+      "role": "调整物资信息表述）三菱厂家已初步完成整改",
       "source": "state/org.md"
     }
   ],
