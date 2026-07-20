@@ -253,7 +253,7 @@ def _move_change(change_id, new_status, target_file):
     return True
 
 
-def _sync_entity_index():
+def sync_entity_index():
     entities = _load_entities()
     pending = review()
 
@@ -366,7 +366,7 @@ def main():
         print(f"已拒绝: {sys.argv[2]}")
 
     elif cmd == "sync":
-        result = _sync_entity_index()
+        result = sync_entity_index()
         print(f"已同步 {len(result)} 条 pending entity 到 entity_index.json")
 
     else:

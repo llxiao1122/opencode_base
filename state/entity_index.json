@@ -1,29 +1,19 @@
 {
   "_meta": {
     "version": 1,
-    "updated": "2026-07-18",
+    "updated": "2026-07-20",
     "source": "state/members/*.md, state/leaders.md, state/org.md"
   },
   "confirmed_entities": [
     {
-      "name": "李林骁",
+      "name": "张志斌",
       "aliases": [],
       "route_hint": [
         "G"
       ],
       "weight": 1.0,
-      "role": "工班长",
-      "source": "state/org.md"
-    },
-    {
-      "name": "陈红洁",
-      "aliases": [],
-      "route_hint": [
-        "G"
-      ],
-      "weight": 1.0,
-      "role": "安全员(7.16起)·内勤暂代",
-      "source": "state/members/陈红洁.md"
+      "role": "杂品库",
+      "source": "state/members/张志斌.md"
     },
     {
       "name": "杨梦卓",
@@ -32,18 +22,8 @@
         "G"
       ],
       "weight": 1.0,
-      "role": "保管员",
+      "role": "大件库区(上下两层)+空调库房(二楼)",
       "source": "state/members/杨梦卓.md"
-    },
-    {
-      "name": "谭继衡",
-      "aliases": [],
-      "route_hint": [
-        "G"
-      ],
-      "weight": 1.0,
-      "role": "保管员",
-      "source": "state/members/谭继衡.md"
     },
     {
       "name": "苗笑天",
@@ -52,41 +32,121 @@
         "G"
       ],
       "weight": 1.0,
-      "role": "保管员",
+      "role": "材料棚+管理用房+废旧",
       "source": "state/members/苗笑天.md"
     },
     {
-      "name": "张志斌",
+      "name": "谭继衡",
       "aliases": [],
       "route_hint": [
         "G"
       ],
       "weight": 1.0,
-      "role": "保管员",
-      "source": "state/members/张志斌.md"
+      "role": "立体库区+中小件区",
+      "source": "state/members/谭继衡.md"
     },
     {
-      "name": "王超",
+      "name": "陈红洁",
       "aliases": [],
       "route_hint": [
         "G"
       ],
       "weight": 1.0,
-      "role": "科室危废负责人",
+      "role": "安全员(7.16起)·内勤暂代(考勤公文简报)",
+      "source": "state/members/陈红洁.md"
+    },
+    {
+      "name": "王敬宇",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "主任/直接上级/物资管理中心",
       "source": "state/leaders.md"
     },
     {
-      "name": "荆幸斌",
+      "name": "卢丽英",
       "aliases": [],
       "route_hint": [
         "G"
       ],
       "weight": 1.0,
-      "role": "科室废旧危废总负责人·资产管理员",
+      "role": "副主任/安全/物资管理中心",
+      "source": "state/leaders.md"
+    },
+    {
+      "name": "商丽娜",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "副总/分管物资管理中心+财务部",
+      "source": "state/leaders.md"
+    },
+    {
+      "name": "李彦奎",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "部长/物资管理中心",
+      "source": "state/leaders.md"
+    },
+    {
+      "name": "张新宇",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "副部长/物资管理中心",
       "source": "state/leaders.md"
     },
     {
       "name": "董文静",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "物资管理岗/包保/转达上级",
+      "source": "state/leaders.md"
+    },
+    {
+      "name": "程智",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "物资管理岗",
+      "source": "state/leaders.md"
+    },
+    {
+      "name": "王红义",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "物资管理岗/捐赠验收推进",
+      "source": "state/leaders.md"
+    },
+    {
+      "name": "靳攀",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "物资管理岗",
+      "source": "state/leaders.md"
+    },
+    {
+      "name": "刘朋",
       "aliases": [],
       "route_hint": [
         "G"
@@ -102,7 +162,7 @@
         "G"
       ],
       "weight": 1.0,
-      "role": "安全管理岗",
+      "role": "安全管理岗/",
       "source": "state/leaders.md"
     },
     {
@@ -112,7 +172,27 @@
         "G"
       ],
       "weight": 1.0,
-      "role": "安全模块",
+      "role": "协助王亮负责安全模块",
+      "source": "state/leaders.md"
+    },
+    {
+      "name": "荆幸斌",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "科室废旧危废总负责人/资产管理员",
+      "source": "state/leaders.md"
+    },
+    {
+      "name": "王超",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "科室危废负责人/危废系统/联单/催办",
       "source": "state/leaders.md"
     },
     {
@@ -122,98 +202,18 @@
         "G"
       ],
       "weight": 1.0,
-      "role": "科室内勤(借调)",
+      "role": "科室内勤(借调)/考勤公文简报",
       "source": "state/leaders.md"
     },
     {
-      "name": "王红义",
+      "name": "李林骁",
       "aliases": [],
       "route_hint": [
         "G"
       ],
       "weight": 1.0,
-      "role": "物资管理岗",
-      "source": "state/leaders.md"
-    },
-    {
-      "name": "靳攀",
-      "aliases": [],
-      "route_hint": [
-        "G"
-      ],
-      "weight": 1.0,
-      "role": "物资管理岗",
-      "source": "state/leaders.md"
-    },
-    {
-      "name": "王敬宇",
-      "aliases": [],
-      "route_hint": [
-        "G"
-      ],
-      "weight": 1.0,
-      "role": "主任·直接上级",
-      "source": "state/leaders.md"
-    },
-    {
-      "name": "卢丽英",
-      "aliases": [],
-      "route_hint": [
-        "G"
-      ],
-      "weight": 1.0,
-      "role": "副主任·安全",
-      "source": "state/leaders.md"
-    },
-    {
-      "name": "商丽娜",
-      "aliases": [],
-      "route_hint": [
-        "G"
-      ],
-      "weight": 1.0,
-      "role": "副总·分管物资+财务",
-      "source": "state/leaders.md"
-    },
-    {
-      "name": "李彦奎",
-      "aliases": [],
-      "route_hint": [
-        "G"
-      ],
-      "weight": 1.0,
-      "role": "部长·物资",
-      "source": "state/leaders.md"
-    },
-    {
-      "name": "张新宇",
-      "aliases": [],
-      "route_hint": [
-        "G"
-      ],
-      "weight": 1.0,
-      "role": "副部长·物资管理中心",
-      "source": "state/leaders.md"
-    },
-    {
-      "name": "刘朋",
-      "aliases": [],
-      "route_hint": [
-        "G"
-      ],
-      "weight": 1.0,
-      "role": "物资管理岗",
+      "role": "工班长",
       "source": "state/org.md"
-    },
-    {
-      "name": "程智",
-      "aliases": [],
-      "route_hint": [
-        "G"
-      ],
-      "weight": 1.0,
-      "role": "物资管理岗",
-      "source": "state/leaders.md"
     }
   ],
   "pending_entities": []

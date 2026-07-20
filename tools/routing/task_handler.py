@@ -6,7 +6,7 @@ Data source: data/tasks.json (dynamic tasks only).
 """
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
@@ -21,24 +21,28 @@ def handle(user_input, ctx):
 
     scope = _detect_scope(user_input)
     if scope == "today":
-        date_range = (today, today)
+        target_date = today
+        date_range = (target_date, target_date)
         label = "今天"
     elif scope == "tomorrow":
-        date_range = (today + timedelta(days=1), today + timedelta(days=1))
+        target_date = today + timedelta(days=1)
+        date_range = (target_date, target_date)
         label = "明天"
     elif scope == "week":
+        target_date = today
         days_ahead = 7 - today.weekday()
         week_end = today + timedelta(days=days_ahead - 1)
         date_range = (today, week_end)
         label = "本周"
     else:
-        date_range = (today, today)
+        target_date = today
+        date_range = (target_date, target_date)
         label = "今天"
 
     tasks = _load_tasks()
     matched = _filter_tasks(tasks, date_range)
 
-    daily_work = _get_daily_work(user_input)
+    daily_work = _get_daily_work(user_input, target_date)
 
     sys_prompt = (
         f"你是 Cipher，{user_name}的企业认知系统助手。"
@@ -64,24 +68,28 @@ def handle(user_input, ctx):
     task_text = "\n".join(task_lines)
     total = len(matched)
 
+    contacts = _extract_contacts(matched, daily_work)
+
     prompt = (
         f"当前用户 {user_name} 查询了{label}的工作安排。\n"
-        f"日期: {today.strftime('%Y-%m-%d')} {WEEKDAY_ZH[today.weekday()]}\n"
+        f"日期: {target_date.strftime('%Y-%m-%d')} {WEEKDAY_ZH[target_date.weekday()]}\n"
     )
     if daily_work:
         prompt += f"\n{label}的固定工作:\n{daily_work}\n"
     if task_text:
         prompt += f"\n{label}的 {total} 项动态任务:\n\n{task_text}\n"
+    if contacts:
+        prompt += f"\n相关联系人（需配合/关注）:\n{contacts}\n"
     if not daily_work and not task_text:
-        week_day = WEEKDAY_ZH[today.weekday()]
-        return f"[Cipher:task]\n{label} {today.strftime('%Y-%m-%d')} {week_day} 暂未找到进行中的任务。"
+        week_day = WEEKDAY_ZH[target_date.weekday()]
+        return f"[Cipher:task]\n{label} {target_date.strftime('%Y-%m-%d')} {week_day} 暂未找到进行中的任务。"
 
     prompt += "\n请整理成简洁的工作安排清单。禁止编造。"
 
     from routing.entry import _cached_llm
     answer = _cached_llm(prompt, sys_prompt, user=user_name, ttl=60, max_tokens=600, temperature=0.3)
     if not answer:
-        answer = _format_fallback(label, today, week_day=daily_work, tasks=task_lines)
+        answer = _format_fallback(label, target_date, week_day=daily_work, tasks=task_lines)
     return f"[Cipher:task]\n{answer}"
 
 
@@ -112,43 +120,197 @@ def _filter_tasks(tasks, date_range):
     return active
 
 
-def _format_fallback(label, today, week_day="", tasks=None):
+def _format_fallback(label, target_date, week_day="", tasks=None):
     lines = []
     if week_day:
         lines.append(week_day)
     if tasks:
         lines.append(f"\n{label} 进行中的任务 ({len(tasks)} 项)")
-    return "\n".join(lines) if lines else f"{label} 暂未找到进行中的任务。"
+    return "\n".join(lines) if lines else f"{label} {target_date} 暂未找到进行中的任务。"
 
 
-def _get_daily_work(user_input):
+def _extract_contacts(matched_tasks, daily_work_text):
+    from tools.shared.entity import load_entities
+    entities = load_entities()
+    name_role = {e["name"]: e.get("role", "") for e in entities}
+
+    seen = set()
+    lines = []
+
+    for t in matched_tasks:
+        action = t.get("action", "")
+        action_tail = action[-10:] if len(action) > 10 else action
+        for name, role in name_role.items():
+            if name in seen:
+                continue
+            matched = False
+            if name in action:
+                matched = True
+            elif len(name) >= 3 and name[:2] in action_tail:
+                matched = True
+            if matched:
+                from organization.model import OrganizationModel
+                org = OrganizationModel()
+                team = set(org.get_members("李林骁"))
+                team.add("李林骁")
+                if name not in team:
+                    lines.append(f"  {name}（{role}）— {_contact_context(name, action)}")
+                    seen.add(name)
+
+    if "危废" in daily_work_text or any("危废" in t.get("action", "") for t in matched_tasks):
+        for name, role in name_role.items():
+            if "危废" in role and name not in seen:
+                lines.append(f"  {name}（{role}）— 危废处置协调")
+                seen.add(name)
+
+    return "\n".join(lines) if lines else ""
+
+
+def _name_matches(full_name, text):
+    if full_name in text:
+        return True
+    if len(full_name) >= 3 and full_name[:2] in text:
+        return True
+    return False
+
+
+def _contact_context(name, action_text):
+    if "危废" in action_text:
+        return "危废处置协调"
+    if any(kw in action_text for kw in ["补单", "送站", "查收", "办理"]):
+        return "任务发起方"
+    if "安全" in action_text:
+        return "安全事项"
+    if "消防" in action_text:
+        return "消防安全"
+    return "相关事项"
+
+
+def _parse_duty_cycle(md: str):
+    """Parse duty rotation from Knowledge markdown: sequence line + anchor table."""
+    import re
+    cycle = []
+    anchor_date = None
+    anchor_idx = -1
+
+    for line in md.split("\n"):
+        if "→" in line and not line.strip().startswith("|"):
+            cycle = [n.strip() for n in line.strip().split("→")]
+            break
+
+    anchor_section = md.find("已知排班参照点")
+    if anchor_section < 0 or not cycle:
+        return cycle, None, -1
+
+    table = []
+    for line in md[anchor_section:].split("\n")[:15]:
+        line = line.strip()
+        if not line.startswith("|") or not line[1:].strip():
+            continue
+        cells = [c.strip() for c in line.strip("|").split("|")]
+        if len(cells) >= 2 and re.match(r"\d{4}-\d{2}-\d{2}", cells[0][:10]):
+            dt_str = cells[0][:10]
+            name = cells[1].strip()
+            try:
+                d = datetime.strptime(dt_str, "%Y-%m-%d").date()
+                if name in cycle:
+                    anchor_date = d
+                    anchor_idx = cycle.index(name)
+                    break
+            except ValueError:
+                continue
+
+    return cycle, anchor_date, anchor_idx
+
+
+def _get_duty_person(target: date, md=None) -> str:
+    """Calculate duty person from Knowledge markdown duty rotation rules."""
+    if md is None:
+        md_path = ROOT_DIR / "Knowledge" / "00-日常工作指引.md"
+        if not md_path.exists():
+            return "未知"
+        md = md_path.read_text(encoding="utf-8")
+
+    cycle, anchor_date, anchor_idx = _parse_duty_cycle(md)
+
+    if not cycle or anchor_date is None or anchor_idx < 0:
+        return "未知"
+
+    delta = (target - anchor_date).days
+    idx = (anchor_idx + delta) % len(cycle)
+    return cycle[idx]
+
+
+def _get_zone_chiefs(md: str) -> list[dict]:
+    return _parse_table_section(md, "## 库区负责人")
+
+
+def _get_material_shed(md: str, target: date) -> str:
+    shed = _parse_table_section(md, "## 材料棚（轮值说明）")
+    for row in shed:
+        if not row.get("轮值期"):
+            continue
+        if "当前" in row.get("状态", ""):
+            return f"材料棚轮换: {row.get('负责人', '')}（{row['轮值期']}）"
+    return ""
+
+
+def _get_flood_season(md: str, target: date) -> str:
+    rows = _parse_table_section(md, "## 汛期附加")
+    if not rows:
+        return ""
+    lines = ["【汛期附加工作】"]
+    for row in rows:
+        note = f" — {row.get('备注', '')}" if row.get('备注') else ""
+        lines.append(f"  {row.get('#', '')}. {row.get('工作项', '')}{note}")
+    return "\n".join(lines)
+
+
+def _get_daily_work(user_input, target_date):
     """Parse Knowledge/00-日常工作指引.md for today/tomorrow/week routines."""
     md_path = ROOT_DIR / "Knowledge" / "00-日常工作指引.md"
     if not md_path.exists():
         return ""
     md = md_path.read_text(encoding="utf-8")
 
-    now = datetime.now()
-    if "明天" in user_input:
-        target = now + timedelta(days=1)
-        label = f"明天（{target.strftime('%Y-%m-%d')}）"
-    elif "今天" in user_input:
-        target = now
-        label = f"今天（{target.strftime('%Y-%m-%d')}）"
-    else:
-        target = now
-        label = f"今日工作（{target.strftime('%Y-%m-%d')}）"
-
+    target = target_date
     weekday_zh = ["周一","周二","周三","周四","周五","周六","周日"][target.weekday()]
-    label += f" {weekday_zh}"
 
     lines_out = []
 
+    # 值班
+    duty_person = _get_duty_person(target, md=md)
+    lines_out.append("【值班】")
+    lines_out.append(f"  当日值班人员: {duty_person}（参照'今日我值班工作提示卡'）")
+
+    # 库区负责人
+    lines_out.append("")
+    lines_out.append("【库区负责人】")
+    zones = _get_zone_chiefs(md)
+    for row in zones:
+        lines_out.append(f"  {row.get('库区', '')} — {row.get('负责人', '')}")
+
+    # 材料棚轮换
+    shed = _get_material_shed(md, target)
+    if shed:
+        lines_out.append("")
+        lines_out.append(f"【材料棚轮换】")
+        lines_out.append(f"  {shed}")
+
+    # 汛期附加
+    flood = _get_flood_season(md, target)
+    if flood:
+        lines_out.append("")
+        lines_out.append(flood)
+
+    # 每日
+    lines_out.append("")
     lines_out.append("【每日固定工作】")
     daily = _parse_table_section(md, "## 每日")
     for row in daily:
         lines_out.append(f"  {row.get('#', '')}. {row.get('工作项', '')} — {row.get('负责人', '')}")
 
+    # 每周五
     if target.weekday() == 4:
         lines_out.append("")
         lines_out.append("【每周五固定工作】")
@@ -156,6 +318,7 @@ def _get_daily_work(user_input):
         for row in weekly:
             lines_out.append(f"  {row.get('#', '')}. {row.get('工作项', '')} — {row.get('负责人', '')}")
 
+    # 每月固定日期
     day = target.day
     lines_out.append("")
     lines_out.append(f"【本月{day}日固定工作】")
@@ -167,7 +330,7 @@ def _get_daily_work(user_input):
     else:
         lines_out.append("  （无）")
 
-    yr = target.year
+    # 本月演练
     mon = target.month
     for line in md.split("\n"):
         if "应急演练" in line and "月份" in line:
