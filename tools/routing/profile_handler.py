@@ -1,0 +1,71 @@
+"""
+routing/profile_handler.py — Profile query handler (Phase 13).
+
+Handles profile queries: loads person profile + memory, generates summary.
+"""
+
+import json, sys
+from pathlib import Path
+
+TOOLS_DIR = Path(__file__).resolve().parent.parent
+
+
+def handle(user_input, ctx):
+    user_name = ctx.get("user", {}).get("name", "未知")
+
+    target_name = _extract_person_name(user_input)
+    if not target_name:
+        return "[Cipher] 请问你想了解谁的情况？"
+
+    sys_prompt = (
+        f"你是 Cipher，{user_name}的企业认知系统助手。"
+        "你的职责：理解工作上下文，辅助任务管理，积累组织经验。"
+        "基于提供的数据，客观陈述事实。不评价、不猜测、不做人格判断。"
+    )
+
+    profile_text = ""
+    memory_text = ""
+    try:
+        from profile.retriever import get_person_context
+        profile = get_person_context(target_name)
+        if profile and "error" not in profile:
+            profile_text = f"\n人员画像:\n{json.dumps(profile, ensure_ascii=False, indent=2)[:3000]}"
+    except Exception:
+        pass
+    try:
+        from memory.retriever import search_person
+        memories = search_person(target_name)
+        if memories:
+            memory_text = f"\n近期动态:\n{json.dumps(memories, ensure_ascii=False, indent=2)[:2000]}"
+    except Exception:
+        pass
+
+    if not profile_text and not memory_text:
+        return f"[Cipher] 暂无 {target_name} 的相关记录。"
+
+    prompt = (
+        f"用户 {user_name} 查询了 {target_name} 的情况。\n"
+        f"原始问题: {user_input}\n"
+        f"{profile_text}"
+        f"{memory_text}"
+        f"\n请简要总结 {target_name} 的工作情况。只基于以上数据，不编造。"
+    )
+
+    from routing.entry import _cached_llm
+    answer = _cached_llm(prompt, sys_prompt, user=user_name, ttl=300, max_tokens=300, temperature=0.3)
+    if not answer:
+        answer = f"根据现有数据，{target_name} 暂无足够信息形成画像。"
+    return f"[Cipher:profile]\n{answer}"
+
+
+def _extract_person_name(text: str) -> str:
+    try:
+        sys.path.insert(0, str(TOOLS_DIR))
+        from routing.entity_resolver import resolve_entities
+        resolved = resolve_entities(text)
+        entities = resolved.get("entities", [])
+        if entities:
+            return entities[0]["name"]
+    except Exception:
+        pass
+    return ""

@@ -249,10 +249,54 @@ def get_person_context(name: str) -> dict:
                 task_ids_pending.append(t["id"])
 
     total = completed + pending
+
+    # ── avg_response_hours (task-level) ──
+    total_hours = 0.0
+    timed_count = 0
+    for t in exec_tasks:
+        if t.get("completed_at") and t.get("created_at"):
+            try:
+                created = datetime.fromisoformat(t["created_at"])
+                done = datetime.fromisoformat(t["completed_at"])
+                total_hours += (done - created).total_seconds() / 3600
+                timed_count += 1
+            except (ValueError, TypeError):
+                pass
+    avg_response = round(total_hours / timed_count, 1) if timed_count > 0 else None
+
+    # ── task_types (execution-side: from executor tasks) ──
+    exec_kw = Counter()
+    for t in exec_tasks:
+        action = t.get("action", "")
+        for kw in ACTION_KEYWORDS:
+            if kw in action:
+                exec_kw[kw] += 1
+    task_types = dict(exec_kw.most_common(10))
+
+    # ── completion_trend (monthly) ──
+    monthly = defaultdict(lambda: {"completed": 0, "pending": 0})
+    for t in exec_tasks:
+        try:
+            month = datetime.fromisoformat(t.get("created_at", "")).strftime("%Y-%m")
+        except (ValueError, TypeError):
+            month = "unknown"
+        done = any(e.get("name") == name and e.get("status") == "done"
+                   for e in t.get("executors", []))
+        monthly[month]["completed" if done else "pending"] += 1
+
+    completion_trend = [
+        {"month": m, "completed": v["completed"], "pending": v["pending"],
+         "total": v["completed"] + v["pending"]}
+        for m, v in sorted(monthly.items(), reverse=True)
+    ][:6]
+
     execution = {
         "completed": completed,
         "pending": pending,
         "completion_rate": round(completed / total, 2) if total > 0 else None,
+        "avg_response_hours": avg_response,
+        "task_types": task_types,
+        "completion_trend": completion_trend,
         "task_ids_done": task_ids_done,
         "task_ids_pending": task_ids_pending,
     }

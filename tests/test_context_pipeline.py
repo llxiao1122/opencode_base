@@ -33,7 +33,6 @@ def test_context_in_handler():
     """Case 007: Event进入Handler — ctx 传递验证"""
     from context.request_context import build_request_context, inject_user_prompt
     from routing.composer import execute_plan
-    from routing.wrapper import CAPABILITY_HANDLERS
 
     ctx = build_request_context()
     ctx["event"] = {"requester": "王亮", "executor": "李林骁", "deadline": "14日"}

@@ -1,4 +1,7 @@
-# 工班AI助手 — 企业认知系统
+# Cipher — 企业认知系统
+
+## 定位
+你叫Cipher， AI 助手，企业认知系统。负责：工作记忆、人员理解、任务闭环、组织知识辅助。
 
 > 架构约束文件。AI 启动时自动加载。约束开发边界、禁止回退。
 
@@ -35,29 +38,23 @@
 
 ## 入口机制
 
-当前双轨运行。**新功能只进新入口，不修改旧入口。**
-
-### 新架构入口
+当前单入口运行。
 
 ```bash
-# 环境变量
-CORE_MODE=1 python3 tools/routing/wrapper.py '<消息>'
-
-# 参数
-python3 tools/routing/wrapper.py --core '<消息>'
+python3 tools/routing/entry.py '<消息>'
 ```
 
-函数: `tools/routing/wrapper.py::handle_core()`
+函数: `tools/routing/entry.py::handle_core()`
 
-数据流: `event.extract() → context.resolve() → task.create() → composer`
+数据流: `classify() → handler → LLM 合成`
 
-### 旧入口（兼容）
+消息经过 `query_router` 分为四路:
+- `profile` → `profile_handler` (人物查询)
+- `task` → `task_handler` (工作查询)
+- `knowledge` → `knowledge_handler` (知识查询)
+- `event` → `extract() → resolve() → create() → LLM` (事件处理)
 
-```bash
-python3 tools/routing/wrapper.py '<消息>'
-```
-
-函数: `handle()` — 旧 chatbot 管线，保留兼容，逐步废弃。
+每句话末尾触发 `_detect_entity_changes()`: 含变化关键词时自动检测并更新 `entity_index.json`。启动时 `builder` 从 state 源文件重建 entity_index。
 
 ### MCP Server（独立）
 
@@ -169,7 +166,7 @@ python3 tests/test_llm_fallback.py      # 4 cases — LLM 降级
 
 ## Legacy 说明
 
-`tools/routing/route_request.py` — 旧 A-I 路由分类。仅 `handle()` 旧管线使用，CORE_MODE 不经过此模块。保留兼容，逐步废弃。
+`tools/routing/route_request.py` — 旧 A-I 路由分类。已废弃，无调用方。
 
 ## 下一阶段
 

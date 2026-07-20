@@ -1,345 +1,326 @@
-# 企业认知系统 — 完整架构设计
+# Cipher 架构文档 — 新成员速查
 
-> 本文档为完整设计参考。AI 启动时加载 `AGENTS.md` 作为架构约束，本文档提供细节。
-
-## 架构演进
-
-```
-Phase 0 (最初)    消息 → 规则 → 回复                    chatbot
-Phase 1.7 (重构)  消息 → Event → Context → Task → Reply   pipeline
-Phase 1.8 (当前)  Event → Context → Task → Feedback → Memory  enterprise brain
-```
-
-核心转变：从"消息驱动规则系统"到"事件驱动的企业认知系统"。
+> 基于 Phase 13 代码快照。自动构建于 2026-07-20。
+> 唯一入口：`python3 tools/routing/entry.py '<消息>'`
 
 ---
 
-## 五层模型
+## 1. 分层架构
 
 ```
-钉钉消息
-    │
-    ▼
-Event 层 ──────── 纯事实提取。回答"发生了什么"。
-    │              输入: 原始文本
-    │              输出: {event_type, actors, action, target, deadline, raw}
-    │              禁止: 含"我是谁/我应该做什么"
-    │
-    ▼
-Context 层 ────── 责任定位。回答"这对我意味着什么"。
-    │              输入: Event + 当前用户 + 组织模型
-    │              输出: {my_position: {type, owner}, required_action: {verb, scope}, reason}
-    │              判断: 5种 ResponsibilityType
-    │              方式: 规则+组织模型，禁止 LLM
-    │
-    ▼
-Task 层 ───────── 执行管理。回答"我要做什么"。
-    │              输入: Event + Context
-    │              输出: {id, owner, executors[], subtasks[], deadline, status, priority}
-    │              能力: 创建/拆分/跟踪/闭环/分析
-    │              方式: 规则+模板，含子任务拆分
-    │
-    ▼
-Feedback 层 ───── 结果闭环。回答"完成了吗"。
-    │              输入: 反馈消息
-    │              动作: 匹配executor→更新status→全员done→自动关闭
-    │
-    ▼
-Memory 层 ─────── 长期学习。回答"学到了什么"。
-    │              输入: Event记录 + Task结果 + Feedback
-    │              输出: PersonProfile / OrganizationModel
-    │              方式: 事实积累→行为模式→人物画像
-    │
-    ▼
-Response 层 ───── 表达。回答"怎么说"。
-    │              输入: Task + Context
-    │              输出: 自然语言回复
-    │              方式: LLM合成，不参与认知判断
+用户消息
+  │
+  ▼
+┌──────────────────────────────────────────────────┐
+│  入口层  entry.py::handle_core()                 │
+│  - 启动: 构建 entity_index                       │
+│  - 每个消息: lifecycle 更新 → query_router 分类   │
+│  - 末尾: 实体变化检测                             │
+└──────────────┬───────────────────────────────────┘
+               │
+         ┌─────┴──────┬──────────┬──────────────┐
+         ▼            ▼          ▼              ▼
+     profile      task       knowledge      event
+     handler     handler     handler        pipeline
+         │            │          │              │
+         └────────────┴──────────┴──────────────┘
+               │
+               ▼
+         LLM 合成 → 自然语言回复
 ```
 
 ---
 
-## Event 层
+## 2. 各层详解
 
-### 数据结构
+### 2.1 入口层 — `tools/routing/entry.py`
 
-```json
-{
-  "id": "evt_001",
-  "event_type": "instruction|notification|report|inspection|incident|feedback",
-  "time": {"deadline": "2026-07-31"},
-  "source": "钉钉",
-  "actors": [{"name": "王亮", "role": "安全管理岗", "position": "requester"}],
-  "action": {"type": "notify", "summary": "完成郑轨学苑学习"},
-  "target": "各班组",
-  "confidence": 0.93,
-  "raw": "王亮在钉钉群各班组督促..."
-}
-```
+| 函数 | 输入 | 输出 | 说明 |
+|------|------|------|------|
+| `handle_core(user_input)` | 文本消息 | 回复字符串 | 唯一入口，一次硬路由分到 4 个 handler 之一 |
+| `_build_index_once()` | 无 | 无 | 首次调用时从 state 源文件重建 `entity_index.json` |
+| `_update_event_lifecycle(user_input)` | 文本 | 无 | 检查消息是否完成/取消已有事件，更新事件状态 |
+| `_detect_entity_changes(user_input)` | 文本 | 无 | 含"负责/接手/离职/休假"关键词时触发 change_detector |
+| `_cached_llm(prompt, sys_prompt)` | prompt | LLM 回复 | SHA256 缓存，TTL=60s，避免相同请求重复调 API |
+| `_handle_event(user_input, user, ...)` | 文本+用户 | 回复 | event→context→task→LLM 完整管线 |
 
-### 关键模块
+### 2.2 路由层 — `tools/routing/query_router.py`
 
-| 模块 | 职责 | 方式 |
+| 函数 | 输入 | 输出 | 逻辑 |
+|------|------|------|------|
+| `classify(user_input)` | 文本 | `"profile"` / `"task"` / `"knowledge"` / `"event"` | 纯规则关键词匹配，无 LLM。优先级：profile > task > knowledge > event |
+
+**路由关键词**：
+
+| 路由 | 触发词（任一命中） |
+|------|-------------------|
+| profile | 什么样、怎么样、评价、能力、表现、画像、是谁、性格 |
+| task | 今天、明天、本周、待办、任务、安排、工作 |
+| knowledge | 制度、规定、流程、标准、规范、禁止、不得、怎么办 |
+| event | （兜底，以上全未命中） |
+
+### 2.3 Handler 层
+
+#### task_handler — `tools/routing/task_handler.py`
+
+| 函数 | 输入 | 输出 | 说明 |
+|------|------|------|------|
+| `handle(user_input, ctx)` | 文本+上下文 | 工作安排清单 | 主入口：检测时间范围，聚合固定+动态任务 |
+| `_detect_scope(text)` | 文本 | `"today"/"tomorrow"/"week"` | 时间范围解析 |
+| `_get_daily_work(text, target_date)` | 文本+日期 | 固定工作文本 | 从 `Knowledge/00-日常工作指引.md` 解析：值班人、库区负责人、材料棚、每日/周五/月度固定、汛期、演练 |
+| `_get_duty_person(target, md)` | 日期 | 值班人名 | 从 Knowledge markdown 解析轮值序列+锚点，推算当天值班人 |
+| `_parse_duty_cycle(md)` | markdown | (序列, 锚点日期, 锚点位置) | 解析"陈红洁→张志斌→..."序列表和参照日期表 |
+| `_extract_contacts(tasks, daily_text)` | 任务+文本 | 联系人摘要 | 从 entity_index 提取任务相关外部联系人（排除团队成员） |
+
+数据源：
+- `data/tasks.json` → 动态任务
+- `Knowledge/00-日常工作指引.md` → 固定工作、轮值、库区分配、汛期、演练
+- `state/entity_index.json` → 联系人角色
+
+#### profile_handler — `tools/routing/profile_handler.py`
+
+| 函数 | 输入 | 输出 | 说明 |
+|------|------|------|------|
+| `handle(user_input, ctx)` | 文本+上下文 | 人物画像 | 提取人名，加载画像+记忆，LLM 合成 |
+| `_extract_person_name(text)` | 文本 | 人名 | 通过 entity_resolver 匹配实体 |
+
+数据源：`profile/retriever.py::get_person_context()`, `memory/retriever.py::search_person()`
+
+#### knowledge_handler — `tools/routing/knowledge_handler.py`
+
+| 函数 | 输入 | 输出 | 说明 |
+|------|------|------|------|
+| `handle(user_input, ctx)` | 文本+上下文 | 合规回答 | FAISS 搜索知识库 → LLM 合成 |
+
+数据源：`knowledge/retriever.py::search()`, `data/knowledge/knowledge_index.json`
+
+### 2.4 事件提取层 — `tools/core/event.py`
+
+| 函数 | 输入 | 输出 | 说明 |
+|------|------|------|------|
+| `extract(text, current_user)` | 原始文本+用户 | Event dict `{id, event_type, actors, time, confidence, raw}` | 事实提取入口，调用 event_detector.detect() |
+| `_infer_event_type(text, raw_evt)` | 文本+检测结果 | `instruction/notification/inspection/report/incident/feedback/unknown` | 纯规则，通过标题关键词判断 |
+| `_build_actors(raw_evt)` | 检测结果 | `[{name, role, position}]` | 组装 requester/executor/entity |
+
+依赖：`memory/event_detector.py::detect()` — 6 种信号检测（动作+时间、动作+实体、编号+动作、通知+时间、角色+动作、关键词），≥2 信号触发。
+
+### 2.5 上下文理解层 — `tools/core/context.py`
+
+| 函数 | 输入 | 输出 | 说明 |
+|------|------|------|------|
+| `resolve(event, user)` | Event + 用户 | Context dict `{my_position, required_action, reason, deadline_feasibility}` | 5 种责任类型判断 |
+
+**5 种责任类型**（纯规则，顺序判断）：
+
+| 优先级 | 类型 | 条件 | 动作 |
+|--------|------|------|------|
+| 1 | supervisor | 当前用户是发起人 | 监督执行人 |
+| 2 | executor | 当前用户被直接点名 | 完成目标 |
+| 3 | coordinator | 群体通知 + 当前用户是工班长 | 督促团队 |
+| 4 | audience | 群体通知 + 非负责人 | 关注即可 |
+| 5 | observer | 兜底 | 信息接收 |
+
+`_check_deadline_feasibility(event)` — 工作小时计算，少于 4h 标记不可行，少于 8h 标记紧张。
+
+### 2.6 任务管理层 — `tools/task/manager.py` + `store.py`
+
+| 函数 | 输入 | 输出 | 说明 |
+|------|------|------|------|
+| `TaskManager.create(event, context, user)` | Event+Context+User | Task dict | 规则创建任务：coordinator→拆子任务，executor→个人任务，observer→不创建 |
+| `TaskManager.update_from_event(event)` | feedback Event | {matched, executor, all_done} | 匹配执行人→更新状态→全员done→自动关闭 |
+| `store.save(task)` | Task dict | 无 | JSON 持久化到 `data/tasks.json` |
+| `store.load(task_id)` | id | Task dict | 单条加载 |
+| `store.list_by_owner(owner, status)` | 人名+状态 | Task list | 按工班长查询 |
+| `store.close(task_id)` | id | bool | 关闭任务，写 completed_at |
+
+`task/priority.py::infer_priority(raw_text)` — 安全关键词（消防/防汛/应急…）→ high，其余→ normal。
+
+### 2.7 组织层 — `tools/organization/model.py`
+
+| 方法 | 输入 | 输出 |
 |------|------|------|
-| `core/event.py::extract()` | 统一入口，事实提取 | 调用 detect + enricher |
-| `memory/event_detector.py::detect()` | 信号检测（≥2信号触发） | 规则，6种信号 |
-| `pipeline/event_enricher.py::enrich_event()` | AI内容补充（section→LLM提取） | LLM辅助 |
+| `get_members(owner)` | 工班长名 | `["苗笑天","张志斌","谭继衡","杨梦卓","陈红洁"]` |
+| `get_leader(member)` | 成员名 | `"李林骁"` |
+| `get_team_name(owner)` | 工班长名 | `"铁炉西工班"` |
 
-### 禁止
+内部字典实现，团队数据硬编码于类体内。
 
-- 含"我是谁/我的责任/我要做什么"
-- event_type 判断用 LLM
+### 2.8 实体层 — `tools/shared/entity.py` + `tools/entity/builder.py`
 
----
+**builder.py** — 从 state 源文件自动构建 `entity_index.json`：
 
-## Context 层
-
-### 数据结构
-
-```json
-{
-  "event_id": "evt_001",
-  "my_position": {
-    "type": "coordinator",
-    "owner": "李林骁",
-    "description": "工班长，负责落实本班组"
-  },
-  "required_action": {"verb": "督促", "scope": "铁炉西工班员工"},
-  "reason": "王亮通知各班组，李林骁为铁炉西工班工班长"
-}
-```
-
-### ResponsibilityType
-
-| type | 条件 | 示例 |
+| 函数 | 输入 | 输出 |
 |------|------|------|
-| executor | 被直接点名 | 王亮通知李林骁... |
-| coordinator | 群体通知 + 我是负责人 | 通知各班组 + 我是工班长 |
-| supervisor | 我指派了他人 | 李林骁通知苗笑天... |
-| audience | 群体通知 + 我非负责人 | 苗笑天收到各班组通知 |
-| observer | 纯信息/公告 | 暴雨蓝色预警 |
+| `build()` | 无 | 完整 entity_index dict |
+| `parse_members()` | — | 从 `state/members/*.md` 解析（姓名 from 文件名，职责 from `职责:` 行） |
+| `parse_leaders()` | — | 从 `state/leaders.md` 解析（`姓名(角色)` 或 `姓名: 角色` 格式） |
+| `parse_org()` | — | 从 `state/org.md` 解析（TREE section + ROLE section） |
 
-### 关键模块
+**shared/entity.py** — 运行时实体查询：
 
-| 模块 | 职责 |
+| 函数 | 说明 |
 |------|------|
-| `core/context.py::resolve()` | 5种责任类型推断 |
-| `context/hierarchy_resolver.py` | 组织层级查询 |
+| `load_entities()` | 加载全部实体（confirmed + pending），缓存 |
+| `get_role(name)` | 按人名查角色 |
+| `get_team(name)` | 按人名查班组 |
+| `find_entities_in_text(text)` | 从文本中提取实体名 |
 
----
+调用方：`core/event.py`, `core/context.py`, `task_handler.py`, `profile_handler.py`
 
-## Organization 层
+### 2.9 记忆层 — `tools/memory/`
 
-### 当前实现
+| 模块 | 关键函数 | 职责 |
+|------|---------|------|
+| `memory_core.py` | `MemoryCore.search(query, types, top_k)` | FAISS 双索引（semantic 语义 + episodic 情景）搜索 |
+| `memory_core.py` | `MemoryCore.save(situation, action, outcome)` | 保存经验 → `memory/observations/*.md` + FAISS episodic 索引 |
+| `memory_core.py` | `MemoryCore.retrieve(topic, max_chars)` | 按主题从语义索引检索知识 |
+| `memory_core.py` | `MemoryCore.reflect(since_days)` | 扫描近期观察，聚类、压缩提炼经验规则 |
+| `event_recorder.py` | `record(event)` | Event → `memory/events/log.jsonl` |
+| `event_lifecycle.py` | `update_from_message(text)` | 根据消息文本完成/取消/确认事件 |
+| `change_detector.py` | `detect(text)` | 从文本中检测人员职责/状态变化（负责/接手/离职/休假…） |
 
-```python
-organization/model.py::OrganizationModel
-  - get_members(owner) → list     # 获取团队成员
-  - get_leader(member) → str      # 查询直属上级
-  - get_team_name(owner) → str    # 查询班组名称
-```
+MCP 服务：`tools/memory/memory_server.py` — 对外暴露 4 个工具：`memory_search` / `memory_save` / `knowledge_retrieve` / `memory_reflect`
 
-内部字典实现。未来从 `state/` 动态加载，支持人工调整。
+### 2.10 LLM 层 — `tools/reasoning/llm_client.py`
 
-### 目标
-
-```
-静态 TEAM_MAP → OrganizationModel 接口 → 动态组织模型
-```
-
----
-
-## Task 层
-
-### 完整数据结构
-
-```json
-{
-  "id": "task_001",
-  "source_event_id": "evt_001",
-  "responsibility_type": "coordinator",
-  "priority": {"value": "high", "reason": "消防", "rule": "safety_keyword_v1"},
-  "owner": {"name": "李林骁", "role": "工班长"},
-  "action": "督促铁炉西工班员工完成消防检查",
-  "executors": [
-    {"name": "苗笑天", "status": "done"},
-    {"name": "张志斌", "status": "pending"}
-  ],
-  "subtasks": [
-    {"action": "通知苗笑天完成消防检查", "assignee": "苗笑天", "done": true},
-    {"action": "汇总铁炉西工班完成情况", "assignee": "李林骁", "done": false}
-  ],
-  "deadline": "2026-07-31",
-  "status": "in_progress",
-  "created_at": "2026-07-19T10:00:00",
-  "completed_at": null
-}
-```
-
-### 状态流转
-
-```
-pending → in_progress → completed
-                ↑
-          feedback loop:
-            executor pending → done → all_done → task completed
-```
-
-### 关键模块
-
-| 模块 | 职责 |
+| 函数 | 说明 |
 |------|------|
-| `task/manager.py::create()` | 从Event+Context创建任务 |
-| `task/manager.py::update_from_event()` | feedback事件→更新executor→检查闭环 |
-| `task/store.py` | JSON持久化 |
-| `task/status.py` | 状态常量 |
-| `task/priority.py` | 安全关键词→high/normal |
-| `task/analyzer.py` | 统计分析（区分executed/owned） |
+| `call(prompt, system_prompt, temperature, max_tokens)` | DeepSeek Chat Completion API 调用 |
+| `_resolve_config()` | 配置优先级：`LLM_API_KEY` env > `DEEPSEEK_API_KEY` env > `~/.config/opencode/opencode.jsonc` |
 
----
+### 2.11 上下文构建层 — `tools/context/request_context.py`
 
-## Feedback 层
-
-### 数据流
-
-```
-feedback消息 → core/event.extract() → event_type=feedback
-  → task/manager.update_from_event()
-    → 匹配executor → 更新status → check_complete
-    → 全员done → store.close() → 写completed_at
-```
-
-### 当前能力
-
-- 识别短消息 + 实体 + 完成关键词 → feedback
-- 匹配活跃任务中的executor
-- 全员完成自动闭环
-
----
-
-## Memory 层
-
-### 当前状态
-
-| 模块 | 状态 | 职责 |
-|------|------|------|
-| `memory/memory_core.py` | ACTIVE | FAISS双索引搜索 |
-| `memory/memory_server.py` | MCP | 4个工具 |
-| `memory/event_lifecycle.py` | ACTIVE | Event生命周期 |
-| `memory/event_recorder.py` | 刚刚复活 | Event→Memory记录 |
-| `memory/profile_store.py` | 未建设 | 人物画像 |
-
-### Phase 2 蓝图
-
-```
-event_recorder: 每个Event写入 log.jsonl
-      ↓
-profile_store: 从Event+Task统计中提取人物行为模式
-      ↓
-organization/model: 从静态字典升级为动态组织模型
-```
-
----
-
-## Response 层
-
-### 关键模块
-
-| 模块 | 职责 | LLM |
-|------|------|-----|
-| `routing/composer.py` | 多能力编排+合成 | 合成时调用 |
-| `reasoning/llm_client.py` | DeepSeek API封装 | 无 |
-
-### 原则
-
-- composer 不决定任务
-- LLM 不判断责任归属
-- prompt 不承载架构逻辑
-
----
-
-## 目录结构
-
-### 当前（Phase 1.8）
-
-```
-tools/
-├── core/           # Event/Context/Task 核心
-├── task/           # Task 管理
-├── organization/   # 组织模型
-├── memory/         # 记忆引擎
-├── routing/        # 路由/编排/回复
-├── context/        # 上下文构建
-├── pipeline/       # 事件增强
-├── reasoning/      # LLM 客户端
-├── guard/          # 日志/安全
-├── parse/          # 文档解析
-├── extract/        # AI 提取
-└── work/           # 工作查询
-
-state/              # 组织数据
-data/               # 运行时数据
-memory/             # 事件存储
-```
-
-### 目标（Phase 5）
-
-```
-tools/
-├── core/           # 五层核心
-├── event/          # 事件检测提取
-├── organization/   # 组织模型
-├── task/           # 任务管理
-├── memory/         # 记忆引擎
-├── response/       # 回复合成
-└── router/         # 路由（遗留）
-```
-
----
-
-## Phase 演进路线
-
-| 阶段 | 内容 | 状态 |
-|------|------|------|
-| Phase 1 | Task Foundation: 创建/拆分/持久化 | ✅ |
-| Phase 2 | Feedback Loop: 闭环 | ✅ |
-| Phase 3 | Task Intelligence: priority/analyzer | ✅ |
-| Phase 4 | Architecture Doc: AGENTS.md + event_recorder | 🔄 当前 |
-| Phase 5 | Memory Revive: profile_store + org动态化 | ⬜ |
-| Phase 6 | Cleanup: DEAD模块删除 + 目录重组 | ⬜ |
-
----
-
-## 迁移记录
-
-### 从旧架构迁移到 core/
-
-| 旧模块 | 处理方式 |
-|--------|---------|
-| `wrapper.py::handle()` | 保留兼容，逐步废弃 |
-| `route_request.py` | Legacy，仅旧管线使用 |
-| `instruction_resolver.py` | 降级为 context.py 内部组件 |
-| `hierarchy_resolver.py` | 降级为 context.py 内部组件 |
-| `_TEAM_MAP` | 替换为 organization/model.py |
-
-### 已确认 DEAD（待删除）
-
-| 文件 | 原因 |
+| 函数 | 说明 |
 |------|------|
-| `context_builder.py` | 从未被调用 |
-| `keyword_discovery.py` | 导入路径损坏 |
-| `plugins/` 多个独立脚本 | 无调用方 |
-| `dingbot/send_msg.py` | 含硬编码 token |
+| `build_request_context()` | 从 `state/user_profile.md` 加载当前用户 `{name, role, team}` |
+| `inject_user_prompt(ctx)` | 生成 LLM prompt 前缀："你正在与李林骁（工班长，铁炉西工班）对话" |
 
 ---
 
-## 测试
+## 3. 数据流 — 完整路径
 
-```bash
-python3 tests/test_role_resolution.py   # 6 cases
-python3 tests/test_event_flow.py        # 5 cases
-python3 tests/test_context_pipeline.py  # 4 cases
-python3 tests/test_llm_fallback.py      # 4 cases
+### 路径 A：工作查询（"明天什么工作"）
+
+```
+"明天什么工作"
+  │
+  ▼
+entry.py::handle_core()
+  ├── _build_index_once()              → entity_index.json 首次重建
+  ├── _update_event_lifecycle()        → 检查是否有事件完成/取消
+  │
+  ├── query_router.classify()          → "task"
+  │    关键词: "今天""明天""工作"
+  │
+  ├── task_handler.handle()
+  │     ├── _detect_scope()            → "tomorrow"
+  │     ├── _load_tasks()              → data/tasks.json
+  │     ├── _filter_tasks()            → 过滤 in_progress
+  │     │
+  │     └── _get_daily_work()          → Knowledge/00-日常工作指引.md
+  │           ├── _get_duty_person()   → 推算当日值班人
+  │           ├── _get_zone_chiefs()   → 库区负责人
+  │           ├── _get_material_shed() → 材料棚轮换
+  │           ├── _get_flood_season()  → 汛期附加工作
+  │           ├── 每日/周五/月度固定    → 表解析
+  │           └── 本月演练              → 匹配月份
+  │
+  ├── _cached_llm(prompt)              → LLM 合成回复
+  │
+  └── _detect_entity_changes()         → "明天"不含变化关键词，跳过
 ```
 
-当前：19/19 全部通过。
+### 路径 B：事件处理（"王亮通知各班组完成消防检查，本周五前"）
+
+```
+用户消息
+  │
+  ▼
+entry.py::handle_core()
+  ├── classify()                       → "event"
+  │   没有命中任何路由关键词 → 兜底
+  │
+  ├── _handle_event()
+  │     │
+  │     ├── core/event.extract()
+  │     │     ├── event_detector.detect()  → 信号检测（动作+时间+实体 ≥2信号）
+  │     │     │   输出: {requester:"王亮", executor:"李林骁", entities:[...], time:{deadline:"..."}}
+  │     │     └── _infer_event_type()      → "instruction"
+  │     │
+  │     ├── event_recorder.record(event)   → log.jsonl
+  │     │
+  │     ├── core/context.resolve(event, user)
+  │     │     → is_broadcast(TRUE) + is_leader(TRUE)
+  │     │     → coordinator
+  │     │
+  │     ├── task/manager.create(event, context, user)
+  │     │     ├── OrganizationModel.get_members("李林骁")
+  │     │     │    → [苗笑天, 张志斌, 谭继衡, 杨梦卓, 陈红洁]
+  │     │     ├── priority.infer_priority("消防检查")
+  │     │     │    → {value:"high", reason:"安全关键词: 消防"}
+  │     │     ├── 拆子任务 → 5人各1条
+  │     │     └── store.save(task) → data/tasks.json
+  │     │
+  │     └── LLM 合成回复
+  │
+  └── _detect_entity_changes()         → "通知""消防"不含变化关键词，跳过
+```
+
+### 路径 C：反馈闭环（"苗笑天已完成消防检查"）
+
+```
+entry.py::handle_core()
+  ├── classify()                       → "event"
+  │
+  ├── _handle_event()
+  │     ├── core/event.extract()
+  │     │     → event_type: "feedback"（短消息+实体+完成词）
+  │     │
+  │     ├── task/manager.update_from_event(event)
+  │     │     → 匹配 executor "苗笑天" → 更新 status → check_complete
+  │     │     → 全员未都完成 → "✅ 已记录：苗笑天 完成"
+  │     │
+  │     └── return "[Core:feedback]\n✅ 已记录：苗笑天 完成"
+  │
+  └── _detect_entity_changes()         → "完成"不含变化关键词，跳过
+```
+
+---
+
+## 4. 存储层
+
+| 路径 | 格式 | 写入者 | 读取者 |
+|------|------|--------|--------|
+| `data/tasks.json` | JSON array | `task/store.py` | `task_handler`, `task/manager` |
+| `data/knowledge/knowledge_index.json` | JSON | `knowledge/store` | `knowledge_handler`, `knowledge/retriever` |
+| `memory/events/log.jsonl` | JSONL | `event_recorder` | 各项分析器 |
+| `memory/observations/*.md` | Markdown | `memory_core.save()` | `memory_core.reflect()` |
+| `memory/.vector/{semantic,episodic}.index` | FAISS | `memory_core` | `memory_core` |
+| `state/entity_index.json` | JSON | `entity/builder`, `entry.py::_apply_changes_direct` | `shared/entity`, `entity_resolver` |
+| `state/user_profile.md` | Markdown | 手动 | `request_context` |
+| `state/members/*.md` | Markdown | 手动 | `entity/builder` |
+| `state/leaders.md` | Markdown | 手动 | `entity/builder` |
+| `state/org.md` | Markdown | 手动 | `entity/builder` |
+| `Knowledge/00-日常工作指引.md` | Markdown | 手动 | `task_handler` |
+
+---
+
+## 5. llm_client 调用链
+
+```
+entry.py::_cached_llm()
+  └── reasoning/llm_client.py::call(prompt, system_prompt, temperature, max_tokens)
+        └── _resolve_config()
+              ├── LLM_API_KEY env       ← 最高优先级
+              ├── DEEPSEEK_API_KEY env  ← 回退
+              └── ~/.config/opencode/opencode.jsonc  ← 最后兜底
+        └── urllib POST → api.deepseek.com/v1/chat/completions
+              model: deepseek-chat (默认), deepseek-v4-pro (opencode 配置)
+```
+
+调用方：
+- `entry.py::_cached_llm()` — 被所有 handler 使用
+- `entry.py::_handle_event()` — 直接调 `_llm` (不走缓存，事件处理的 prompt 很少重复)
+- `memory_core.py::_summarize()` — 聚类压缩时 LLM 提炼经验规则
+- `slow_think.py::_generate_hypotheses()` — 慢思考推理
+- `simulator.py::_simulate()` — 因果模拟推演
