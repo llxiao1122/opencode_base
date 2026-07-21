@@ -46,7 +46,7 @@ def handle(user_input, ctx):
         f"\n请根据制度内容回答。如果制度未覆盖，如实说明。"
     )
 
-    from routing.entry import _cached_llm
+    from shared.llm_cache import call as _cached_llm
     answer = _cached_llm(prompt, sys_prompt, user=user_name, ttl=60, max_tokens=400, temperature=0.2)
     if not answer:
         answer = "未能检索到匹配的制度内容。"

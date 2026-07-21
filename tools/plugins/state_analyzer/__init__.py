@@ -1,1 +1,1 @@
-# state_analyzer plugin
+# state_analyzer plugin — DEPRECATED: 无调用方

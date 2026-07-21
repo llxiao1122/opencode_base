@@ -1,7 +1,8 @@
 """
 routing/query_router.py — Query type classifier (Phase 12.1).
 
-Rule-based, no LLM. Priority: profile > task > knowledge > event.
+Keyword-first, semantic-fallback. No LLM.
+Priority: profile > task > knowledge > event.
 """
 
 PROFILE_WORDS = [
@@ -20,12 +21,26 @@ KNOWLEDGE_WORDS = [
     "要求", "禁止", "不得", "应做", "怎么办",
 ]
 
+SEMANTIC_ANCHORS = {
+    "profile": [
+        "这个人怎么样", "性格怎么样", "能力如何", "评价一下",
+        "他的表现", "为人处世", "工作态度", "靠谱吗", "是什么样的人",
+    ],
+    "task": [
+        "今天要做什么", "工作安排", "待办事项", "有什么任务",
+        "最近的事情", "还有什么事", "忙不忙", "有啥活",
+    ],
+    "knowledge": [
+        "制度规定是什么", "操作规程", "标准流程", "怎么处理",
+        "有什么要求", "应急预案", "合规检查", "规章制度",
+    ],
+}
+
 
 def classify(user_input: str) -> str:
     """Return: profile | task | knowledge | event"""
     text = user_input.strip()
 
-    # profile has highest priority — "张志斌工作怎么样" → profile, not task
     if any(w in text for w in PROFILE_WORDS):
         return "profile"
 
@@ -34,5 +49,13 @@ def classify(user_input: str) -> str:
 
     if any(w in text for w in KNOWLEDGE_WORDS):
         return "knowledge"
+
+    # No keyword hit — semantic fallback
+    if len(text) >= 2:
+        try:
+            from shared.semantic import classify as sem_classify
+            return sem_classify(text, SEMANTIC_ANCHORS, fallback="event", threshold=0.52)
+        except Exception:
+            pass
 
     return "event"

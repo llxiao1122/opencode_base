@@ -1,3 +1,4 @@
+# DEPRECATED — 无调用方。路由功能由 query_router.py 承担。
 #!/usr/bin/env python3
 """
 route_request.py — 多路由语义向量（稳定版）

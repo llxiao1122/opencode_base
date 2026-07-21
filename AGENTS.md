@@ -37,7 +37,7 @@ Cipher 在合适时会主动调用 `data/personal/preferences.json` 和 `data/pe
 
 1. Event 是唯一事实源——不含"我是谁/我要不要做"
 2. Context 判断事件对当前用户的意义——规则+组织模型，不用 LLM
-3. Task 是内部认知结果——不是回复，composer 不修改 Task
+3. Task 是内部认知结果——不是回复，代码不修改 Task
 4. Memory 从 Event+Task+Feedback 中学习——不直接吃原始消息
 5. Response 只做表达——不参与认知判断
 
@@ -45,7 +45,7 @@ Cipher 在合适时会主动调用 `data/personal/preferences.json` 和 `data/pe
 
 - 不增加新的关键词规则解决业务问题
 - 不让 LLM 判断责任归属
-- 不让 composer 决定任务
+- 不让代码决定任务
 - 不让 prompt 承担架构逻辑
 
 ## 入口机制
@@ -68,45 +68,53 @@ python3 tools/routing/entry.py '<消息>'
 
 每句话末尾触发 `_detect_entity_changes()`: 含变化关键词时自动检测并更新 `entity_index.json`。启动时 `builder` 从 state 源文件重建 entity_index。
 
+### LLM 缓存
+
+```python
+from shared.llm_cache import call  # 带 TTL 的 LLM 调用，消除循环依赖
+```
+
 ### MCP Server（独立）
 
 ```bash
 python3 tools/memory/memory_server.py  # STDIO 协议
 ```
 
-提供 4 个记忆工具：`memory_search/save/retrieve/reflect`。与 wrapper 管线独立运行，不负责判断责任或创建任务。
+提供 4 个记忆工具：`memory_search/save/retrieve/reflect`。与管线独立运行。
 
 ## 架构分层
 
 ```
 Event 层（纯事实）
   core/event.py           — extract() 事实提取
-  memory/event_detector.py — detect() 信号检测（被 event.py 调用）
-  pipeline/event_enricher.py — AI 内容补充
+  memory/event_detector.py — detect() 信号检测
 
 Context 层（责任定位）
   core/context.py         — resolve() 5种责任类型判断
-  context/hierarchy_resolver.py — 组织层级查询（被 context.py 调用）
+  context/hierarchy_resolver.py — 组织层级查询
 
 Organization 层（组织模型）
-  organization/model.py   — OrganizationModel.get_members(owner)
+  organization/model.py   — 从 state/entity_index.json + org.md 动态构建
 
 Task 层（执行管理）
   task/manager.py         — create/update_from_event/check_complete
   task/store.py           — JSON 持久化 data/tasks.json
   task/status.py          — 状态常量
   task/priority.py        — 优先级推断
-  task/analyzer.py        — 统计分析
 
 Memory 层（长期记忆）
   memory/memory_core.py   — FAISS 双索引语义/情景搜索
   memory/event_recorder.py — Event→Memory 记录器
   memory/event_lifecycle.py — Event 状态迁移
+  memory/observation_store.py — 观察持久化（facts/patterns/conclusions 三层）
   memory/memory_server.py — MCP STDIO 服务
 
+Record 层（工作记录管理）
+  routing/record_manager.py — 记录意图检测、任务去重合并、缺失信息检测
+
 Response 层（表达）
-  routing/composer.py     — 多能力编排 + LLM 合成
   reasoning/llm_client.py — DeepSeek API 封装
+  shared/llm_cache.py     — 带 TTL 的 LLM 调用缓存
 ```
 
 ## Task 数据模型
@@ -143,13 +151,10 @@ Response 层（表达）
 ## 测试体系
 
 ```bash
-python3 tests/test_role_resolution.py   # 6 cases — 三角色解析
-python3 tests/test_event_flow.py        # 5 cases — detect→enrich→persist
-python3 tests/test_context_pipeline.py  # 4 cases — ctx 贯穿
-python3 tests/test_llm_fallback.py      # 4 cases — LLM 降级
+pytest tests/ -v    # 13 tests
 ```
 
-当前: **19/19 全部通过**。任何修改必须保持。
+当前: **13/13 全部通过**。任何修改必须保持。
 
 ## 当前完成度
 
@@ -176,9 +181,34 @@ python3 tests/test_llm_fallback.py      # 4 cases — LLM 降级
 
 **优先**：扩展已有模块 → 其次：新增稳定边界模块 → 不做：临时规则文件
 
-## Legacy 说明
+## LLM 使用边界
 
-`tools/routing/route_request.py` — 旧 A-I 路由分类。已废弃，无调用方。
+| 层 | LLM 权限 | 说明 |
+|----|---------|------|
+| Event 层 | 禁止 | 纯规则事实提取 |
+| Context 层 | 禁止 | 责任类型纯规则 |
+| Task 层 | 禁止 | 任务创建/状态/优先级纯规则；任务去重用 semantic 向量 |
+| Memory 层 | 受限 | `reflect()` 可调用，输出标记为 `pattern` 层，不直接写入 `facts` |
+| Response 层 | 允许 | 仅用于表达合成，不参与认知判断 |
+
+LLM 输出写入长期记忆时必须分层（facts/patterns/conclusions）。
+废弃模块（route_request/composer/slow_think/simulator/value_arbiter/curiosity_engine/llm_tags/context_builder/plugins 中非 dingbot 部分）不得被主线重新调用。
+
+## 废弃模块清单
+
+| 模块 | 原因 | 替代 |
+|------|------|------|
+| `route_request.py` | 路由由 query_router 承担 | `query_router.py` |
+| `composer.py` | 入口不再调用 | handler 直接返回 |
+| `llm_tags.py` | 仅 route_request 调用 | `shared/semantic.py` |
+| `context_builder.py` | 无调用方 | task_handler 直接组装 |
+| `slow_think.py` | 无管线集成 | — |
+| `simulator.py` | 仅 slow_think 引用 | — |
+| `value_arbiter.py` | 仅 slow_think 引用 | — |
+| `curiosity_engine.py` | 无管线集成 | — |
+| `memory_reflect.py` | CLI only | `memory_core.reflect()` |
+| `plugins/state_analyzer/` | 无调用方 | — |
+| `plugins/team_router/` | 无调用方 | — |
 
 ## 下一阶段
 

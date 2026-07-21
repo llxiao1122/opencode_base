@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-state_analyzer - 管理分析 + 报告生成
+state_analyzer — DEPRECATED: 无调用方 - 管理分析 + 报告生成
 流程: state/_index.md关键词→文件映射 → 只读命中文件 → 回退全读
 """
 import sys

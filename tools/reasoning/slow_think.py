@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-slow_think.py — System 2 慢思考引擎
+slow_think.py — System 2 慢思考引擎 — DEPRECATED: 废弃，无管线集成
 在复杂任务时展开思维树,每条假设实时检索记忆校验,检测矛盾并输出最佳路径。
 """
 

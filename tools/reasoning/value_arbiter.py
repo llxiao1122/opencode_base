@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-value_arbiter.py - 价值对齐仲裁器
+value_arbiter.py - 价值对齐仲裁器 — DEPRECATED: 仅 slow_think 引用（slow_think 也已废弃）
 基于 memory/values_profile.json 对多个方案进行加权评判，无 LLM 依赖。
 """
 

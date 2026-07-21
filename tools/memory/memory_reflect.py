@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-memory_reflect.py — 反思回路 CLI 入口
+memory_reflect.py — 反思回路 CLI 入口 — DEPRECATED: CLI only，功能由 memory_core.reflect() 承担
 供 cron / 手动调用:  python3 tools/memory/memory_reflect.py --since 7
 """
 

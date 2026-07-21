@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# DEPRECATED — route_request 已废弃，本测试无对应功能
 """路由测试 —— 验证三层路由框架"""
 
 import sys, time

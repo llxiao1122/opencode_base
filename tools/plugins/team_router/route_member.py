@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-team_router - 成员画像查询
+team_router — DEPRECATED: 无调用方 - 成员画像查询
 流程: state/_index.md查映射 → 读成员文件 → 自动查观察记录
 """
 import sys

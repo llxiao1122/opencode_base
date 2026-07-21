@@ -691,3 +691,14 @@ layer: rule
 
 - 后续: 其他危废处置进行中。
 confidence: 0.7
+
+---
+
+## 2026-07-21
+
+source: mcp_save
+type: note
+layer: rule
+
+情境:完成了Cipher系统全架构修正（F1-F6），包含消除循环依赖、清理1250行废弃代码、修复SSOT组织数据、提取record_manager、Memory层LLM输出分层、更新AGENTS.md。 行动:按F1-F6顺序执行：创建shared/llm_cache.py消除循环依赖；标记10个文件为DEPRECATED并移除入口引用；重写organization/model.py从state文件动态构建团队结构；移除shared/entity.py中硬编码TEAM_MAP/TEAM_LEADER_MAP；提取record_manager.py减少entry.py 184行；修改memory_core.reflect()将LLM输出写入pattern层而非直接facts；更新AGENTS.md反映新架构。 结果:13/13测试全部通过；手动验证work/record/event三个关键路径正常；entry.py从471行减至287行。
+confidence: 0.9

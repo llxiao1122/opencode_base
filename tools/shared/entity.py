@@ -4,7 +4,7 @@ shared/entity.py — Unified entity + team resolution.
 Single source of truth for:
   - Loading entity_index.json (cached)
   - Role lookup by person name
-  - Team membership mapping
+  - Team membership mapping (delegates to organization/model.py)
   - Broadcast/assign word lists
 """
 
@@ -20,19 +20,6 @@ BROADCAST_WORDS = [
 ]
 
 ASSIGN_WORDS = ["通知", "安排", "要求", "指定", "负责", "完成"]
-
-TEAM_MAP = {
-    "李林骁": "铁炉西工班",
-    "陈红洁": "铁炉西工班",
-    "杨梦卓": "铁炉西工班",
-    "谭继衡": "铁炉西工班",
-    "苗笑天": "铁炉西工班",
-    "张志斌": "铁炉西工班",
-}
-
-TEAM_LEADER_MAP = {
-    "铁炉西工班": "李林骁",
-}
 
 _entities_cache: list = None
 
@@ -66,13 +53,21 @@ def get_role(name: str) -> str:
 
 
 def get_team(name: str) -> str:
-    """Look up a person's team name."""
-    return TEAM_MAP.get(name, "")
+    """Look up a person's team name via OrganizationModel."""
+    from organization.model import OrganizationModel
+    org = OrganizationModel()
+    for team_name, team in org._teams.items():
+        if team["leader"] == name or name in team["members"]:
+            return team_name
+    return ""
 
 
 def get_team_leader(team: str) -> str:
-    """Return team leader name for a given team."""
-    return TEAM_LEADER_MAP.get(team, "")
+    """Return team leader name for a given team via OrganizationModel."""
+    from organization.model import OrganizationModel
+    org = OrganizationModel()
+    t = org._teams.get(team)
+    return t["leader"] if t else ""
 
 
 def has_known_entity(text: str) -> bool:
@@ -80,13 +75,55 @@ def has_known_entity(text: str) -> bool:
     for e in _load_raw():
         if e["name"] in text:
             return True
+        for alias in e.get("aliases", []):
+            if alias in text:
+                return True
+        surname = e["name"][0] if e["name"] else ""
+        for suffix in _ROLE_SUFFIXES:
+            if suffix in e.get("role", "") and f"{surname}{suffix}" in text:
+                return True
     return False
 
 
+_ROLE_SUFFIXES = ["经理", "主任", "部长", "副总", "总", "书记",
+                   "组长", "班长", "科长", "处长", "院长", "校长", "所长"]
+
 def find_entities_in_text(text: str) -> list:
-    """Return [{name, role}] for entities mentioned in text."""
+    """Return [{name, role}] for entities mentioned in text.
+
+    Matches by:
+      1. Full name substring (existing)
+      2. Alias match
+      3. Surname + role-title match (e.g. "张经理" → 张新宇)
+    """
+    seen = set()
     results = []
     for e in _load_raw():
-        if e["name"] in text:
-            results.append({"name": e["name"], "role": e.get("role", "")})
+        name = e["name"]
+        role = e.get("role", "")
+        # 1. Exact name match
+        if name in text:
+            if name not in seen:
+                seen.add(name)
+                results.append({"name": name, "role": role})
+            continue
+        # 2. Alias match
+        matched = False
+        for alias in e.get("aliases", []):
+            if alias in text:
+                if name not in seen:
+                    seen.add(name)
+                    results.append({"name": name, "role": role})
+                matched = True
+                break
+        if matched:
+            continue
+        # 3. Surname+role-title match
+        surname = name[0] if name else ""
+        for suffix in _ROLE_SUFFIXES:
+            if suffix in role and f"{surname}{suffix}" in text:
+                if name not in seen:
+                    seen.add(name)
+                    results.append({"name": name, "role": role})
+                break
     return results

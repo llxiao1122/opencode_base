@@ -1,5 +1,5 @@
 """
-context_builder.py — 组装 LLM 上下文
+context_builder.py — 组装 LLM 上下文 — DEPRECATED: 无调用方
 输入 work_query 结果 → 输出三层结构化提示
 """
 

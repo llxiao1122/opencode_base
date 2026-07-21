@@ -26,9 +26,13 @@ def _init_team_maps():
         return
     import sys as _sys
     _sys.path.insert(0, str(_root))
-    from tools.shared.entity import TEAM_MAP as _tm, TEAM_LEADER_MAP as _tlm
-    TEAM_MAP = _tm
-    TEAM_LEADER_MAP = _tlm
+    from organization.model import OrganizationModel
+    org = OrganizationModel()
+    for team_name, team in org._teams.items():
+        TEAM_MAP[team["leader"]] = team_name
+        for m in team["members"]:
+            TEAM_MAP[m] = team_name
+        TEAM_LEADER_MAP[team_name] = team["leader"]
 
 
 def _extract_time(text):

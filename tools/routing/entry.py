@@ -8,7 +8,7 @@ Usage:
   python3 tools/routing/entry.py --core '<消息>'
 """
 
-import sys, hashlib, os, time as _time
+import sys, os
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
@@ -20,7 +20,6 @@ _VENV_PYTHON = ROOT_DIR / ".venv" / "bin" / "python3"
 if _VENV_PYTHON.exists() and sys.executable != str(_VENV_PYTHON):
     os.execve(str(_VENV_PYTHON), [str(_VENV_PYTHON)] + sys.argv, os.environ)
 
-_llm_cache = {}
 _index_built = False
 
 _CHANGE_KW = ["负责", "接手", "调整", "转交", "改管", "分管", "接管",
@@ -92,20 +91,6 @@ def _update_event_lifecycle(user_input):
         pass
 
 
-def _cached_llm(prompt, sys_prompt, user="", ttl=60, max_tokens=300, temperature=0.3):
-    from reasoning.llm_client import call as _llm
-    key = hashlib.sha256(
-        f"{user}:{sys_prompt[:80]}:{prompt[:300]}".encode()
-    ).hexdigest()
-    entry = _llm_cache.get(key)
-    if entry and _time.time() - entry[1] < entry[2]:
-        return entry[0]
-    raw = _llm(prompt, system_prompt=sys_prompt, max_tokens=max_tokens, temperature=temperature)
-    answer = str(raw).strip() if raw and not (isinstance(raw, dict) and "error" in raw) else ""
-    _llm_cache[key] = (answer, _time.time(), ttl)
-    return answer
-
-
 def handle_core(user_input):
     _build_index_once()
 
@@ -120,6 +105,17 @@ def handle_core(user_input):
 
     from routing.query_router import classify
     route = classify(user_input)
+
+    record_markers = ["记录", "录入", "记一下", "备忘"]
+    ltext = user_input.lstrip()
+    if any(ltext.startswith(m) for m in record_markers):
+        route = "event"
+
+    # Message with known entity + date/time → treat as event record, not task query
+    from shared import has_known_entity
+    if route == "task" and has_known_entity(user_input):
+        if any(kw in user_input for kw in ["明天", "今天", "后天", "下周", "下午", "上午", "早上", "晚上"]):
+            route = "event"
 
     result = None
     if route == "profile":
@@ -137,6 +133,11 @@ def handle_core(user_input):
     _detect_entity_changes(user_input)
 
     return result
+
+
+def _check_record_intent(text: str, user: dict):
+    from routing.record_manager import record
+    return record(text, user)
 
 
 def _handle_event(user_input, user, user_name, user_role, user_team):
@@ -178,6 +179,17 @@ def _handle_event(user_input, user, user_name, user_role, user_team):
         else:
             msg = result.get("reason", "未匹配到任务")
         return f"[Core:feedback]\n{msg}"
+
+    # Try record intent for all non-feedback events
+    record_result = _check_record_intent(user_input, user)
+    if record_result:
+        if "已合并" in record_result:
+            return record_result
+        if event.get("event_type") == "unknown":
+            return record_result
+        record_note = record_result.replace("[Cipher:task]\n", "")
+    else:
+        record_note = ""
 
     subject_ctx = ctx_resolve(event, user)
 
@@ -255,7 +267,10 @@ def _handle_event(user_input, user, user_name, user_role, user_team):
     if not answer:
         answer = f"【事件】{event_title}\n【位置】{pos_type}\n【行动】{act}"
 
-    return f"[Cipher:{pos_type}]\n{answer}"
+    prefix = ""
+    if record_note:
+        prefix = f"{record_note}\n\n"
+    return f"[Cipher:{pos_type}]\n{prefix}{answer}"
 
 
 if __name__ == "__main__":

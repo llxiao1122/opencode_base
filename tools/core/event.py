@@ -98,7 +98,6 @@ def _infer_event_type(text: str, raw_evt: dict) -> str:
     title = raw_evt.get("title", "")
     entities = raw_evt.get("entities", [])
 
-    # Instruction / notification take priority over feedback
     if any(kw in title for kw in ["通知", "要求", "安排", "督促"]):
         return "instruction"
     if any(kw in title for kw in ["培训", "学习", "会议"]):
@@ -116,5 +115,25 @@ def _infer_event_type(text: str, raw_evt: dict) -> str:
         has_person = bool(entities) or has_known_entity(text)
         if has_person:
             return "feedback"
+
+    # Semantic fallback — covers synonyms and reworded expressions
+    if len(text) >= 4:
+        try:
+            import sys as _s
+            _s.path.insert(0, str(Path(__file__).resolve().parent.parent))
+            from shared.semantic import classify as sem
+            anchors = {
+                "instruction": ["通知各部门", "安排人员", "要求完成", "督促落实", "分配任务", "委派"],
+                "notification": ["培训通知", "会议要求", "学习安排", "活动通告", "公告"],
+                "inspection": ["现场检查", "安全巡检", "隐患排查", "问题整改", "装置巡查"],
+                "report": ["工作汇报", "总结周报", "情况汇报", "汇报工作", "报告"],
+                "incident": ["突发预警", "暴雨防汛", "火灾应急", "漏水处理", "紧急事件"],
+                "feedback": ["做完了", "搞定了", "已完成", "处理好了", "结束了"],
+            }
+            result = sem(text, anchors, fallback="unknown", threshold=0.55)
+            if result != "unknown":
+                return result
+        except Exception:
+            pass
 
     return "unknown"

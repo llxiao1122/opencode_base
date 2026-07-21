@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-simulator.py - 轻量级因果模拟引擎
+simulator.py - 轻量级因果模拟引擎 — DEPRECATED: 仅 slow_think 引用（slow_think 也已废弃）
 基于当前状态与假设条件，利用 LLM 推理能力进行结构化推演。
 只做被动推理（用户提问触发），不做主动扫描。
 """

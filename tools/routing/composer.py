@@ -1,5 +1,5 @@
 """
-composer.py — 能力编排层
+composer.py — 能力编排层 — DEPRECATED: 入口不调用，无管线集成
 职责: 路由向量 → 能力计划 → 串行执行 → 结果合成
 不直接导入 wrapper.py, handler 字典由调用方注入。
 """

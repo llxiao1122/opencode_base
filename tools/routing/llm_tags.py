@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-llm_tags.py — 语义标签提取器
+llm_tags.py — 语义标签提取器 — DEPRECATED: 仅 route_request 调用（route_request 也已废弃）
 职责单一：给定文本，返回核心语义标签列表。与路由逻辑完全解耦。
 首次调用可能调 LLM，后续命中内存缓存。
 LLM 不可用时返回空列表，不抛异常。

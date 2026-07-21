@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-curiosity_engine.py - 自主好奇引擎（主动探索，面向未来）
+curiosity_engine.py - 自主好奇引擎（主动探索，面向未来）— DEPRECATED: 无管线集成
 依附于 memory_core，在特定认知事件发生时，生成自主探索任务。
 事件源：conflicts 检测、知识缺口扫描、高频异常模式
 

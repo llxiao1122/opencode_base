@@ -5,7 +5,7 @@ Now profiles are computed in real-time by retriever.py.
 This module provides backward-compatible get_profile().
 """
 
-from profile.retriever import get_person_context
+from user_profile.retriever import get_person_context
 
 
 def get_profile(name: str) -> dict:

@@ -573,10 +573,18 @@ class MemoryCore:
             if not rule:
                 continue
 
-            rule_file = self.knowledge_dir / "经验提炼.md"
-            ts = datetime.now().strftime("%Y-%m-%d %H:%M")
-            with open(rule_file, "a", encoding="utf-8") as f:
-                f.write(f"- [{ts}] {rule}\n")
+            # LLM output → write as pattern layer, not rule layer
+            try:
+                from memory.observation_store import write as obs_write
+                obs_write(
+                    f"【模式提炼】{rule}",
+                    source="memory_core.reflect",
+                    obs_type="pattern",
+                    layer="pattern",
+                    confidence=0.7,
+                )
+            except Exception:
+                pass
 
             compressed.append({"group": key, "rule": rule, "n": len(group)})
 
