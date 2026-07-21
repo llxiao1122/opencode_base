@@ -1,79 +1,22 @@
 {
   "_meta": {
-    "version": 1,
-    "updated": "2026-07-21",
-    "source": "state/members/*.md, state/leaders.md, state/org.md"
+    "version": 2,
+    "updated": "2026-07-22",
+    "source": "state/team_work.json"
   },
   "confirmed_entities": [
     {
-      "name": "张志斌",
+      "name": "郝晓平",
       "aliases": [],
       "route_hint": [
         "G"
       ],
       "weight": 1.0,
-      "role": "杂品库",
-      "source": "state/members/张志斌.md"
-    },
-    {
-      "name": "杨梦卓",
-      "aliases": [],
-      "route_hint": [
-        "G"
-      ],
-      "weight": 1.0,
-      "role": "大件库区(上下两层)+空调库房(二楼)",
-      "source": "state/members/杨梦卓.md"
-    },
-    {
-      "name": "苗笑天",
-      "aliases": [],
-      "route_hint": [
-        "G"
-      ],
-      "weight": 1.0,
-      "role": "材料棚+管理用房+废旧",
-      "source": "state/members/苗笑天.md"
-    },
-    {
-      "name": "谭继衡",
-      "aliases": [],
-      "route_hint": [
-        "G"
-      ],
-      "weight": 1.0,
-      "role": "立体库区+中小件区",
-      "source": "state/members/谭继衡.md"
-    },
-    {
-      "name": "陈红洁",
-      "aliases": [],
-      "route_hint": [
-        "G"
-      ],
-      "weight": 1.0,
-      "role": "安全员(7.16起)·内勤暂代(考勤公文简报)",
-      "source": "state/members/陈红洁.md"
-    },
-    {
-      "name": "王敬宇",
-      "aliases": [],
-      "route_hint": [
-        "G"
-      ],
-      "weight": 1.0,
-      "role": "主任/直接上级/物资管理中心",
-      "source": "state/leaders.md"
-    },
-    {
-      "name": "卢丽英",
-      "aliases": [],
-      "route_hint": [
-        "G"
-      ],
-      "weight": 1.0,
-      "role": "副主任/安全/物资管理中心物资调配室",
-      "source": "state/leaders.md"
+      "role": "",
+      "source": "state/team_work.json",
+      "team": "铁炉西工班",
+      "leaders": null,
+      "area": ""
     },
     {
       "name": "商丽娜",
@@ -83,7 +26,12 @@
       ],
       "weight": 1.0,
       "role": "副总/分管物资管理中心+财务部",
-      "source": "state/leaders.md"
+      "source": "state/team_work.json",
+      "leaders": {
+        "category": "upper"
+      },
+      "area": "",
+      "team": "铁炉西工班"
     },
     {
       "name": "李彦奎",
@@ -93,7 +41,12 @@
       ],
       "weight": 1.0,
       "role": "部长/物资管理中心",
-      "source": "state/leaders.md"
+      "source": "state/team_work.json",
+      "leaders": {
+        "category": "upper"
+      },
+      "area": "",
+      "team": "铁炉西工班"
     },
     {
       "name": "张新宇",
@@ -103,107 +56,38 @@
       ],
       "weight": 1.0,
       "role": "副经理/物资管理中心",
-      "source": "state/leaders.md"
+      "source": "state/team_work.json",
+      "leaders": {
+        "category": "upper"
+      },
+      "area": "",
+      "team": "铁炉西工班"
     },
     {
-      "name": "董文静",
+      "name": "王敬宇(业)",
       "aliases": [],
       "route_hint": [
         "G"
       ],
       "weight": 1.0,
-      "role": "物资管理岗/包保(铁炉西物资总库+圃田物资总库)/转达各级领导指令",
-      "source": "state/leaders.md"
+      "role": "",
+      "source": "state/team_work.json",
+      "team": "铁炉西工班",
+      "leaders": null,
+      "area": ""
     },
     {
-      "name": "程智",
+      "name": "卢丽英(安)",
       "aliases": [],
       "route_hint": [
         "G"
       ],
       "weight": 1.0,
-      "role": "物资管理岗",
-      "source": "state/leaders.md"
-    },
-    {
-      "name": "王红义",
-      "aliases": [],
-      "route_hint": [
-        "G"
-      ],
-      "weight": 1.0,
-      "role": "物资管理岗/捐赠验收推进",
-      "source": "state/leaders.md"
-    },
-    {
-      "name": "靳攀",
-      "aliases": [],
-      "route_hint": [
-        "G"
-      ],
-      "weight": 1.0,
-      "role": "物资管理岗",
-      "source": "state/leaders.md"
-    },
-    {
-      "name": "刘朋",
-      "aliases": [],
-      "route_hint": [
-        "G"
-      ],
-      "weight": 1.0,
-      "role": "物资管理岗",
-      "source": "state/leaders.md"
-    },
-    {
-      "name": "王亮",
-      "aliases": [],
-      "route_hint": [
-        "G"
-      ],
-      "weight": 1.0,
-      "role": "安全管理岗/",
-      "source": "state/leaders.md"
-    },
-    {
-      "name": "刘欢",
-      "aliases": [],
-      "route_hint": [
-        "G"
-      ],
-      "weight": 1.0,
-      "role": "协助王亮负责安全模块",
-      "source": "state/leaders.md"
-    },
-    {
-      "name": "荆幸斌",
-      "aliases": [],
-      "route_hint": [
-        "G"
-      ],
-      "weight": 1.0,
-      "role": "科室废旧危废总负责人/资产管理员",
-      "source": "state/leaders.md"
-    },
-    {
-      "name": "王超",
-      "aliases": [],
-      "route_hint": [
-        "G"
-      ],
-      "weight": 1.0,
-      "role": "科室危废负责人/危废系统/联单/催办",
-      "source": "state/leaders.md"
-    },
-    {
-      "name": "张梦圆",
-      "aliases": [],
-      "route_hint": [
-        "G"
-      ],
-      "weight": 1.0,
-      "role": "科室内勤(借调)/考勤公文简报",
-      "source": "state/leaders.md"
+      "role": "",
+      "source": "state/team_work.json",
+      "team": "铁炉西工班",
+      "leaders": null,
+      "area": ""
     },
     {
       "name": "李林骁",
@@ -213,7 +97,333 @@
       ],
       "weight": 1.0,
       "role": "工班长",
-      "source": "state/org.md"
+      "source": "state/team_work.json",
+      "leaders": null,
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "程智",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "物资管理岗",
+      "source": "state/team_work.json",
+      "leaders": {
+        "category": "colleague"
+      },
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "董文静",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "物资管理岗/包保(铁炉西物资总库+圃田物资总库)/转达各级领导指令",
+      "source": "state/team_work.json",
+      "leaders": {
+        "category": "colleague"
+      },
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "王红义",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "物资管理岗/捐赠验收推进",
+      "source": "state/team_work.json",
+      "leaders": {
+        "category": "colleague"
+      },
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "刘朋",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "物资管理岗",
+      "source": "state/team_work.json",
+      "leaders": {
+        "category": "colleague"
+      },
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "靳攀",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "物资管理岗",
+      "source": "state/team_work.json",
+      "leaders": {
+        "category": "colleague"
+      },
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "王亮",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "安全管理岗/",
+      "source": "state/team_work.json",
+      "leaders": {
+        "category": "colleague"
+      },
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "刘欢",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "协助王亮负责安全模块",
+      "source": "state/team_work.json",
+      "leaders": {
+        "category": "colleague"
+      },
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "杨梦卓",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "大件库区(上下两层)+空调库房(二楼)",
+      "source": "state/team_work.json",
+      "traits": "主动·强迫症·能力强·骄傲",
+      "trust": "独立(不检查)",
+      "notes": "勿给其对他人任务评判权",
+      "trigger_conditions": "能力评价/工作质量/人际冲突/任务分配/考勤异常",
+      "evaluations": [
+        "紧急发料被谭推责心情受影响(人际冲突)",
+        "接管大件库区(上下两层)+空调库房(二楼)(7月)"
+      ],
+      "leaders": null,
+      "area": "大件库区(上下两层)+空调库房(二楼)",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "陈红洁",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "安全员(7.16起)·工班内勤(考勤公文简报)·不参与库区业务",
+      "source": "state/team_work.json",
+      "traits": "独立高效·外向·内勤特长",
+      "trust": "独立(不检查)",
+      "trigger_conditions": "能力评价/职责变更/工作独立完成/安员相关",
+      "evaluations": [
+        "接手安全工作(7月 07月)",
+        "7.17暴雨防汛主动发现通知并按时到岗(7月)"
+      ],
+      "leaders": null,
+      "area": "安全员(7.16起)·工班内勤(考勤公文简报)·不参与库区业务",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "苗笑天",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "材料棚+管理用房+废旧",
+      "source": "state/team_work.json",
+      "traits": "波动·荣誉驱动·怕被说·近期改善",
+      "trust": "需半日节点",
+      "trigger_conditions": "能力评价/工作质量/考勤异常/激励响应/任务执行",
+      "evaluations": [
+        "提前到岗但关键缺位(能力评价)",
+        "被怼后主动推进能接受反馈(激励响应)",
+        "起晚请假规避迟到(考勤异常)",
+        "废旧测试不及格(能力评价 07月)"
+      ],
+      "leaders": null,
+      "area": "材料棚+管理用房+废旧",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "谭继衡",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "立体库区+中小件区",
+      "source": "state/team_work.json",
+      "traits": "情绪驱动·责任感在·需推动",
+      "trust": "中间检查(特定任务可靠，主动性不稳)",
+      "trigger_conditions": "人际冲突/推责/任务配合/主动性/流程建议",
+      "evaluations": [
+        "紧急发料推责(推责)",
+        "补位废旧隔离主动打扫(主动性波动)"
+      ],
+      "leaders": null,
+      "area": "立体库区+中小件区",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "张志斌",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "杂品库",
+      "source": "state/team_work.json",
+      "traits": "被动·需明确指令·非主动但不差",
+      "trust": "半日节点(被动需清单)",
+      "trigger_conditions": "能力评价/工作质量/任务执行/士气波动",
+      "evaluations": [
+        "安全竞赛无回报感失落士气低点(7月)"
+      ],
+      "leaders": null,
+      "area": "杂品库",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "王敬宇",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "主任·直接上级·物资管理中心",
+      "source": "state/team_work.json",
+      "leaders": {
+        "category": "direct",
+        "strategy": "按节点汇报·偏差主动预警"
+      },
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "卢丽英",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "副主任·安全·物资管理中心物资调配室",
+      "source": "state/team_work.json",
+      "leaders": {
+        "category": "direct",
+        "strategy": "安全优先响应"
+      },
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "荆幸斌",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "科室废旧危废总负责人·资产管理员",
+      "source": "state/team_work.json",
+      "leaders": {
+        "category": "colleague"
+      },
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "王超",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "科室危废负责人·危废系统/联单/催办",
+      "source": "state/team_work.json",
+      "leaders": {
+        "category": "colleague"
+      },
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "张梦圆",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "科室内勤(借调)·考勤公文简报",
+      "source": "state/team_work.json",
+      "leaders": {
+        "category": "colleague"
+      },
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "张梦圆(休假中)",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "",
+      "source": "state/team_work.json",
+      "team": "铁炉西工班",
+      "leaders": null,
+      "area": ""
+    },
+    {
+      "name": "资产+废旧)",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "",
+      "source": "state/team_work.json",
+      "team": "铁炉西工班",
+      "leaders": null,
+      "area": ""
+    },
+    {
+      "name": "危废)",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "",
+      "source": "state/team_work.json",
+      "team": "铁炉西工班",
+      "leaders": null,
+      "area": ""
     }
   ],
   "pending_entities": []

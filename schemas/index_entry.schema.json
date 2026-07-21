@@ -1,6 +1,6 @@
 {
   "_description": "Index entry schema — stored in memory/events/index.json, produced by event_detector._persist()",
-  "_source": "tools/memory/event_detector.py:_persist() lines 106-113",
+  "_source": "skills/memory/event_detector.py:_persist() lines 106-113",
   "required": ["id", "title", "status"],
   "properties": {
     "id":       {"type": "string"},
@@ -11,10 +11,10 @@
     "updated":  {"type": "string", "format": "date"}
   },
   "consumers": [
-    "tools/memory/event_search.py:search_events()",
-    "tools/memory/event_detector.py:load_index()",
-    "tools/memory/event_lifecycle.py:update_from_message()",
-    "tools/memory/event_lifecycle.py:load_index()"
+    "skills/memory/event_search.py:search_events()",
+    "skills/memory/event_detector.py:load_index()",
+    "skills/memory/event_lifecycle.py:update_from_message()",
+    "skills/memory/event_lifecycle.py:load_index()"
   ],
   "known_drift": []
 }

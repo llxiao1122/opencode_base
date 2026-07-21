@@ -78,7 +78,7 @@
 
 调用场景：query_router 未命中的消息（工作记录、模糊对话、带实体/时间的陈述）
 
-#### Observation Manager — `tools/observation/manager.py`
+#### Observation Manager — `skills/observation/manager.py`
 
 类型：新增
 
@@ -95,7 +95,7 @@ def handle(user_input, event, user):
 - `_execute()` — 根据 LLM 决策执行 CRUD
 - `_compose()` — 调用 LLM 将结构化结果转为自然语言回复
 
-#### Reasoning Engine — `tools/reasoning/engine.py`
+#### Reasoning Engine — `skills/reasoning/engine.py`
 
 类型：新增
 
@@ -134,7 +134,7 @@ LLM prompt 设计：
 - missing_info: 如果任务缺少关键信息（时间/人员/地点），输出缺失项，否则 null
 ```
 
-#### Reflection Engine — `tools/reflection/engine.py`
+#### Reflection Engine — `skills/reflection/engine.py`
 
 类型：新增
 
@@ -166,17 +166,17 @@ def reflect(since_days=7):
 
 | 文件 | 行数(估) | 职责 |
 |------|---------|------|
-| `tools/observation/manager.py` | ~80 | 统一入口：日志→LLM决策→执行→回复 |
-| `tools/reasoning/engine.py` | ~120 | 一次 LLM 调用完成理解+决策 |
-| `tools/reflection/engine.py` | ~100 | 定期 LLM 扫描提炼 |
+| `skills/observation/manager.py` | ~80 | 统一入口：日志→LLM决策→执行→回复 |
+| `skills/reasoning/engine.py` | ~120 | 一次 LLM 调用完成理解+决策 |
+| `skills/reflection/engine.py` | ~100 | 定期 LLM 扫描提炼 |
 
 ### 废弃（保留文件，不再接入管线）
 
 | 文件 | 原因 |
 |------|------|
-| `tools/shared/semantic.py` | LLM 替代语义匹配 |
-| `tools/routing/query_router.py` | 路由判断交给 LLM |
-| `tools/core/event.py::_infer_event_type()` 语义回退部分 | LLM 替代 |
+| `skills/shared/semantic.py` | LLM 替代语义匹配 |
+| `skills/routing/query_router.py` | 路由判断交给 LLM |
+| `skills/core/event.py::_infer_event_type()` 语义回退部分 | LLM 替代 |
 
 ### 精简
 
@@ -237,12 +237,12 @@ def reflect(since_days=7):
 
 ## 7. 实施步骤
 
-1. 创建 `tools/reasoning/engine.py`
+1. 创建 `skills/reasoning/engine.py`
    - 设计 LLM prompt 模板
    - 实现 `think()` 函数
    - 结构化 JSON 输出 + 容错
 
-2. 创建 `tools/observation/manager.py`
+2. 创建 `skills/observation/manager.py`
    - 实现日志记录 + Reasoning Engine 调用 + 决策执行 + 回复合成
 
 3. 重构 `entry.py::handle_core()`
@@ -250,7 +250,7 @@ def reflect(since_days=7):
    - event 路径 → 调用 Observation Manager
    - 移除 `_check_record_intent`, `_merge_similar_task`, `_detect_missing_info`, `_select_better_info`
 
-4. 创建 `tools/reflection/engine.py`
+4. 创建 `skills/reflection/engine.py`
    - 实现定期扫描 + LLM 提炼
 
 5. 更新 AGENTS.md

@@ -1,6 +1,6 @@
 {
   "_description": "Event detail JSON schema — produced by event_detector.detect() and persisted by _persist()",
-  "_source": "tools/memory/event_detector.py",
+  "_source": "skills/memory/event_detector.py",
   "required": ["id", "type", "title", "status"],
   "properties": {
     "id":           {"type": "string",  "example": "evt_20260718_001"},
@@ -26,10 +26,10 @@
     "status":       {"type": "string", "enum": ["detected","active","completed","cancelled","expired","archived","ignored"]}
   },
   "consumers": [
-    "tools/memory/event_search.py:_load_detail()",
-    "tools/memory/event_search.py:build_event_context()",
-    "tools/memory/event_lifecycle.py:_event_detail_text()",
-    "tools/memory/event_lifecycle.py:_event_matches_message()"
+    "skills/memory/event_search.py:_load_detail()",
+    "skills/memory/event_search.py:build_event_context()",
+    "skills/memory/event_lifecycle.py:_event_detail_text()",
+    "skills/memory/event_lifecycle.py:_event_matches_message()"
   ],
   "known_drift": []
 }

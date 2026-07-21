@@ -1,6 +1,6 @@
 {
-  "_description": "AI Content Extraction output — produced by tools/extract/ai_content_extractor.py, consumed by build_event_context() and work_view",
-  "_source": "tools/extract/ai_content_extractor.py",
+  "_description": "AI Content Extraction output — produced by skills/extract/ai_content_extractor.py, consumed by build_event_context() and work_view",
+  "_source": "skills/extract/ai_content_extractor.py",
   "_phase": "1.7.7-B",
   "required": ["sections"],
   "properties": {
@@ -104,10 +104,10 @@
     }
   },
   "consumers": [
-    "tools/memory/event_search.py:build_event_context()",
-    "tools/work/work_view.py:build_work_view()",
-    "tools/work/responsibility.py:resolve()",
-    "tools/guard/sanitizer.py:sanitize_ai_content()"
+    "skills/memory/event_search.py:build_event_context()",
+    "skills/work/work_view.py:build_work_view()",
+    "skills/work/responsibility.py:resolve()",
+    "skills/guard/sanitizer.py:sanitize_ai_content()"
   ],
   "semantic_validators": [
     "validate_action: reject if text starts with 预计/可能/据/发布/收到/显示",

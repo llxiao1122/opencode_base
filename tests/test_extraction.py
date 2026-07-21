@@ -9,11 +9,11 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "tools"))
+sys.path.insert(0, str(ROOT / "skills"))
 sys.path.insert(0, str(ROOT / "schemas"))
 
-from parse.section_parser import parse_sections
-from extract.ai_content_extractor import extract_content
+from ingestion.section_parser import parse_sections
+from ingestion.ai_content_extractor import extract_content
 
 
 def load_cases():
@@ -109,7 +109,7 @@ def check_expect(extracted_sections, expect):
 
 def check_llm_available():
     try:
-        from reasoning.llm_client import call as _llm_call
+        from core.llm_client import call as _llm_call
         result = _llm_call("ping", max_tokens=5, timeout=3.0)
         if isinstance(result, dict) and "error" in result:
             return False

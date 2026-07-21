@@ -1,6 +1,6 @@
 {
-  "_description": "Section Parser output — produced by tools/parse/section_parser.py, input to ai_content_extractor",
-  "_source": "tools/parse/section_parser.py",
+  "_description": "Section Parser output — produced by skills/parse/section_parser.py, input to ai_content_extractor",
+  "_source": "skills/parse/section_parser.py",
   "_phase": "1.7.7-A",
   "required": ["sections"],
   "properties": {
@@ -48,6 +48,6 @@
     "无标题段落 → 归入 header section (S0)"
   ],
   "consumers": [
-    "tools/extract/ai_content_extractor.py:extract_content()"
+    "skills/extract/ai_content_extractor.py:extract_content()"
   ]
 }

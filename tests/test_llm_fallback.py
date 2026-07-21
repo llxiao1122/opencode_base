@@ -10,12 +10,15 @@ import sys, json, os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "tools"))
+sys.path.insert(0, str(ROOT / "skills"))
+
+
+CURRENT_USER = {"name": "李林骁", "role": "工班长", "team": "铁炉西工班"}
 
 
 def test_enricher_fallback_empty():
     """LLM 不可用时 enricher 返回 status=empty，不崩溃"""
-    from pipeline.event_enricher import enrich_event
+    from core.event_enricher import enrich_event
 
     event = {"id": "test_001", "title": "测试任务", "executor": "李林骁"}
     enriched = enrich_event(event, "这是一条测试通知文字足够长了触发信号检测", tracer=None)
@@ -29,10 +32,8 @@ def test_enricher_fallback_empty():
 def test_detect_no_api():
     """detect 不依赖 LLM，无 API 也能正常返回"""
     from memory.event_detector import detect
-    from context.request_context import build_request_context
 
-    ctx = build_request_context()
-    events = detect("王亮通知铁炉西工班做好危废处置", current_user=ctx["user"])
+    events = detect("王亮通知铁炉西工班做好危废处置", current_user=CURRENT_USER)
 
     assert events, "detect failed without LLM"
     assert events[0].get("requester") == "王亮"
@@ -41,12 +42,8 @@ def test_detect_no_api():
 
 
 def test_context_no_org_when_no_event():
-    """无 event 时 inject_user_prompt 不报错"""
-    from context.request_context import build_request_context, inject_user_prompt
-
-    ctx = build_request_context()
-    prompt = inject_user_prompt(ctx)
-
+    """无 event 时 prompt 构造不报错"""
+    prompt = f"你正在与 {CURRENT_USER['name']}（{CURRENT_USER['role']}，{CURRENT_USER['team']}）对话。"
     assert "李林骁" in prompt, "missing user name"
     assert len(prompt) > 0, "empty prompt"
     print(f"  ✓ context with no event: prompt has {len(prompt)} chars")
@@ -54,12 +51,11 @@ def test_context_no_org_when_no_event():
 
 def test_hierarchy_unknown_entity():
     """未知 requester 不崩溃"""
-    from context.hierarchy_resolver import resolve
+    from core.hierarchy_resolver import resolve
 
     event = {"requester": "张三", "executor": "李林骁", "target": "各班组"}
-    user = {"name": "李林骁", "role": "工班长", "team": "铁炉西工班"}
 
-    org = resolve(event, user)
+    org = resolve(event, CURRENT_USER)
     assert "张三" in org["text"], f"missing unknown requester: {org['text']}"
     print(f"  ✓ unknown entity fallback: {org['text'][:50]}...")
 

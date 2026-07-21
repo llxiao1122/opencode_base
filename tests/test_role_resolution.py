@@ -10,7 +10,7 @@ import sys, json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "tools"))
+sys.path.insert(0, str(ROOT / "skills"))
 
 
 def load_golden_cases():
@@ -19,12 +19,13 @@ def load_golden_cases():
         return json.load(f)["cases"]
 
 
+CURRENT_USER = {"name": "李林骁", "role": "工班长", "team": "铁炉西工班"}
+
+
 def run_role_tests():
     from memory.event_detector import detect
-    from context.request_context import build_request_context
 
-    ctx = build_request_context()
-    current_user = ctx["user"]
+    current_user = CURRENT_USER
     cases = load_golden_cases()
     passed = 0
     failed = 0

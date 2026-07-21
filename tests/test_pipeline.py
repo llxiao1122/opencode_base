@@ -8,8 +8,8 @@ import sys, json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-for p in [str(ROOT / "tools"), str(ROOT / "tools" / "work"),
-          str(ROOT / "tools" / "memory"), str(ROOT / "tools" / "routing")]:
+for p in [str(ROOT / "skills"), str(ROOT / "skills" / "work"),
+          str(ROOT / "skills" / "memory"), str(ROOT / "skills" / "routing")]:
     sys.path.insert(0, p)
 
 

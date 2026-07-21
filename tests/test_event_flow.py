@@ -10,9 +10,10 @@ import sys, json, time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "tools"))
+sys.path.insert(0, str(ROOT / "skills"))
 
 
+CURRENT_USER = {"name": "李林骁", "role": "工班长", "team": "铁炉西工班"}
 SCHEMA_REQUIRED = ["id", "type", "requester", "executor", "target", "time"]
 SCHEMA_FORBIDDEN = ["_ai_error", "debug", "trace"]
 
@@ -20,10 +21,8 @@ SCHEMA_FORBIDDEN = ["_ai_error", "debug", "trace"]
 def test_event_schema():
     """Case 010: event 必须字段检查"""
     from memory.event_detector import detect
-    from context.request_context import build_request_context
 
-    ctx = build_request_context()
-    events = detect("王亮在钉钉群各班组督促一下郑轨学苑内未完成人员，于14日下班前完成。", current_user=ctx["user"])
+    events = detect("王亮在钉钉群各班组督促一下郑轨学苑内未完成人员，于14日下班前完成。", current_user=CURRENT_USER)
 
     assert events, "no event detected"
     evt = events[0]
@@ -42,10 +41,8 @@ def test_event_persist():
     import json
     from pathlib import Path
     from memory.event_detector import detect
-    from context.request_context import build_request_context
 
-    ctx = build_request_context()
-    events = detect("王亮通知铁炉西工班做好危废处置", current_user=ctx["user"])
+    events = detect("王亮通知铁炉西工班做好危废处置", current_user=CURRENT_USER)
 
     assert events, "no event detected"
     evt = events[0]
@@ -59,11 +56,9 @@ def test_event_persist():
 def test_event_enrich_flow():
     """Case 009: 验证 enrich pipeline 完整运转"""
     from memory.event_detector import detect
-    from pipeline.event_enricher import enrich_event
-    from context.request_context import build_request_context
+    from core.event_enricher import enrich_event
 
-    ctx = build_request_context()
-    events = detect("王亮在钉钉群各班组督促一下郑轨学苑内未完成人员，于14日下班前完成。", current_user=ctx["user"])
+    events = detect("王亮在钉钉群各班组督促一下郑轨学苑内未完成人员，于14日下班前完成。", current_user=CURRENT_USER)
 
     assert events, "no event detected"
     evt = events[0]
@@ -79,11 +74,9 @@ def test_event_enrich_flow():
 def test_llm_fallback_no_api():
     """Case 009: LLM 不可用时 enrich 不崩溃，返回 failed/empty 状态"""
     from memory.event_detector import detect
-    from pipeline.event_enricher import enrich_event
-    from context.request_context import build_request_context
+    from core.event_enricher import enrich_event
 
-    ctx = build_request_context()
-    events = detect("王亮通知各工班完成安全学习", current_user=ctx["user"])
+    events = detect("王亮通知各工班完成安全学习", current_user=CURRENT_USER)
 
     if not events:
         print("  SKIP: no event (ok)")
@@ -102,11 +95,9 @@ def test_llm_fallback_no_api():
 def test_detect_timing():
     """Case 011: detect 单消息耗时 < 3秒"""
     from memory.event_detector import detect
-    from context.request_context import build_request_context
 
-    ctx = build_request_context()
     t0 = time.time()
-    events = detect("王亮通知铁炉西工班做好危废处置", current_user=ctx["user"])
+    events = detect("王亮通知铁炉西工班做好危废处置", current_user=CURRENT_USER)
     elapsed = (time.time() - t0) * 1000
 
     assert events, "no event"

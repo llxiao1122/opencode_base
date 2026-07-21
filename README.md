@@ -113,7 +113,7 @@ python3 -c "import sys; sys.path.insert(0,'tools'); from commands.import_knowled
 ## 项目结构
 
 ```
-tools/
+skills/
 ├── ingestion/           · 消息导入管线
 │   ├── batch_importer.py    · 统一导入入口
 │   ├── message_parser.py    · 消息解析

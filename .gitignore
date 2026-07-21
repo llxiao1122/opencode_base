@@ -14,7 +14,7 @@ Thumbs.db
 
 # Logs
 logs/*.log
-tools/logs/
+skills/logs/
 
 # PID
 *.pid
@@ -24,7 +24,7 @@ memory/sessions/
 
 # Runtime data
 memory/log.md
-tools/task_manager/task_log.txt
+skills/task_manager/task_log.txt
 
 # Large binary knowledge files (tracked separately if needed)
 Knowledge/**/*.pdf
@@ -55,8 +55,7 @@ memory/events/log.jsonl
 memory/events/index.json
 
 # Runtime data store
-data/
-!data/personal/
+state/
 
 # Import history files (user data, large)
 files/*.rtf

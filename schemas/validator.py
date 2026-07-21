@@ -102,47 +102,6 @@ def verify_index_entry_schema():
     return results
 
 
-def verify_user_profile_fields():
-    schema = load_schema("user_profile.schema.json")
-    required = set(schema["required"])
-    aliases = schema.get("aliases", {})
-
-    profile_path = ROOT / "state" / "user_profile.md"
-    if not profile_path.exists():
-        return [(False, "user_profile.schema", "user_profile.md not found")]
-
-    content = profile_path.read_text(encoding="utf-8")
-    results = []
-
-    for field in required:
-        found = field + ":" in content
-        if not found:
-            alt_found = False
-            for alt in aliases.get(field, []):
-                if alt + ":" in content:
-                    results.append((False, "user_profile.schema",
-                        f"expected field '{field}' not found, but alias '{alt}' found — rename to '{field}'"))
-                    alt_found = True
-                    break
-            if not alt_found:
-                results.append((False, "user_profile.schema", f"required field '{field}' not found in user_profile.md"))
-        else:
-            results.append((True, "user_profile.schema", f"OK: field '{field}' present"))
-
-    # Check responsibility.py reads correct fields
-    import ast
-    resp_path = TOOLS_DIR / "work" / "responsibility.py"
-    resp_src = resp_path.read_text(encoding="utf-8")
-
-    for field in ["name", "role", "team"]:
-        if field + '"' not in resp_src and "get('" + field in resp_src:
-            pass
-        elif field in resp_src:
-            pass
-
-    return results
-
-
 def verify_content_extraction_schema():
     """Phase 1.7.7-B: validate content_extraction.schema.json file exists and is valid JSON."""
     schema = load_schema("content_extraction.schema.json")
@@ -223,7 +182,6 @@ def main():
     all_results.extend(verify_event_schema())
     all_results.extend(verify_event_context_schema())
     all_results.extend(verify_index_entry_schema())
-    all_results.extend(verify_user_profile_fields())
     all_results.extend(verify_content_extraction_schema())
     all_results.extend(verify_section_schema())
 

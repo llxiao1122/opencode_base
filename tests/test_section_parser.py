@@ -9,9 +9,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "tools"))
+sys.path.insert(0, str(ROOT / "skills"))
 
-from parse.section_parser import parse
+from ingestion.section_parser import parse
 
 
 def load_cases():

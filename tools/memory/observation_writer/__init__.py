@@ -1,1 +1,0 @@
-# observation_writer plugin

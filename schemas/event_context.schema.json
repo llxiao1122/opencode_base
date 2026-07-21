@@ -1,6 +1,6 @@
 {
   "_description": "build_event_context() output — consumed by work_query, responsibility, context_builder",
-  "_source": "tools/memory/event_search.py:build_event_context()",
+  "_source": "skills/memory/event_search.py:build_event_context()",
   "required": ["title", "people"],
   "properties": {
     "title":       {"type": "string"},
@@ -20,10 +20,10 @@
   },
   "_reserved": {},
   "consumers": [
-    "tools/work/work_query.py:_search_events_for_person()",
-    "tools/work/responsibility.py:resolve()",
-    "tools/routing/context_builder.py:build_work_context()",
-    "tools/memory/event_context.py:get_related_event_context()"
+    "skills/work/work_query.py:_search_events_for_person()",
+    "skills/work/responsibility.py:resolve()",
+    "skills/routing/context_builder.py:build_work_context()",
+    "skills/memory/event_context.py:get_related_event_context()"
   ],
   "known_drift": [
     "FIXED: work_query.py read ctx['participants'] which was never emitted by build_event_context()"
