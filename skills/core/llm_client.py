@@ -42,8 +42,6 @@ def _resolve_config():
     for p in paths:
         if not p.exists():
             continue
-        if key and url and model:
-            break
         try:
             raw = p.read_text()
             raw = re.sub(r'(?<!\:)//.*$', '', raw, flags=re.MULTILINE)
@@ -53,19 +51,21 @@ def _resolve_config():
 
             prv = cfg.get("provider", {}).get(prov_cfg["config_key"], {})
             opt = prv.get("options", {})
+
+            if p == Path.home() / ".config" / "opencode" / "opencode.jsonc":
+                k = opt.get("apiKey", "")
+                if k and not k.startswith("{env:"):
+                    key = k
+
             if not url:
                 base = opt.get("baseURL", "")
                 if base:
                     url = base.rstrip("/") + prov_cfg.get("url_suffix", "/chat/completions")
             if not key:
-                rk = opt.get("apiKey", "")
-                if isinstance(rk, str) and rk.startswith("{env:") and rk.endswith("}"):
-                    key = os.environ.get(rk[5:-1], "")
-                else:
-                    key = rk
+                key = opt.get("apiKey", "")
             if not model:
-                model = opt.get("model", prov_cfg["default_model"])
-        except (json.JSONDecodeError, KeyError):
+                model = opt.get("model", "")
+        except Exception:
             pass
 
     return url or prov_cfg["default_url"], key, model or prov_cfg["default_model"]

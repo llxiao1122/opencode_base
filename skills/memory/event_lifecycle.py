@@ -47,20 +47,9 @@ def _extract_entities_from_text(text):
 
 def _event_detail_text(event_id):
     index = load_index()
-    for e in index.get("events", []):
+    for e in index:
         if e["id"] == event_id:
-            status = e.get("status", "active")
-            detail_path = (
-                Path(__file__).resolve().parent.parent.parent
-                / "memory" / "events" / status / f"{event_id}.json"
-            )
-            if detail_path.exists():
-                with open(detail_path, "r", encoding="utf-8") as f:
-                    detail = json.load(f)
-                parts = [detail.get("title", "")]
-                for item in detail.get("items", []):
-                    parts.append(item.get("text", ""))
-                return " ".join(parts)
+            return e.get("title", "") + " " + e.get("content", "")
     return ""
 
 
@@ -156,8 +145,8 @@ def update_from_message(text):
     index = load_index()
     active_events = [
         e
-        for e in index.get("events", [])
-        if e["status"] in ("active", "detected")
+        for e in index
+        if e.get("type") == "event" and e["status"] in ("active", "detected")
     ]
 
     has_complete = any(w in text for w in COMPLETE_WORDS)

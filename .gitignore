@@ -71,3 +71,6 @@ memory/values_profile.json
 
 # User-level opencode config (env-specific, not tracked)
 ~/.config/opencode/
+
+# Project-level opencode config (has env-specific secrets)
+.opencode/opencode.jsonc

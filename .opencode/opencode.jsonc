@@ -9,9 +9,8 @@
   "provider": {
     "deepseek": {
       "options": {
-        "apiKey": "sk-4ae560695baa49828ba96d7ab5fd0bbd",
         "baseURL": "https://api.deepseek.com",
-        // apiKey 和 baseURL 在 ~/.config/opencode/opencode.jsonc 中按环境配置
+        // 密钥已移至环境变量 DEEPSEEK_API_KEY / LLM_API_KEY
       }
     }
   },

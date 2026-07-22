@@ -1,14 +1,15 @@
 """
-task/store.py — Task JSON persistence.
-
-Single-file store: data/tasks.json
+task/store.py — Task JSON persistence (shared with event storage).
+Single-file state: state/tasks.json
 """
 
 import json
+from datetime import datetime, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 STORE_PATH = ROOT / "state" / "tasks.json"
+RETENTION_DAYS = 30
 
 
 def _ensure_store():
@@ -19,16 +20,51 @@ def _ensure_store():
 
 def _read():
     _ensure_store()
+    _cleanup_expired()
     with open(STORE_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
 def _write(data):
-    with open(STORE_PATH, "w", encoding="utf-8") as f:
+    tmp = Path(str(STORE_PATH) + ".tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+    tmp.replace(STORE_PATH)
+
+
+def _cleanup_expired():
+    if not STORE_PATH.exists():
+        return
+    now = datetime.now()
+    cutoff = now - timedelta(days=RETENTION_DAYS)
+    with open(STORE_PATH, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    before = len(data)
+    data = [
+        r for r in data
+        if not (
+            r.get("status") in ("completed", "cancelled", "archived", "ignored")
+            and _parse_dt(r.get("completed_at", "")) < cutoff
+        )
+    ]
+    if len(data) < before:
+        _write(data)
+
+
+def _parse_dt(s):
+    if not s:
+        return datetime.min
+    for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(s, fmt)
+        except ValueError:
+            continue
+    return datetime.min
 
 
 def save(task: dict):
+    if "type" not in task:
+        task["type"] = "task"
     tasks = _read()
     for i, t in enumerate(tasks):
         if t["id"] == task["id"]:
@@ -49,7 +85,15 @@ def load(task_id: str):
 
 def list_by_owner(owner: str, status=None):
     tasks = _read()
-    result = [t for t in tasks if t.get("owner", {}).get("name") == owner]
+    result = []
+    for t in tasks:
+        if t.get("type") not in ("task", None):
+            continue
+        o = t.get("owner")
+        if isinstance(o, dict):
+            o = o.get("name", "")
+        if o == owner:
+            result.append(t)
     if status:
         result = [t for t in result if t.get("status") == status]
     return sorted(result, key=lambda t: t.get("created_at", ""), reverse=True)
@@ -65,7 +109,6 @@ def update(task_id: str, updates: dict):
 
 
 def update_executor_status(task_id: str, executor_name: str, new_status: str) -> bool:
-    """Mark an executor as done in a task. Updates both executors list and matching subtasks."""
     task = load(task_id)
     if not task:
         return False
@@ -87,15 +130,11 @@ def update_executor_status(task_id: str, executor_name: str, new_status: str) ->
 
 
 def get_active_tasks(owner_name: str) -> list:
-    """Get all non-completed tasks for an owner."""
     from task.status import IN_PROGRESS
     return list_by_owner(owner_name, status=IN_PROGRESS)
 
 
 def close(task_id: str) -> bool:
-    """Close a task: set status to completed and record completed_at timestamp."""
-    import json as _json
-    from datetime import datetime
     tasks = _read()
     for t in tasks:
         if t["id"] == task_id and t.get("status") != "completed":

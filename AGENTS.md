@@ -85,10 +85,10 @@ from shared.llm_cache import call  # 带 TTL 的 LLM 调用，消除循环依赖
 ### MCP Server（独立）
 
 ```bash
-python3 skills/memory/memory_server.py  # STDIO 协议
+/home/admin/opencode_base/.venv/bin/python3 skills/memory/memory_server.py  # STDIO 协议
 ```
 
-提供 4 个记忆工具：`memory_search/save/retrieve/reflect`。与管线独立运行。
+提供 5 个工具：`memory_search`（跨三层检索）/`memory_save`（保存经验）/`knowledge_retrieve`（知识库查询）/`cognitive_reflect`（认知反思）/`memory_reflect`（已废弃，向后兼容）。与管线独立运行。
 
 ## 架构分层
 
@@ -127,22 +127,21 @@ Response 层（表达）
 
 ## Task 数据模型
 
-持久化: `state/tasks.json`
+持久化: `state/tasks.json`（扁平数组，每记录含 `type: "task"|"event"`）
 
 ```json
 {
-  "id": "task_001",
-  "source_event_id": "evt_001",
-  "responsibility_type": "coordinator",
-  "priority": {"value": "high", "reason": "消防", "rule": "safety_keyword_v1"},
-  "owner": {"name": "李林骁", "role": "工班长"},
-  "action": "督促铁炉西工班员工完成消防检查",
-  "executors": [{"name": "苗笑天", "status": "done"}, {"name": "张志斌", "status": "pending"}],
-  "subtasks": [{"action": "通知苗笑天完成...", "assignee": "苗笑天", "done": true}],
-  "deadline": "2026-07-31",
-  "status": "in_progress",
-  "created_at": "2026-07-19T10:00:00",
-  "completed_at": null
+  "id": "rec_20260722_001",
+  "type": "task",
+  "status": "active",
+  "title": "任务描述",
+  "publisher": "发布人",
+  "deadline": "2026-07-23T17:00",
+  "priority": "medium",
+  "owner": "李林骁",
+  "created_at": "2026-07-22T10:00:00",
+  "completed_at": null,
+  "cancelled_reason": "可选，仅 cancelled 时有"
 }
 ```
 

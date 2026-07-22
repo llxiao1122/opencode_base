@@ -7,7 +7,9 @@ memory_server.py — MCP STDIO wrapper for MemoryCore.
 import sys, json, os, traceback
 from pathlib import Path
 
-sys.path.append(str(Path(__file__).resolve().parent.parent))
+_BASE = Path(__file__).resolve().parent.parent.parent  # project root: .../opencode_base
+sys.path.insert(0, str(_BASE))
+sys.path.insert(0, str(_BASE / "skills"))
 
 from memory.memory_core import MemoryCore
 from skills.shared.schema import RequestContext

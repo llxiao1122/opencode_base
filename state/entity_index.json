@@ -277,7 +277,7 @@
         "G"
       ],
       "weight": 1.0,
-      "role": "立体库区+中小件区",
+      "role": "中小件区（立体库区）",
       "source": "state/team_work.json",
       "traits": "情绪驱动·责任感在·需推动",
       "trust": "中间检查(特定任务可靠，主动性不稳)",

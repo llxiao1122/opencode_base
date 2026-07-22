@@ -1,37 +1,43 @@
 """
-memory/detect/persistence.py — Event storage, indexing, lifecycle.
-
-Functions: load_index, save_index, change_status, complete, archive, ignore, list_events.
-Exported via memory/detect/__init__.py.
+memory/detect/persistence.py — Unified event + task storage.
+Single file: state/tasks.json. Each record has a 'type' field ("event" or "task").
 """
 
 import json
-import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path as _PathInternal
 
 _root = _PathInternal(__file__).resolve().parent.parent.parent.parent
-INDEX_FILE = _root / "memory" / "events" / "index.json"
-EVENTS_DIR = _root / "memory" / "events"
+STORE_PATH = _root / "state" / "tasks.json"
+RETENTION_DAYS = 30
+
+
+def _ensure_store():
+    STORE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    if not STORE_PATH.exists():
+        _save_index([])
 
 
 def _load_index():
-    if not INDEX_FILE.exists():
-        return {"events": []}
-    with open(INDEX_FILE, "r", encoding="utf-8") as f:
+    _ensure_store()
+    with open(STORE_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
 def _save_index(data):
-    tmp = _PathInternal(str(INDEX_FILE) + ".tmp")
+    tmp = _PathInternal(str(STORE_PATH) + ".tmp")
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
-    tmp.replace(INDEX_FILE)
+    tmp.replace(STORE_PATH)
+
+
+def _persist(event):
+    return
 
 
 def _next_id():
     index = _load_index()
-    existing = {e["id"] for e in index.get("events", [])}
+    existing = {e["id"] for e in index}
     today = datetime.now().strftime("%Y%m%d")
     for i in range(1, 1000):
         cid = f"evt_{today}_{i:03d}"
@@ -40,13 +46,9 @@ def _next_id():
     return f"evt_{today}_{int(datetime.now().timestamp()) % 100000:05d}"
 
 
-def _persist(event):
-    return
-
-
 def list_events(status=None):
     index = _load_index()
-    events = index.get("events", [])
+    events = [e for e in index if e.get("type") == "event"]
     if status:
         events = [e for e in events if e.get("status") == status]
     return sorted(events, key=lambda e: e.get("updated", ""), reverse=True)
@@ -55,7 +57,7 @@ def list_events(status=None):
 def _change_status(event_id, new_status):
     index = _load_index()
     target = None
-    for e in index.get("events", []):
+    for e in index:
         if e["id"] == event_id:
             target = e
             break
@@ -66,26 +68,40 @@ def _change_status(event_id, new_status):
     if old_status == new_status:
         return False
 
-    old_dir = EVENTS_DIR / old_status / f"{event_id}.json"
-    new_dir = EVENTS_DIR / new_status
-    new_dir.mkdir(parents=True, exist_ok=True)
-    new_path = new_dir / f"{event_id}.json"
-
-    if old_dir.exists():
-        with open(old_dir, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        data["status"] = new_status
-        with open(new_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        old_dir.unlink()
-    elif new_dir != old_dir:
-        with open(new_path, "w", encoding="utf-8") as f:
-            json.dump({"id": event_id, "status": new_status}, f, ensure_ascii=False)
-
     target["status"] = new_status
-    target["updated"] = datetime.now().strftime("%Y-%m-%d")
+    target["updated"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    if new_status == "completed":
+        target["completed_at"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
     _save_index(index)
     return True
+
+
+def _cleanup_expired():
+    index = _load_index()
+    now = datetime.now()
+    cutoff = now - timedelta(days=RETENTION_DAYS)
+    before = len(index)
+    index = [
+        e for e in index
+        if not (
+            e.get("type") == "event"
+            and e.get("status") in ("completed", "cancelled", "archived", "ignored")
+            and _parse_dt(e.get("completed_at", e.get("updated", ""))) < cutoff
+        )
+    ]
+    if len(index) < before:
+        _save_index(index)
+
+
+def _parse_dt(s):
+    if not s:
+        return datetime.min
+    for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(s, fmt)
+        except ValueError:
+            continue
+    return datetime.min
 
 
 def complete(event_id):

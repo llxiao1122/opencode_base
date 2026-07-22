@@ -28,6 +28,25 @@ def _atomic_write(filepath, data):
 # MemoryCore
 # ═══════════════════════════════════════════════════════════════════════
 
+class _FallbackEmbedder:
+    _dim = 384
+
+    def encode(self, texts, normalize_embeddings=True):
+        if isinstance(texts, str):
+            texts = [texts]
+        vecs = np.zeros((len(texts), self._dim), dtype=np.float32)
+        _seed = np.array([hash(c) % (1 << 31) for c in "abcdefghijklmnopqrstuvwxyz0123456789"])
+        for i, t in enumerate(texts):
+            for c in t.lower():
+                xi = hash(c) % self._dim
+                vecs[i, xi] += 1.0
+        if normalize_embeddings:
+            norms = np.linalg.norm(vecs, axis=1, keepdims=True)
+            norms = np.where(norms == 0, 1.0, norms)
+            vecs /= norms
+        return vecs
+
+
 class MemoryCore:
     def __init__(self, root_path=""):
         if not root_path:
@@ -88,11 +107,15 @@ class MemoryCore:
         self._warmup_cache()
 
     # ---- model ----
+    # ---- model ----
     @property
     def model(self):
         if self._model is None:
-            from sentence_transformers import SentenceTransformer
-            self._model = SentenceTransformer('all-MiniLM-L6-v2')
+            try:
+                from sentence_transformers import SentenceTransformer
+                self._model = SentenceTransformer('all-MiniLM-L6-v2')
+            except (ImportError, Exception):
+                self._model = _FallbackEmbedder()
         return self._model
 
     # ---- metadata ----
