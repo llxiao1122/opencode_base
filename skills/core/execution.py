@@ -91,12 +91,22 @@ class DefaultExecutor:
         ctx.status = Status.EXECUTION_DONE
 
     def _create_task(self, ctx: RequestContext):
+        pos = (ctx.subject_context or {}).get("my_position", {})
+        if pos.get("type") == "observer":
+            ctx.status = Status.EXECUTION_DONE
+            return
+
         from skills.organization.model import OrganizationModel
         from skills.task.manager import TaskManager
 
         org = OrganizationModel()
         tm = TaskManager(org)
         managed_task = tm.create(ctx.event or {}, ctx.subject_context or {}, ctx.user or {})
+
+        if managed_task.get("status") == "uncertain":
+            ctx.result = {"pending_question": f"{managed_task.get('action', '')} 需要分派给谁？"}
+            ctx.status = Status.EXECUTION_DONE
+            return
 
         executors = [e["name"] for e in managed_task.get("executors", [])]
         subtasks_summary = "\n".join(

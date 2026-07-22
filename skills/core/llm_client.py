@@ -82,12 +82,16 @@ def call(prompt, system_prompt=None, temperature=0.3, timeout=30, max_tokens=102
         messages.append({"role": "system", "content": system_prompt})
     messages.append({"role": "user", "content": prompt})
 
-    body = json.dumps({
+    extra_body = {"type": "disabled"} if model in ("deepseek-v4-flash", "deepseek-v4-pro") else None
+    body_dict = {
         "model": model,
         "messages": messages,
         "temperature": temperature,
         "max_tokens": max_tokens,
-    }).encode()
+    }
+    if extra_body:
+        body_dict["thinking"] = extra_body
+    body = json.dumps(body_dict).encode()
 
     headers = {"Content-Type": "application/json"}
     if key:

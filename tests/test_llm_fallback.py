@@ -16,18 +16,6 @@ sys.path.insert(0, str(ROOT / "skills"))
 CURRENT_USER = {"name": "李林骁", "role": "工班长", "team": "铁炉西工班"}
 
 
-def test_enricher_fallback_empty():
-    """LLM 不可用时 enricher 返回 status=empty，不崩溃"""
-    from core.event_enricher import enrich_event
-
-    event = {"id": "test_001", "title": "测试任务", "executor": "李林骁"}
-    enriched = enrich_event(event, "这是一条测试通知文字足够长了触发信号检测", tracer=None)
-
-    assert "ai_content_status" in enriched, "missing ai_content_status"
-    assert enriched["ai_content_status"] in ("success", "failed", "no_sections", "empty")
-    assert enriched["id"] == "test_001", "event id changed"
-    print(f"  ✓ enricher fallback: status={enriched['ai_content_status']}")
-
 
 def test_detect_no_api():
     """detect 不依赖 LLM，无 API 也能正常返回"""

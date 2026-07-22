@@ -80,6 +80,8 @@ def record(text: str, user: dict) -> str:
 
     task = tm.create(task_event, context, user)
     task["action"] = action
+    from shared.task_format import build_title as _fmt
+    task["title"] = _fmt(action, text, task.get("deadline", ""))
     from task.store import save
 
     merged = merge_similar(task, delete_new=True)

@@ -2,7 +2,15 @@
   "_meta": {
     "version": 2,
     "updated": "2026-07-22",
-    "source": "state/team_work.json"
+    "source": "state/team_work.json",
+    "team_members": [
+      "李林骁",
+      "陈红洁",
+      "杨梦卓",
+      "谭继衡",
+      "苗笑天",
+      "张志斌"
+    ]
   },
   "confirmed_entities": [
     {
@@ -199,7 +207,7 @@
         "G"
       ],
       "weight": 1.0,
-      "role": "协助王亮负责安全模块",
+      "role": "负责对物资库内的消防设施设计及使用情况进行交",
       "source": "state/team_work.json",
       "leaders": {
         "category": "colleague"
@@ -255,7 +263,7 @@
         "G"
       ],
       "weight": 1.0,
-      "role": "材料棚+管理用房+废旧",
+      "role": "负责什么",
       "source": "state/team_work.json",
       "traits": "波动·荣誉驱动·怕被说·近期改善",
       "trust": "需半日节点",

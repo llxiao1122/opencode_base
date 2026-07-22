@@ -69,23 +69,35 @@ class TaskManager:
         if not clean_summary:
             clean_summary = "相关任务"
 
+        event_time = event.get("detected_at") or event.get("time", {}).get("start", "")
+        from shared.task_format import build_title
+        formatted_title = build_title(summary, event.get("raw", ""), deadline)
+
         executors = []
         subtasks = []
 
         if pos_type == "coordinator":
-            members = self._org.get_members(owner_name)
-            executors = [{"name": m, "status": EXECUTOR_PENDING} for m in members]
-            for m in members:
-                subtasks.append({
-                    "action": f"通知{m}完成{clean_summary}",
-                    "assignee": m,
-                    "done": False,
-                })
-            subtasks.append({
-                "action": f"汇总{scope}完成情况",
-                "assignee": owner_name,
-                "done": False,
-            })
+            matched = self._find_assignee(clean_summary, owner_name)
+            if matched:
+                executors = [{"name": matched, "status": EXECUTOR_PENDING}]
+                subtasks.append({"action": action_text, "assignee": matched, "done": False})
+            else:
+                task = {
+                    "id": self._next_id(event_id),
+                    "source_event_id": event_id,
+                    "responsibility_type": pos_type,
+                    "priority": infer_priority(event.get("raw", "")),
+                    "owner": {"name": owner_name, "role": owner_role},
+                    "action": action_text,
+                    "title": formatted_title,
+                    "executors": [],
+                    "subtasks": [],
+                    "deadline": deadline,
+                    "status": "uncertain",
+                    "created_at": event_time if event_time else datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                    "created_source": "event_time" if event_time else "import_time",
+                }
+                return task
 
         elif pos_type == "executor":
             executors = [{"name": owner_name, "status": EXECUTOR_PENDING}]
@@ -104,7 +116,6 @@ class TaskManager:
                 "done": False,
             })
 
-        event_time = event.get("detected_at") or event.get("time", {}).get("start", "")
         task = {
             "id": self._next_id(event_id),
             "source_event_id": event_id,
@@ -112,6 +123,7 @@ class TaskManager:
             "priority": infer_priority(event.get("raw", "")),
             "owner": {"name": owner_name, "role": owner_role},
             "action": action_text,
+            "title": formatted_title,
             "executors": executors,
             "subtasks": subtasks,
             "deadline": deadline,
@@ -137,6 +149,30 @@ class TaskManager:
         short = event_id.replace("evt_", "") if event_id.startswith("evt_") else event_id
         stamp = int(datetime.now().timestamp() * 1000)
         return f"task_{short}_{stamp}_{self._counter:03d}"
+
+    def _find_assignee(self, summary: str, owner_name: str):
+        try:
+            from skills.memory.observation_store import search as obs_search
+            from collections import Counter
+            members = self._org.get_members(owner_name) or []
+            if not members:
+                return None
+            results = obs_search(summary, obs_type="task_completion", since_days=180, top_k=30)
+            if not results:
+                return None
+            counts = Counter()
+            for r in results:
+                fact = r.get("fact", "")
+                for m in members:
+                    if m in fact:
+                        counts[m] += 1
+                        break
+            if not counts:
+                return None
+            top_person, top_count = counts.most_common(1)[0]
+            return top_person if top_count >= 2 else None
+        except Exception:
+            return None
 
     def update_from_event(self, event: dict) -> dict:
         """Process a feedback event. Match executor, update status, check completion.

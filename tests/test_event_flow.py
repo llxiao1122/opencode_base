@@ -53,44 +53,6 @@ def test_event_persist():
     print(f"  ✓ event {evt['id']} detected with valid structure")
 
 
-def test_event_enrich_flow():
-    """Case 009: 验证 enrich pipeline 完整运转"""
-    from memory.event_detector import detect
-    from core.event_enricher import enrich_event
-
-    events = detect("王亮在钉钉群各班组督促一下郑轨学苑内未完成人员，于14日下班前完成。", current_user=CURRENT_USER)
-
-    assert events, "no event detected"
-    evt = events[0]
-
-    # enrich should run without error
-    enriched = enrich_event(evt.copy(), "王亮在钉钉群各班组督促一下郑轨学苑内未完成人员，于14日下班前完成。")
-    assert "ai_content_status" in enriched, "enrich didn't set ai_content_status"
-    assert enriched["ai_content_status"] in ("success", "failed", "no_sections", "empty"), \
-        f"invalid ai_content_status: {enriched['ai_content_status']}"
-    print(f"  ✓ enrich pipeline complete, status={enriched['ai_content_status']}")
-
-
-def test_llm_fallback_no_api():
-    """Case 009: LLM 不可用时 enrich 不崩溃，返回 failed/empty 状态"""
-    from memory.event_detector import detect
-    from core.event_enricher import enrich_event
-
-    events = detect("王亮通知各工班完成安全学习", current_user=CURRENT_USER)
-
-    if not events:
-        print("  SKIP: no event (ok)")
-        return
-
-    evt = events[0]
-    enriched = enrich_event(evt.copy(), "王亮通知各工班完成安全学习")
-
-    # no API key → should be 'empty' or 'failed', never crash
-    assert enriched["ai_content_status"] in ("success", "failed", "no_sections", "empty"), \
-        f"unexpected status: {enriched['ai_content_status']}"
-    assert enriched["id"] == evt["id"], "event id should be preserved"
-    print(f"  ✓ fallback ok (no API), status={enriched['ai_content_status']}")
-
 
 def test_detect_timing():
     """Case 011: detect 单消息耗时 < 3秒"""

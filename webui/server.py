@@ -16,6 +16,7 @@ logger = logging.getLogger("cipher_web")
 
 ROOT = Path(__file__).resolve().parent.parent
 TASKS_PATH = ROOT / "state" / "tasks.json"
+TEAM_PATH = ROOT / "state" / "tasks_team.json"
 
 app = FastAPI(title="Cipher Tasks")
 
@@ -32,10 +33,21 @@ def _load():
 def _save(data):
     TASKS_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), "utf-8")
 
+def _load_team():
+    if not TEAM_PATH.exists():
+        return []
+    try:
+        return json.loads(TEAM_PATH.read_text("utf-8"))
+    except Exception:
+        return []
+
+def _save_team(data):
+    TEAM_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), "utf-8")
+
 @app.get("/api/tasks")
 def list_tasks(filter: str = "", owner: str = ""):
     all_tasks = _load()
-    active = [t for t in all_tasks if t.get("type") == "task" and t.get("status") == "active"]
+    active = [t for t in all_tasks if t.get("type") == "task" and t.get("status") in ("active", "in_progress")]
     completed = [t for t in all_tasks if t.get("type") == "task" and t.get("status") == "completed"]
 
     today = datetime.now().date()
@@ -47,11 +59,27 @@ def list_tasks(filter: str = "", owner: str = ""):
         tom = today + timedelta(days=1)
         active = [t for t in active if t.get("deadline") and t["deadline"].startswith(tom.isoformat())]
 
-    if owner:
-        active = [t for t in active if t.get("owner") == owner]
-        completed = [t for t in completed if t.get("owner") == owner]
+    def _owner_match(t, name):
+        o = t.get("owner", "")
+        if isinstance(o, dict):
+            return o.get("name", "") == name
+        return o == name
 
-    active.sort(key=lambda t: (PRIORITY_ORDER.get(t.get("priority", "medium"), 3), t.get("deadline", "9999") if t.get("deadline") else "9999"))
+    def _priority_val(t):
+        p = t.get("priority", "medium")
+        if isinstance(p, dict):
+            p = p.get("value", "medium")
+        return PRIORITY_ORDER.get(p, 3)
+
+    def _deadline_val(t):
+        dl = t.get("deadline")
+        return dl if dl else "9999"
+
+    if owner:
+        active = [t for t in active if _owner_match(t, owner)]
+        completed = [t for t in completed if _owner_match(t, owner)]
+
+    active.sort(key=lambda t: (_priority_val(t), _deadline_val(t)))
     completed.sort(key=lambda t: t.get("completed_at", ""), reverse=True)
 
     return {"active": active, "completed": completed}
@@ -77,6 +105,87 @@ def reopen_task(task_id: str):
             t["completed_at"] = None
             _save(data)
             logger.info("task reopened: %s", task_id)
+            return {"ok": True}
+    return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
+
+@app.get("/api/team-tasks")
+def list_team_tasks(owner: str = "", parent_id: str = "", status: str = ""):
+    all_tasks = _load_team()
+    if owner:
+        all_tasks = [t for t in all_tasks if t.get("owner") == owner]
+    if parent_id:
+        all_tasks = [t for t in all_tasks if t.get("parent_id") == parent_id]
+    if status:
+        all_tasks = [t for t in all_tasks if t.get("status") == status]
+    return all_tasks
+
+@app.post("/api/team-tasks/{task_id}/complete")
+def complete_team_task(task_id: str):
+    data = _load_team()
+    for t in data:
+        if t.get("id") == task_id and t.get("status") == "active":
+            t["status"] = "completed"
+            t["completed_at"] = datetime.now().isoformat(timespec="seconds")
+            _save_team(data)
+            from skills.memory.observation_store import write as obs_write
+            obs_write(
+                f"{t.get('owner', '')} 完成了 {t.get('title', '')}（父任务: {t.get('parent_title', '')}）",
+                source="team_task_complete",
+                obs_type="task_completion",
+                layer="rule",
+                confidence=0.9
+            )
+            logger.info("team task completed: %s", task_id)
+            return {"ok": True}
+    return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
+
+@app.post("/api/team-tasks/{task_id}/reopen")
+def reopen_team_task(task_id: str):
+    data = _load_team()
+    for t in data:
+        if t.get("id") == task_id and t.get("status") == "completed":
+            t["status"] = "active"
+            t["completed_at"] = None
+            _save_team(data)
+            logger.info("team task reopened: %s", task_id)
+            return {"ok": True}
+    return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
+
+@app.get("/api/team-tasks/pending")
+def pending_confirm():
+    team = _load_team()
+    parent_ids = set(t.get("parent_id") for t in team if t.get("parent_id"))
+    parents = _load()
+    parent_map = {p.get("id"): p for p in parents if p.get("type") == "task"}
+    result = []
+    for pid in parent_ids:
+        subs = [t for t in team if t.get("parent_id") == pid]
+        all_done = all(s.get("status") == "completed" for s in subs)
+        if not all_done:
+            continue
+        parent = parent_map.get(pid)
+        if parent is None:
+            continue
+        if parent.get("team_confirmed_at"):
+            continue
+        result.append({
+            "parent_id": pid,
+            "parent_title": parent.get("title", ""),
+            "parent_priority": parent.get("priority", "medium"),
+            "parent_deadline": parent.get("deadline"),
+            "total": len(subs),
+            "completed_count": len(subs),
+        })
+    return result
+
+@app.post("/api/team-tasks/{parent_id}/confirm")
+def confirm_parent_task(parent_id: str):
+    data = _load()
+    for t in data:
+        if t.get("id") == parent_id and t.get("type") == "task":
+            t["team_confirmed_at"] = datetime.now().isoformat(timespec="seconds")
+            _save(data)
+            logger.info("parent task confirmed: %s", parent_id)
             return {"ok": True}
     return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
 

@@ -1,13 +1,13 @@
 # Cipher — 企业认知系统
 
 ## 定位
-你叫Cipher， AI 助手，企业认知系统。负责：工作记忆、人员理解、任务闭环、组织知识辅助。
+你叫Cipher，AI助手，企业认知系统。负责：工作记忆、人员理解、任务闭环、组织知识辅助。
 
 > 架构约束文件。AI 启动时自动加载。约束开发边界、禁止回退。
 
 ## Cipher 身份
 
-使用第三人称"**Cipher**"自称，禁止使用"我"。示例："Cipher 认为……"、"Cipher 建议……"。
+使用第三人称"**Cipher**"自称，禁止使用"我"。会话风格黑色幽默70%。示例："Cipher 认为……"、"Cipher 建议……"。
 
 ## 用户认知
 
@@ -64,65 +64,108 @@ Cipher 在合适时会主动调用 `state/personal/preferences.json` 和 `state/
 python3 skills/routing/entry.py '<消息>'
 ```
 
-函数: `skills/routing/entry.py::handle_core()`
+函数: `skills/routing/entry.py::handle_core()` — 构建 Pipeline 并执行 6 层编排。
 
-数据流: `classify() → handler → LLM 合成`
+### Pipeline 执行流程
 
-消息经过 `query_router` 分为四路:
-- `profile` → `profile_handler` (人物查询)
-- `task` → `task_handler` (工作查询)
-- `knowledge` → `knowledge_handler` (知识查询)
-- `event` → `extract() → resolve() → create() → LLM` (事件处理)
-
-每句话末尾触发 `_detect_entity_changes()`: 含变化关键词时自动检测并更新 `entity_index.json`。启动时 `builder` 从 state 源文件重建 entity_index。
-
-### LLM 缓存
-
-```python
-from shared.llm_cache import call  # 带 TTL 的 LLM 调用，消除循环依赖
 ```
+entry.py::handle_core()
+  ├── _build_index_once()          — 重建 entity_index
+  ├── _update_event_lifecycle()    — 事件状态迁移
+  ├── Pipeline.build_default().run(ctx)
+  │     ├── L1: ingress.build()    — query_router.classify → 确定 route
+  │     ├── L2: intent.extract()   — event.extract + context.resolve + record
+  │     ├── L3: reasoning.reason() — LLM 分析（仅 event route）
+  │     ├── L4: execution.execute()— 按 route 分发
+  │     ├── L5: response.respond() — LLM 合成 + handler 回调
+  │     └── L6: reflection.reflect() — 观察提炼 + CognitiveLoop (fire-and-forget)
+  └── _detect_entity_changes()     — 检测人员变更关键词
+```
+
+### Route 四路
+
+| route | 触发条件 | 管线执行 | 终点 |
+|-------|---------|---------|------|
+| `event` | 含动词/时间/事项 | 完整 6 层 | LLM 回复 + 任务创建 |
+| `task` | 包含"任务/待办/今天"等 | L1→L2→SKIP | task_handler 日程 |
+| `profile` | 含人名+"负责/是谁"等 | L1→L2→SKIP | entity_resolver 查人 |
+| `knowledge` | 含知识库关键词 | L1→L2→SKIP | knowledge_retriever 查知识 |
+
+### CognitiveLoop 触发条件
+
+- 消息含"如果/假如/假设/会怎样/万一/不干预/为什么"
+- **或者** route 为 `event`（通知/安排/协调类消息自动触发）
+
+触发后: Probe(LLM 分析+假设) → Simulate(因果推演) → 结果写入 observation_store
 
 ### MCP Server（独立）
 
 ```bash
-/home/admin/opencode_base/.venv/bin/python3 skills/memory/memory_server.py  # STDIO 协议
+/home/admin/opencode_base/.venv/bin/python3 skills/memory/memory_server.py  # STDIO
 ```
 
-提供 5 个工具：`memory_search`（跨三层检索）/`memory_save`（保存经验）/`knowledge_retrieve`（知识库查询）/`cognitive_reflect`（认知反思）/`memory_reflect`（已废弃，向后兼容）。与管线独立运行。
+5 个工具: `memory_search` / `memory_save` / `knowledge_retrieve` / `cognitive_reflect` / `memory_reflect`(废弃，向后兼容)
 
 ## 架构分层
 
 ```
-Event 层（纯事实）
-  core/event.py           — extract() 事实提取
-  memory/event_detector.py — detect() 信号检测
+Pipeline 6 层（核心）
+  core/pipeline.py              — Pipeline.build_default().run() 编排器
 
-Context 层（责任定位）
-  core/context.py         — resolve() 5种责任类型判断
-  core/hierarchy_resolver.py — 组织层级查询
+  Layer 1 — Ingress（路由分发）
+    core/ingress.py             — build(): query_router.classify → 确定 route
+    routing/query_router.py     — classify(): 关键词优先 + 语义降级
 
-Organization 层（组织模型）
-  organization/model.py   — 从 state/team_work.json + entity_index.json 构建
+  Layer 2 — Intent（意图提取）
+    core/intent.py              — extract(): 事实提取 + 责任判断 + 记录管理
+    core/event.py               — extract(): 时间/人员/事项 纯规则提取
+    core/context.py             — resolve(): 5 种责任类型 (executor/coordinator/supervisor/audience/observer)
+    memory/detect/signals.py    — 信号模式（ACTION_VERBS / TIME_PATTERNS 等）
+    memory/detect/extractors.py — 字段提取 (时间/动作/约束/发送人/执行人等)
+    memory/event_detector.py    — detect(): 信号检测入口
+    routing/record_manager.py   — 记录去重合并、缺失信息检测
 
-Task 层（执行管理）
-  task/manager.py         — create/update_from_event/check_complete
-  task/store.py           — JSON 持久化 state/tasks.json
-  task/status.py          — 状态常量
-  task/priority.py        — 优先级推断
+  Layer 3 — Reasoning（推理）
+    core/reasoning.py           — reason(): LLM 分析（仅 event route）
 
-Memory 层（长期记忆）
-  memory/memory_core.py   — FAISS 双索引语义/情景搜索
-  memory/event_recorder.py — Event→Memory 记录器
-  memory/event_lifecycle.py — Event 状态迁移
-  memory/observation_store.py — 观察持久化（facts/patterns/conclusions 三层）
-  memory/memory_server.py — MCP STDIO 服务（附带废弃 memory_reflect 工具，保留向后兼容）
+  Layer 4 — Execution（执行）
+    core/execution.py           — execute(): 按 route 分发执行
 
-Record 层（工作记录管理）
-  routing/record_manager.py — 记录意图检测、任务去重合并、缺失信息检测
+  Layer 5 — Response（回复）
+    core/response.py            — respond(): LLM 回复合成 + handler 回调
+    routing/task_handler.py     — 任务查询/日程生成
+    routing/knowledge_handler.py — 知识库查询
+    routing/entity_resolver.py  — 实体解析
 
-Response 层（表达）
-  core/llm_client.py — DeepSeek API 封装
-  shared/llm_cache.py     — 带 TTL 的 LLM 调用缓存
+  Layer 6 — Reflection（反思）
+    core/reflection.py          — reflect(): Phase A 观察提炼 (LLM, 3600s cooldown)
+    core/cognitive_loop.py      — Phase B 认知反馈环: Probe + Simulate
+    reasoning/simulator.py      — CausalSimulator 因果推演
+
+跨层共享模块
+  organization/model.py         — 从 entity_index.json _meta.team_members 构建
+  task/manager.py               — create / update_from_event / check_complete
+  task/store.py                 — JSON 持久化 state/tasks.json
+  task/status.py                — 状态常量
+  task/priority.py              — 优先级推断
+  shared/schema.py              — RequestContext / Status / 数据合约
+  shared/task_format.py         — 标题格式化工坊
+  shared/semantic.py            — 语义分类（降级）
+  core/llm_client.py            — DeepSeek API（model: deepseek-v4-flash, thinking 禁用）
+  core/hierarchy_resolver.py    — 组织层级查询
+
+Memory 层（跨层共享）
+  memory/memory_core.py         — FAISS 双索引语义/情景搜索
+  memory/event_recorder.py      — Event→Memory 记录器
+  memory/event_lifecycle.py     — Event 状态迁移
+  memory/observation_store.py   — 观察持久化 (facts/patterns/conclusions 三层)
+  memory/memory_server.py       — MCP STDIO 服务（含废弃 memory_reflect, 向后兼容）
+
+WebUI
+  webui/server.py               — FastAPI 服务（9 个 API）
+  webui/index.html              — Vue 3 前端（工班任务/待确认 tab）
+
+废弃模块（不得重新调用，见完整清单）
 ```
 
 ## Task 数据模型
@@ -158,18 +201,10 @@ Response 层（表达）
 ## 测试体系
 
 ```bash
-pytest tests/ -v    # 19 tests
+pytest tests/ -v    # 26 tests
 ```
 
-当前: **19/19 全部通过**（含 6 项新 Pipeline 测试）。任何修改必须保持。
-
-## 当前完成度
-
-| 目标 | 进度 | 已有 | 缺失 |
-|------|------|------|------|
-| 工作任务 | 60% | 接任务/拆任务/跟踪/闭环 | 自动提醒/周期任务/任务复盘 |
-| 企业认知 | 10% | Event 事实记录 | profile_store/人物画像/组织动态学习 |
-| Pipeline | 100% | 6 层编排 + Refection 层 | — |
+当前: **26/26 全部通过**（含 SSOT/CognitiveLoop/MCP 服务器测试）。任何修改必须保持。
 
 ## 开发纪律
 
@@ -204,35 +239,8 @@ LLM 输出写入长期记忆时必须分层（facts/patterns/conclusions）。
 
 ## 废弃模块清单
 
-| 模块 | 原因 | 替代 |
-|------|------|------|
-| `route_request.py` | 路由由 query_router 承担 | `query_router.py` |
-| `routing/composer.py` | 入口不再调用 | handler 直接返回 |
-| `routing/llm_tags.py` | 仅 route_request 调用 | `shared/semantic.py` |
-| `routing/context_builder.py` | 无调用方 | task_handler 直接组装 |
-| `slow_think.py` | 无管线集成 | — |
+所有文件已删除。历史记录见 `files/架构审计-v3.md`。
 
-| `value_arbiter.py` | 仅 slow_think 引用 | — |
-| `memory/curiosity_engine.py` | 无管线集成 | — |
-| `memory_reflect.py` | CLI only | `memory_core.reflect()` |
-| `plugins/state_analyzer/` | 无调用方 | — |
-| `plugins/team_router/` | 无调用方 | — |
-| `user_model.py` | 零引用 | — |
-| `observation_writer/` | 零引用 | — |
-| `guard/tracer.py` | 零引用 | — |
-| `guard/sanitizer.py` | 零引用 | — |
-| `weight_provider.py` | 零引用 | — |
-| `user_store.py` | 零引用 | — |
-| `llm_helpers.py` | 零引用 | — |
-| `protocol.py` | 零引用 | — |
-| `emotions.jsonl` | 空文件，零引用 | — |
-| `经验提炼.md` | 无写入方，无读取方，索引落后 | — |
-| `config/system.yaml` | 代码零加载 | — |
-
-## 下一阶段
-
-Phase 2 Memory Revive: event_recorder → profile_store → organization 动态化。先记录，再画像，再学习。
-
----
-
-详细设计: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)（注意：docs/ 目录已不存在，此链接为死链）
+详细设计:
+- `files/架构审计-v3.md` — 全架构审计报告
+- `files/mcp-server.md` — MCP 工具文档

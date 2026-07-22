@@ -104,7 +104,11 @@ class DefaultResponseBuilder:
                 f"({ctx.result.get('subtask_count', 0)} 子任务)"
             )
 
-        return f"[Cipher:{pos_type}]\n{prefix}{llm_reply}{task_info}"
+        pending = ""
+        if ctx.result and ctx.result.get("pending_question"):
+            pending = f"\n❓ {ctx.result['pending_question']}"
+
+        return f"[Cipher:{pos_type}]\n{prefix}{llm_reply}{task_info}{pending}"
 
     def _feedback_reply(self, ctx: RequestContext) -> str:
         result = ctx.result or {}

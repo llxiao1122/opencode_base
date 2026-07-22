@@ -162,12 +162,23 @@ def build() -> dict:
 
     pending = _load_existing_pending()
 
+    meta = {
+        "version": 2,
+        "updated": datetime.now().strftime("%Y-%m-%d"),
+        "source": "state/team_work.json",
+    }
+    # Preserve team_members if it exists in current index
+    current = {}
+    if INDEX_FILE.exists():
+        try:
+            current = json.loads(INDEX_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    if current.get("_meta", {}).get("team_members"):
+        meta["team_members"] = current["_meta"]["team_members"]
+
     data = {
-        "_meta": {
-            "version": 2,
-            "updated": datetime.now().strftime("%Y-%m-%d"),
-            "source": "state/team_work.json",
-        },
+        "_meta": meta,
         "confirmed_entities": entities,
         "pending_entities": pending,
     }

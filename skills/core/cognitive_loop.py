@@ -111,4 +111,6 @@ class CognitiveLoop:
     def _should_trigger(self, ctx: RequestContext) -> bool:
         if any(kw in ctx.message for kw in _SIM_TRIGGERS):
             return True
+        if ctx.route == "event":
+            return True
         return False

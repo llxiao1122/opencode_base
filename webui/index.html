@@ -8,6 +8,7 @@
 </script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+.confirm-btn{flex-shrink:0;background:var(--green);color:var(--bg);border:none;border-radius:var(--radius);padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font)}
 :root{
   --bg:#1e1e2e;--surface:#181825;--hover:#313244;
   --text:#cdd6f4;--dim:#585b70;--accent:#89b4fa;
@@ -27,15 +28,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .list{flex:1;overflow-y:auto;padding:4px 12px;-webkit-overflow-scrolling:touch}
 .list::-webkit-scrollbar{width:4px}
 .list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
-/* swipe item */
-.swipe-wrap{position:relative;overflow:hidden;margin:4px 0;border-radius:var(--radius);touch-action:pan-y}
-.swipe-actions{position:absolute;right:0;top:0;height:100%;display:flex;align-items:stretch}
-.swipe-actions button{border:none;color:#fff;font-size:13px;padding:0 20px;cursor:pointer;font-weight:600;white-space:nowrap}
-.swipe-actions .btn-done{background:var(--green);color:var(--bg)}
-.swipe-actions .btn-reopen{background:var(--yellow);color:var(--bg)}
-.swipe-actions .btn-delete{background:var(--border);color:var(--dim)}
-.card{position:relative;background:var(--surface);padding:12px 14px;border-radius:var(--radius);transition:transform .2s ease;user-select:none;z-index:1;cursor:default;touch-action:pan-y}
-.card.open{transform:translateX(calc(-100% + 80px))}
+.card{background:var(--surface);padding:12px 14px;border-radius:var(--radius);margin:4px 0}
 .card.completed{opacity:.5}
 .card.completed .title{text-decoration:line-through;color:var(--dim)}
 .card-row{display:flex;align-items:center;gap:10px}
@@ -48,6 +41,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 .card .meta{font-size:11px;color:var(--dim);margin-top:2px;font-family:var(--mono)}
 .card .check{width:22px;height:22px;border-radius:50%;border:2px solid var(--dim);display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer;flex-shrink:0;transition:.15s;background:transparent;color:transparent}
 .card .check.done{border-color:var(--green);background:var(--green);color:var(--bg)}
+.btn-done,.btn-reopen{flex-shrink:0;border:none;border-radius:var(--radius);padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:var(--font);transition:.15s}
+.btn-done{background:var(--green);color:var(--bg)}
+.btn-reopen{background:var(--yellow);color:var(--bg)}
 /* section header */
 .section{padding:8px 4px 2px;font-size:11px;color:var(--dim);font-weight:600;letter-spacing:.5px;text-transform:uppercase}
 /* bottom tabs */
@@ -67,71 +63,88 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
 <body>
 <div id="app">
   <div class="header">
-    <h1>Cipher <span>·</span> 任务</h1>
-    <select v-model="filter" @change="loadTasks">
-      <option value="">全部</option>
-      <option value="today">今天</option>
-      <option value="tomorrow">明天</option>
-    </select>
+    <h1>Cipher <span>·</span> 工班</h1>
   </div>
 
-  <div class="owner-picker">
-    <span :class="{active:!owner}" @click="owner='';loadTasks()">全部</span>
-    <span v-for="n in ['李林骁','杨梦卓','苗笑天','谭继衡','张志斌','陈红洁']" :class="{active:owner===n}" @click="owner=n;loadTasks()">{{n}}</span>
-  </div>
+  <template v-if="tab==='team'">
+    <div class="owner-picker">
+      <span :class="{active:!owner}" @click="owner='';loadTasks()">全部</span>
+      <span v-for="n in members" :class="{active:owner===n}" @click="owner=n;loadTasks()">{{n}}</span>
+    </div>
+  </template>
 
   <div class="list" ref="list" @scroll="closeAll">
-    <div class="section" v-if="active.length">待办 · {{active.length}}</div>
-    <div v-for="t in active" :key="t.id" class="swipe-wrap">
-      <div class="swipe-actions">
-        <button class="btn-done" @click.stop="doComplete(t)">✓ 完成</button>
-      </div>
-      <div class="card" :class="{open:openId===t.id}" @touchstart="onTouchStart($event,t)" @touchmove="onTouchMove($event)" @touchend="onTouchEnd($event,t)" @click="tapTask(t)">
-        <div class="card-row">
-          <div class="dot" :class="t.priority||'medium'"></div>
-          <div class="body">
-            <div class="title">{{t.title||t.action}}</div>
-            <div class="meta"><template v-if="t.deadline">⏰ {{fmtDL(t.deadline)}}</template><template v-else>—</template> · {{t.publisher||t.owner||'?'}}</div>
+    <template v-if="tab==='team'">
+      <div class="section" v-if="active.length">待办 · {{active.length}}</div>
+      <div v-for="t in active" :key="t.id" style="margin:4px 0">
+        <div class="card" @click="isParentView?tapTask(t):null">
+          <div class="card-row">
+            <div class="dot" :class="t.priority||'medium'"></div>
+            <div class="body">
+              <div class="title">{{t.title}}</div>
+              <div class="meta">
+                <template v-if="isParentView">{{t.publisher||'?'}}<template v-if="t.deadline"> · ⏰ {{fmtDL(t.deadline)}}</template></template>
+                <template v-else>{{t.parent_title}} · {{t.owner}}<template v-if="t.deadline"> · ⏰ {{fmtDL(t.deadline)}}</template></template>
+              </div>
+            </div>
+            <button v-if="!isParentView" class="btn-done" @click.stop="doComplete(t)">✓</button>
           </div>
         </div>
       </div>
-    </div>
-
-    <div class="section" v-if="completed.length">已完成 · {{completed.length}}</div>
-    <div v-for="t in completed" :key="t.id" class="swipe-wrap">
-      <div class="swipe-actions">
-        <button class="btn-reopen" @click.stop="doReopen(t)">重新打开</button>
-      </div>
-      <div class="card completed" :class="{open:openId===t.id}" @touchstart="onTouchStart($event,t)" @touchmove="onTouchMove($event)" @touchend="onTouchEnd($event,t)">
-        <div class="card-row">
-          <div class="body">
-            <div class="title">{{t.title||t.action}}</div>
-            <div class="meta">✓ {{fmtDate(t.completed_at)}}</div>
+      <div class="section" v-if="completed.length">已完成 · {{completed.length}}</div>
+      <div v-for="t in completed" :key="t.id" style="margin:4px 0">
+        <div class="card completed">
+          <div class="card-row">
+            <div class="body">
+              <div class="title">{{t.title}}</div>
+              <div class="meta">
+                <template v-if="isParentView">{{t.publisher||'?'}} · ✓ {{fmtDate(t.completed_at)}}</template>
+                <template v-else>{{t.owner}} · ✓ {{fmtDate(t.completed_at)}}</template>
+              </div>
+            </div>
+            <button v-if="!isParentView" class="btn-reopen" @click.stop="doReopen(t)">↺</button>
           </div>
         </div>
       </div>
-    </div>
+      <div class="empty" v-if="!active.length&&!completed.length">暂无任务</div>
+    </template>
 
-    <div class="empty" v-if="!active.length&&!completed.length">暂无任务</div>
+    <template v-if="tab==='pending'">
+      <div class="section">{{pending.length}} 项全员完成，待你确认</div>
+      <div v-for="p in pending" :key="p.parent_id" class="card" style="margin:4px 0">
+        <div class="card-row">
+          <div class="dot" :class="p.parent_priority||'medium'"></div>
+          <div class="body">
+            <div class="title">{{p.parent_title}}</div>
+            <div class="meta">{{p.completed_count}}/{{p.total}} 已完成<template v-if="p.parent_deadline"> · ⏰ {{fmtDL(p.parent_deadline)}}</template></div>
+          </div>
+          <button class="confirm-btn" @click="doConfirm(p.parent_id)">确认</button>
+        </div>
+      </div>
+      <div class="empty" v-if="!pending.length">暂无待确认任务</div>
+    </template>
   </div>
 
   <div class="tabs">
-    <button v-for="f in tabs" :class="{active:filter===f.val}" @click="filter=f.val;loadTasks()">{{f.label}}</button>
+    <button v-for="f in tabs" :class="{active:tab===f.val}" @click="tab=f.val;loadTasks()">{{f.label}}<template v-if="f.val==='pending'&&pendingCount">({{pendingCount}})</template></button>
   </div>
 </div>
 
 <script>
-const {createApp,ref,onMounted,nextTick} = Vue
+const {createApp,ref,computed,onMounted} = Vue
 createApp({
   setup(){
-    const filter=ref('')
+    const tab=ref('team')
     const owner=ref('')
     const active=ref([])
     const completed=ref([])
+    const pending=ref([])
+    const pendingCount=ref(0)
     const openId=ref(null)
     const list=ref(null)
-    let touchStartX=0
-    const tabs=[{label:'全部',val:''},{label:'今天',val:'today'},{label:'明天',val:'tomorrow'}]
+    const members=['杨梦卓','苗笑天','谭继衡','张志斌','陈红洁']
+    const tabs=[{label:'工班任务',val:'team'},{label:'待确认',val:'pending'}]
+    const isParentView=computed(()=>owner.value==='')
 
     function fmtDL(dl){
       if(!dl) return ''
@@ -145,18 +158,35 @@ createApp({
 
     const BASE = '/cipher'
     async function loadTasks(){
-      const url=BASE+'/api/tasks?'+new URLSearchParams({filter:filter.value,owner:owner.value})
-      try{
-        const r=await fetch(url)
-        const d=await r.json()
-        active.value=d.active||[]
-        completed.value=d.completed||[]
-      }catch{}
+      if(tab.value==='team'){
+        if(owner.value===''){
+          try{
+            const r=await fetch(BASE+'/api/tasks')
+            const d=await r.json()
+            active.value=d.active||[]
+            completed.value=d.completed||[]
+          }catch{}
+        }else{
+          try{
+            const r=await fetch(BASE+'/api/team-tasks?'+new URLSearchParams({owner:owner.value}))
+            const d=await r.json()
+            active.value=(d||[]).filter(t=>t.status==='active')
+            completed.value=(d||[]).filter(t=>t.status==='completed')
+          }catch{}
+        }
+      }else{
+        try{
+          const r=await fetch(BASE+'/api/team-tasks/pending')
+          const d=await r.json()
+          pending.value=d||[]
+          pendingCount.value=pending.value.length
+        }catch{}
+      }
     }
 
     async function doComplete(t){
       try{
-        const r=await fetch(BASE+'/api/tasks/'+t.id+'/complete',{method:'POST'})
+        const r=await fetch(BASE+'/api/team-tasks/'+t.id+'/complete',{method:'POST'})
         const d=await r.json()
         if(d.ok){openId.value=null;loadTasks()}
       }catch{}
@@ -164,9 +194,17 @@ createApp({
 
     async function doReopen(t){
       try{
-        const r=await fetch(BASE+'/api/tasks/'+t.id+'/reopen',{method:'POST'})
+        const r=await fetch(BASE+'/api/team-tasks/'+t.id+'/reopen',{method:'POST'})
         const d=await r.json()
         if(d.ok){openId.value=null;loadTasks()}
+      }catch{}
+    }
+
+    async function doConfirm(parentId){
+      try{
+        const r=await fetch(BASE+'/api/team-tasks/'+parentId+'/confirm',{method:'POST'})
+        const d=await r.json()
+        if(d.ok) loadTasks()
       }catch{}
     }
 
@@ -177,25 +215,9 @@ createApp({
 
     function closeAll(){openId.value=null}
 
-    function onTouchStart(e,t){
-      touchStartX=e.touches[0].clientX
-    }
-    function onTouchMove(e){
-      const dx=e.touches[0].clientX-touchStartX
-      if(dx>-30) return
-      e.currentTarget.style.transform='translateX('+Math.max(dx,-80)+'px)'
-    }
-    function onTouchEnd(e,t){
-      const el=e.currentTarget
-      el.style.transform=''
-      const dx=e.changedTouches[0].clientX-touchStartX
-      if(dx<-40){openId.value=t.id}
-      else{openId.value=null}
-    }
-
     onMounted(()=>loadTasks())
 
-    return{filter,owner,active,completed,openId,list,loadTasks,doComplete,doReopen,tapTask,closeAll,onTouchStart,onTouchMove,onTouchEnd,fmtDL,fmtDate,tabs}
+    return{tab,owner,members,active,completed,pending,pendingCount,openId,list,loadTasks,doComplete,doReopen,doConfirm,tapTask,closeAll,fmtDL,fmtDate,tabs,isParentView}
   }
 }).mount('#app')
 </script>

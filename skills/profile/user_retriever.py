@@ -64,11 +64,16 @@ def _person_tasks(name: str) -> list:
     """Tasks where this person appears as owner or executor."""
     result = []
     for t in _tasks():
-        if t.get("owner", {}).get("name") == name:
+        owner = t.get("owner", {})
+        if isinstance(owner, dict):
+            if owner.get("name") == name:
+                result.append(t)
+                continue
+        elif isinstance(owner, str) and owner == name:
             result.append(t)
             continue
         for ex in t.get("executors", []):
-            if ex.get("name") == name:
+            if isinstance(ex, dict) and ex.get("name") == name:
                 result.append(t)
                 break
     return result

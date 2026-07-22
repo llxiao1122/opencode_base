@@ -14,38 +14,31 @@ TEAM_WORK_PATH = ROOT / "state" / "team_work.json"
 
 
 def _build_teams():
-    """Read team_work.json + entity_index.json to build team structure.
+    """Read entity_index.json to build team structure.
+
+    SSOT: entity_index.json _meta.team_members defines the core team.
+    Falls back to all entity_index names minus the leader.
 
     Returns: {team_name: {"leader": str, "members": list[str]}}
     """
     teams = {}
+    data = {}
 
-    # Read entity_index for known names
-    entity_names = set()
     try:
         data = json.loads(ENTITY_INDEX_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+
+    # SSOT: team_members list from entity_index _meta
+    known_team = set(data.get("_meta", {}).get("team_members", []))
+
+    # Fallback: all confirmed_entities except the leader
+    if not known_team:
         for e in data.get("confirmed_entities", []):
-            entity_names.add(e["name"])
-    except Exception:
-        pass
+            known_team.add(e["name"])
 
-    # Read roles from team_work.json to find known team members
-    known_team_members = set()
-    try:
-        tw = json.loads(TEAM_WORK_PATH.read_text(encoding="utf-8"))
-        for r in tw.get("roles", []):
-            known_team_members.add(r["name"])
-    except Exception:
-        pass
-
-    # Default team membership (org.md TREE was "李林骁→5保管")
-    known_team = {"李林骁", "陈红洁", "杨梦卓", "谭继衡", "苗笑天", "张志斌"}
-    if known_team_members:
-        known_team.update(known_team_members)
-
-    members = sorted(n for n in entity_names if n in known_team and n != "李林骁")
-    if not members:
-        members = sorted(n for n in known_team if n != "李林骁")
+    # Remove leader from members list
+    members = sorted(n for n in known_team if n != "李林骁")
 
     teams["铁炉西工班"] = {"leader": "李林骁", "members": members}
     return teams
