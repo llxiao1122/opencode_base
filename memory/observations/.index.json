@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-07-22T20:06:50",
+  "updated": "2026-07-22T20:50:40",
   "subjects": {
     "people/杨梦卓": {
       "file": "people/杨梦卓.md",
@@ -465,6 +465,36 @@
           "date": "2026-07-22",
           "type": "reflection",
           "summary": "1. 【模式】工班管理中反复出现人为规避考核、安全检查漏洞和应急响应缺失，与系统架构优化呈现明显的技术管理对立。"
+        },
+        {
+          "date": "2026-07-22",
+          "type": "task_created",
+          "summary": "事件类型: unknown"
+        },
+        {
+          "date": "2026-07-22",
+          "type": "task_created",
+          "summary": "事件类型: unknown"
+        },
+        {
+          "date": "2026-07-22",
+          "type": "task_created",
+          "summary": "事件类型: unknown"
+        },
+        {
+          "date": "2026-07-22",
+          "type": "task_created",
+          "summary": "事件类型: unknown"
+        },
+        {
+          "date": "2026-07-22",
+          "type": "task_created",
+          "summary": "事件类型: unknown"
+        },
+        {
+          "date": "2026-07-22",
+          "type": "task_created",
+          "summary": "事件类型: unknown"
         }
       ]
     }
