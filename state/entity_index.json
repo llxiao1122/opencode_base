@@ -6,6 +6,19 @@
   },
   "confirmed_entities": [
     {
+      "name": "李林骁",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "工班长",
+      "source": "state/team_work.json",
+      "leaders": null,
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
       "name": "郝晓平",
       "aliases": [],
       "route_hint": [
@@ -88,19 +101,6 @@
       "team": "铁炉西工班",
       "leaders": null,
       "area": ""
-    },
-    {
-      "name": "李林骁",
-      "aliases": [],
-      "route_hint": [
-        "G"
-      ],
-      "weight": 1.0,
-      "role": "工班长",
-      "source": "state/team_work.json",
-      "leaders": null,
-      "area": "",
-      "team": "铁炉西工班"
     },
     {
       "name": "程智",
