@@ -143,8 +143,9 @@ createApp({
       return d.slice(5,10)
     }
 
+    const BASE = '/cipher'
     async function loadTasks(){
-      const url='/api/tasks?'+new URLSearchParams({filter:filter.value,owner:owner.value})
+      const url=BASE+'/api/tasks?'+new URLSearchParams({filter:filter.value,owner:owner.value})
       try{
         const r=await fetch(url)
         const d=await r.json()
@@ -155,7 +156,7 @@ createApp({
 
     async function doComplete(t){
       try{
-        const r=await fetch('/api/tasks/'+t.id+'/complete',{method:'POST'})
+        const r=await fetch(BASE+'/api/tasks/'+t.id+'/complete',{method:'POST'})
         const d=await r.json()
         if(d.ok){openId.value=null;loadTasks()}
       }catch{}
@@ -163,7 +164,7 @@ createApp({
 
     async function doReopen(t){
       try{
-        const r=await fetch('/api/tasks/'+t.id+'/reopen',{method:'POST'})
+        const r=await fetch(BASE+'/api/tasks/'+t.id+'/reopen',{method:'POST'})
         const d=await r.json()
         if(d.ok){openId.value=null;loadTasks()}
       }catch{}
