@@ -1,0 +1,15 @@
+[Unit]
+Description=Cipher Telegram Bot
+After=network.target
+
+[Service]
+Type=simple
+User=admin
+WorkingDirectory=/home/admin/opencode_base
+Environment=TELEGRAM_BOT_TOKEN=<替换为你的token>
+ExecStart=/home/admin/opencode_base/.venv/bin/python3 tgbot/bot.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
