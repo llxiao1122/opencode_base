@@ -77,18 +77,9 @@ def handle(user_input, ctx):
         for t in matched:
             deadline = t.get("deadline", "")
             dl_tag = f" ⏰{deadline}" if deadline else ""
-            # Strip boilerplate prefix
-            action = t['action']
-            action = action.replace("督促铁炉西工班员工", "").strip()
-            if not action:
-                action = "相关任务"
-            lines.append(f"\n  {action}{dl_tag}")
-            for st in t.get("subtasks", []):
-                mark = "✓" if st.get("done") else "○"
-                name = st.get("assignee", "")
-                sub_action = st['action']
-                sub_action = sub_action.replace(f"通知{name}", "").replace("完成", "").strip()
-                lines.append(f"    {mark} {name}{'　' if not sub_action else '：'+sub_action}")
+            title = t.get('title') or t.get('action', '相关任务')
+            title = title.replace("督促铁炉西工班员工", "").strip()
+            lines.append(f"\n  {title}{dl_tag}")
         
         contacts = _extract_contacts(matched, daily_work)
         if contacts:
@@ -142,7 +133,7 @@ def _extract_contacts(matched_tasks, daily_work_text):
     lines = []
 
     for t in matched_tasks:
-        action = t.get("action", "")
+        action = t.get("title") or t.get("action", "")
         action_tail = action[-10:] if len(action) > 10 else action
         for name, role in name_role.items():
             if name in seen:
@@ -161,7 +152,7 @@ def _extract_contacts(matched_tasks, daily_work_text):
                     lines.append(f"  {name}（{role}）— {_contact_context(name, action)}")
                     seen.add(name)
 
-    if "危废" in daily_work_text or any("危废" in t.get("action", "") for t in matched_tasks):
+    if "危废" in daily_work_text or any("危废" in (t.get("title") or t.get("action", "")) for t in matched_tasks):
         for name, role in name_role.items():
             if "危废" in role and name not in seen:
                 lines.append(f"  {name}（{role}）— 危废处置协调")
