@@ -93,7 +93,16 @@ def complete_task(task_id: str):
             t["status"] = "completed"
             t["completed_at"] = datetime.now().isoformat(timespec="seconds")
             _save(data)
-            logger.info("task completed: %s", task_id)
+            team = _load_team()
+            changed = False
+            for st in team:
+                if st.get("parent_id") == task_id and st.get("status") == "active":
+                    st["status"] = "completed"
+                    st["completed_at"] = datetime.now().isoformat(timespec="seconds")
+                    changed = True
+            if changed:
+                _save_team(team)
+            logger.info("task completed (cascade): %s", task_id)
             return {"ok": True}
     return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
 

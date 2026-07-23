@@ -4,21 +4,28 @@ llm_client.py - 统一 LLM 调用封装
 供 simulator、memory_core 等模块共享 DeepSeek API 调用。
 """
 
-import os, json, re, urllib.request
+import os, json, re, time, urllib.request
 from pathlib import Path
 
 
 PROVIDERS = {
-    #"deepseek": {
-    #    "default_url": "https://api.deepseek.com/v1/chat/completions",
-     #   "default_model": "deepseek-v4-flash",
-     #   "env_key": "DEEPSEEK_API_KEY",
-     #   "config_key": "deepseek",
-     #   "url_suffix": "/v1/chat/completions",
-     #   },
+    "deepseek": {
+        "default_url": "https://api.deepseek.com/v1/chat/completions",
+        "default_model": "deepseek-v4-flash",
+        "env_key": "DEEPSEEK_API_KEY",
+        "config_key": "deepseek",
+        "url_suffix": "/v1/chat/completions",
+    },
+    "gemini": {
+        "default_url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        "default_model": "gemini-2.0-flash",
+        "env_key": "GEMINI_API_KEY",
+        "config_key": "gemini",
+        "url_suffix": "/chat/completions",
+    },
     "zhipu": {
         "default_url": "https://open.bigmodel.cn/api/paas/v4/chat/completions",
-        "default_model": "GLM-4.7-Flash",
+        "default_model": "GLM-4-Flash-250414",
         "env_key": "ZHIPU_API_KEY",
         "config_key": "zhipu",
         "url_suffix": "/chat/completions",
@@ -88,8 +95,9 @@ def call(prompt, system_prompt=None, temperature=0.3, timeout=30, max_tokens=102
         "temperature": temperature,
         "max_tokens": max_tokens,
     }
-    # 智谱 Thinking Mode：关掉以免 content 为空
-    if "flash" in model.lower() or "glm" in model.lower():
+    if model in ("deepseek-v4-flash", "deepseek-v4-pro"):
+        body_dict["thinking"] = {"type": "disabled"}
+    elif "flash" in model.lower() or "glm" in model.lower():
         body_dict["thinking_mode"] = False
 
     body = json.dumps(body_dict).encode()
@@ -105,6 +113,7 @@ def call(prompt, system_prompt=None, temperature=0.3, timeout=30, max_tokens=102
                 data = json.loads(resp.read())
         except urllib.error.HTTPError as e:
             if e.code == 429:
+                time.sleep(2 ** attempt)
                 continue
             try:
                 err = json.loads(e.read())

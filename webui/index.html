@@ -103,6 +103,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--f
               </div>
             </div>
             <button v-if="!isParentView" class="btn-done" @click.stop="doComplete(t)">✓</button>
+            <button v-if="isParentView" class="btn-done" @click.stop="doParentDone(t)">✓</button>
           </div>
         </div>
       </div>
@@ -244,6 +245,14 @@ createApp({
       }catch{}
     }
 
+    async function doParentDone(t){
+      try{
+        const r=await fetch(BASE+'/api/tasks/'+t.id+'/complete',{method:'POST'})
+        const d=await r.json()
+        if(d.ok){openId.value=null;loadTasks()}
+      }catch{}
+    }
+
     async function doConfirm(parentId){
       try{
         const r=await fetch(BASE+'/api/team-tasks/'+parentId+'/confirm',{method:'POST'})
@@ -338,7 +347,7 @@ createApp({
 
     onMounted(()=>{loadTasks();loadTeamMembers()})
 
-    return{tab,owner,members,active,completed,pending,pendingCount,openId,list,termInput,terminalLines,termRef,termInputRef,teamMembers,showAssign,assignX,assignY,loadTasks,doComplete,doReopen,doConfirm,doAssign,tapTask,closeAll,sendTermCmd,onCardDown,onCardUp,openAssign,closeAssign,fmtDL,fmtDate,tabs,isParentView}
+    return{tab,owner,members,active,completed,pending,pendingCount,openId,list,termInput,terminalLines,termRef,termInputRef,teamMembers,showAssign,assignX,assignY,loadTasks,doComplete,doReopen,doParentDone,doConfirm,doAssign,tapTask,closeAll,sendTermCmd,onCardDown,onCardUp,openAssign,closeAssign,fmtDL,fmtDate,tabs,isParentView}
   }
 }).mount('#app')
 </script>

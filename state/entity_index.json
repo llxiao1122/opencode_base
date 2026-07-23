@@ -14,6 +14,19 @@
   },
   "confirmed_entities": [
     {
+      "name": "李林骁",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "工班长",
+      "source": "state/team_work.json",
+      "leaders": null,
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
       "name": "郝晓平",
       "aliases": [],
       "route_hint": [
@@ -96,19 +109,6 @@
       "team": "铁炉西工班",
       "leaders": null,
       "area": ""
-    },
-    {
-      "name": "李林骁",
-      "aliases": [],
-      "route_hint": [
-        "G"
-      ],
-      "weight": 1.0,
-      "role": "工班长",
-      "source": "state/team_work.json",
-      "leaders": null,
-      "area": "",
-      "team": "铁炉西工班"
     },
     {
       "name": "程智",
@@ -263,7 +263,7 @@
         "G"
       ],
       "weight": 1.0,
-      "role": "材料棚+管理用房+废旧",
+      "role": "负责什么",
       "source": "state/team_work.json",
       "traits": "波动·荣誉驱动·怕被说·近期改善",
       "trust": "需半日节点",
