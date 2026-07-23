@@ -34,8 +34,8 @@ PROVIDERS = {
 
 
 def _resolve_config():
-    provider = os.environ.get("LLM_PROVIDER", "gemini").lower()
-    prov_cfg = PROVIDERS.get(provider, PROVIDERS.get("gemini", {}))
+    provider = os.environ.get("LLM_PROVIDER", "zhipu").lower()
+    prov_cfg = PROVIDERS.get(provider, PROVIDERS.get("zhipu", {}))
 
     url = os.environ.get("LLM_API_URL", "")
     key = os.environ.get("LLM_API_KEY", "") or os.environ.get(prov_cfg["env_key"], "")

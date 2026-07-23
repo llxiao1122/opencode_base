@@ -8,6 +8,19 @@
         "apiKey": "{env:GEMINI_API_KEY}",
         "model": "gemini-2.0-flash"
       }
+    },
+    "zhipu": {
+      "name": "智谱AI",
+      "options": {
+        "baseURL": "https://open.bigmodel.cn/api/paas/v4",
+        "apiKey": "3d940169f4ef477a85459339f3de4ae9.nviJccDe752J2E80",
+        "model": "GLM-4-Flash-250414"
+      },
+      "models": {
+        "glm-4-flash-250414": { "name": "GLM-4-Flash-250414" },
+        "glm-4-flash": { "name": "GLM-4-Flash" },
+        "glm-4.7-flash": { "name": "GLM-4.7-Flash" }
+      }
     }
   }
 }
