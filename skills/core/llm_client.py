@@ -23,6 +23,13 @@ PROVIDERS = {
         "config_key": "gemini",
         "url_suffix": "/chat/completions",
     },
+    "zhipu": {
+        "default_url": "https://open.bigmodel.cn/api/paas/v4/chat/completions",
+        "default_model": "GLM-4-Flash",
+        "env_key": "ZHIPU_API_KEY",
+        "config_key": "zhipu",
+        "url_suffix": "/chat/completions",
+    },
 }
 
 
