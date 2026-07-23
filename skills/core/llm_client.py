@@ -97,7 +97,7 @@ def call(prompt, system_prompt=None, temperature=0.3, timeout=30, max_tokens=102
     }
     if model in ("deepseek-v4-flash", "deepseek-v4-pro"):
         body_dict["thinking"] = {"type": "disabled"}
-    elif "flash" in model.lower() or "glm" in model.lower():
+    elif "glm" in model.lower() or "zhipu" in model.lower():
         body_dict["thinking_mode"] = False
 
     body = json.dumps(body_dict).encode()
