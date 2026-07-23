@@ -34,12 +34,18 @@ PROVIDERS = {
 
 
 def _resolve_config():
-    provider = os.environ.get("LLM_PROVIDER", "zhipu").lower()
-    prov_cfg = PROVIDERS.get(provider, PROVIDERS.get("zhipu", {}))
+    provider = os.environ.get("LLM_PROVIDER", "gemini").lower()
+    prov_cfg = PROVIDERS.get(provider, PROVIDERS.get("gemini", {}))
 
     url = os.environ.get("LLM_API_URL", "")
     key = os.environ.get("LLM_API_KEY", "") or os.environ.get(prov_cfg["env_key"], "")
     model = os.environ.get("LLM_MODEL", "")
+
+    _ENV_VAR_RE = re.compile(r'^\{env:(\w+)\}$')
+
+    def _resolve_key(k):
+        m = _ENV_VAR_RE.match(k or "")
+        return os.environ.get(m.group(1), "") if m else k
 
     paths = [
         Path.home() / ".config" / "opencode" / "opencode.jsonc",
@@ -59,17 +65,12 @@ def _resolve_config():
             prv = cfg.get("provider", {}).get(prov_cfg["config_key"], {})
             opt = prv.get("options", {})
 
-            if p == Path.home() / ".config" / "opencode" / "opencode.jsonc":
-                k = opt.get("apiKey", "")
-                if k and not k.startswith("{env:"):
-                    key = k
-
             if not url:
                 base = opt.get("baseURL", "")
                 if base:
                     url = base.rstrip("/") + prov_cfg.get("url_suffix", "/chat/completions")
             if not key:
-                key = opt.get("apiKey", "")
+                key = _resolve_key(opt.get("apiKey", ""))
             if not model:
                 model = opt.get("model", "")
         except Exception:
