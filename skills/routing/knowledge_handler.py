@@ -18,26 +18,12 @@ def handle(user_input, ctx):
         "基于提供的制度文档，回答合规性问题。引用具体条目。"
     )
 
-    knowledge_text = ""
-    try:
-        from knowledge.retriever import search as _k_search
-        hits = _k_search(user_input, top_k=3)
-        if hits:
-            store_path = ROOT_DIR / "state" / "knowledge" / "knowledge_index.json"
-            if store_path.exists():
-                chunks = json.loads(store_path.read_text(encoding="utf-8"))
-                parts = []
-                for score, idx in hits:
-                    if 0 <= idx < len(chunks):
-                        c = chunks[idx]
-                        text = c.get("text", c.get("content", str(c)))[:800]
-                        source = c.get("source_file", c.get("title", ""))
-                        parts.append(f"[{source}] {text}")
-                knowledge_text = "\n---\n".join(parts) if parts else ""
-    except Exception:
-        pass
+    from memory.memory_core import MemoryCore
+    mc = MemoryCore()
+    result = mc.retrieve(user_input, max_chars=2000)
+    knowledge_text = result.get("result", "")
 
-    if not knowledge_text:
+    if not knowledge_text or knowledge_text == "未找到相关内容":
         return "[Cipher] 制度库中暂无匹配条目。"
 
     prompt = (

@@ -105,6 +105,20 @@ def _load_events() -> list:
     return events
 
 
+def _get_entity_info(name: str) -> dict:
+    idx_path = ROOT / "state" / "entity_index.json"
+    if not idx_path.exists():
+        return {}
+    try:
+        data = json.loads(idx_path.read_text("utf-8"))
+        for e in data.get("confirmed_entities", []):
+            if e.get("name") == name:
+                return e
+    except Exception:
+        pass
+    return {}
+
+
 # ── trends ───────────────────────────────────────────────────────────
 
 
@@ -225,7 +239,9 @@ def get_person_context(name: str) -> dict:
     events = _load_events()
 
     if not tasks and not org_person:
-        return {"name": name, "error": "no_data"}
+        entity_info = _get_entity_info(name)
+        if not entity_info:
+            return {"name": name, "error": "no_data"}
 
     role_current = entity_role or org_person.get("role", "")
 

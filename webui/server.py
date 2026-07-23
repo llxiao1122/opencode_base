@@ -8,8 +8,9 @@ sys.path.insert(0, str(_ROOT / "skills"))
 import platform as _py_platform
 
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, PlainTextResponse
 import uvicorn
+import asyncio
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("cipher_web")
@@ -188,6 +189,89 @@ def confirm_parent_task(parent_id: str):
             logger.info("parent task confirmed: %s", parent_id)
             return {"ok": True}
     return JSONResponse({"ok": False, "error": "not found"}, status_code=404)
+
+@app.get("/api/team-members")
+def list_team_members():
+    idx_path = ROOT / "state" / "entity_index.json"
+    if not idx_path.exists():
+        return ["李林骁", "陈红洁", "杨梦卓", "苗笑天", "谭继衡", "张志斌"]
+    try:
+        data = json.loads(idx_path.read_text("utf-8"))
+        return data.get("_meta", {}).get("team_members",
+            ["李林骁", "陈红洁", "杨梦卓", "苗笑天", "谭继衡", "张志斌"])
+    except Exception:
+        return ["李林骁", "陈红洁", "杨梦卓", "苗笑天", "谭继衡", "张志斌"]
+
+@app.post("/api/tasks/{task_id}/assign")
+def assign_task(task_id: str, body: dict):
+    executor = (body or {}).get("executor", "").strip()
+    if not executor:
+        return JSONResponse({"ok": False, "error": "no executor"}, status_code=400)
+    tasks = _load()
+    parent = None
+    for t in tasks:
+        if t.get("id") == task_id:
+            parent = t
+            break
+    if not parent:
+        return JSONResponse({"ok": False, "error": "task not found"}, status_code=404)
+    team = _load_team()
+    now = datetime.now().strftime("%Y%m%d%H%M%S")
+    sub_id = f"sub_{now}_{len(team)}"
+    subtask = {
+        "id": sub_id,
+        "parent_id": task_id,
+        "parent_title": parent.get("title", ""),
+        "title": parent.get("title", ""),
+        "owner": executor,
+        "status": "active",
+        "deadline": parent.get("deadline", ""),
+        "created_at": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+        "completed_at": None,
+    }
+    team.append(subtask)
+    _save_team(team)
+    logger.info("task assigned: %s -> %s", task_id, executor)
+    return {"ok": True, "id": sub_id}
+
+@app.post("/api/message")
+def handle_message(body: dict):
+    msg = (body or {}).get("message", "").strip()
+    if not msg:
+        return JSONResponse({"ok": False, "error": "empty"}, status_code=400)
+    try:
+        import subprocess
+        entry_py = ROOT / "skills" / "routing" / "entry.py"
+        result = subprocess.run(
+            [sys.executable, str(entry_py), msg],
+            capture_output=True, text=True, timeout=120,
+            cwd=str(ROOT)
+        )
+        return {"ok": True, "stdout": result.stdout, "stderr": result.stderr, "returncode": result.returncode}
+    except subprocess.TimeoutExpired:
+        return {"ok": False, "error": "timeout"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+@app.post("/api/message/stream")
+async def stream_message(body: dict):
+    msg = (body or {}).get("message", "").strip()
+    if not msg:
+        return PlainTextResponse("error: empty message\n", status_code=400)
+    entry_py = ROOT / "skills" / "routing" / "entry.py"
+    async def generate():
+        proc = await asyncio.create_subprocess_exec(
+            sys.executable, str(entry_py), msg,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            cwd=str(ROOT)
+        )
+        async for line in proc.stdout:
+            yield line.decode(errors="replace")
+        async for line in proc.stderr:
+            yield line.decode(errors="replace")
+        await proc.wait()
+    return StreamingResponse(generate(), media_type="text/plain")
 
 @app.get("/")
 def index():

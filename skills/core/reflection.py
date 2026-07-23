@@ -6,8 +6,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent.parent
 REFLECTION_MARKER = ROOT / "memory" / ".last_reflection"
 
-MIN_OBSERVATIONS = 5
-REFLECTION_COOLDOWN = 300
+MIN_OBSERVATIONS = 1
+REFLECTION_COOLDOWN = 0
 
 
 class DefaultReflector:
@@ -18,18 +18,7 @@ class DefaultReflector:
     def reflect(self, ctx) -> None:
         from skills.memory.observation_store import search as obs_search, write as obs_write
 
-        # Phase A: Observation pattern extraction (existing)
-        if self._should_reflect():
-            recent = obs_search(target="", since_days=2, top_k=30)
-            if len(recent) >= MIN_OBSERVATIONS:
-                from collections import defaultdict
-                by_subject = defaultdict(list)
-                for obs in recent:
-                    by_subject[obs["subject"]].append(obs)
-                for subject, obs_list in by_subject.items():
-                    if len(obs_list) >= 3:
-                        self._reflect_subject(subject, obs_list, obs_write)
-                self._mark_reflected()
+        self._run_phase_a(obs_search, obs_write)
 
         # Phase B: Cognitive loop (fire-and-forget)
         if self._cognitive:
@@ -38,17 +27,17 @@ class DefaultReflector:
             except Exception:
                 pass
 
-    def _should_reflect(self) -> bool:
-        if not REFLECTION_MARKER.exists():
-            return True
-        try:
-            last = float(REFLECTION_MARKER.read_text().strip())
-            return time.time() - last > REFLECTION_COOLDOWN
-        except (ValueError, OSError):
-            return True
-
-    def _mark_reflected(self):
-        REFLECTION_MARKER.write_text(str(time.time()))
+    def _run_phase_a(self, obs_search, obs_write):
+        recent = obs_search(target="", since_days=2, top_k=30)
+        if len(recent) < MIN_OBSERVATIONS:
+            return
+        from collections import defaultdict
+        by_subject = defaultdict(list)
+        for obs in recent:
+            by_subject[obs["subject"]].append(obs)
+        for subject, obs_list in by_subject.items():
+            if len(obs_list) >= 1:
+                self._reflect_subject(subject, obs_list, obs_write)
 
     def _reflect_subject(self, subject, obs_list, obs_write):
         has_task = any(o.get("type") == "task_completion" for o in obs_list)
@@ -106,3 +95,20 @@ class DefaultReflector:
 
         obs_write(result, source="pipeline", obs_type="reflection",
                   layer="pattern", confidence=0.6)
+
+
+def trigger_reflection():
+    """Standalone trigger — can be called from obs_write hook or manually."""
+    from skills.memory.observation_store import search, write as obs_write
+    recent = search(target="", since_days=2, top_k=30)
+    if len(recent) < MIN_OBSERVATIONS:
+        return
+    from collections import defaultdict
+    by_subject = defaultdict(list)
+    for obs in recent:
+        by_subject[obs["subject"]].append(obs)
+    from skills.core.llm_client import call as llm
+    r = DefaultReflector(llm=llm)
+    for subject, obs_list in by_subject.items():
+        if len(obs_list) >= 1:
+            r._reflect_subject(subject, obs_list, obs_write)
