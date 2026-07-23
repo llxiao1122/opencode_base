@@ -9,23 +9,16 @@ from pathlib import Path
 
 
 PROVIDERS = {
-    "deepseek": {
-        "default_url": "https://api.deepseek.com/v1/chat/completions",
-        "default_model": "deepseek-v4-flash",
-        "env_key": "DEEPSEEK_API_KEY",
-        "config_key": "deepseek",
-        "url_suffix": "/v1/chat/completions",
-    },
-    "gemini": {
-        "default_url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-        "default_model": "gemini-2.0-flash",
-        "env_key": "GEMINI_API_KEY",
-        "config_key": "gemini",
-        "url_suffix": "/chat/completions",
-    },
+    #"deepseek": {
+    #    "default_url": "https://api.deepseek.com/v1/chat/completions",
+     #   "default_model": "deepseek-v4-flash",
+     #   "env_key": "DEEPSEEK_API_KEY",
+     #   "config_key": "deepseek",
+     #   "url_suffix": "/v1/chat/completions",
+     #   },
     "zhipu": {
         "default_url": "https://open.bigmodel.cn/api/paas/v4/chat/completions",
-        "default_model": "GLM-4-Flash",
+        "default_model": "GLM-4.7-Flash",
         "env_key": "ZHIPU_API_KEY",
         "config_key": "zhipu",
         "url_suffix": "/chat/completions",
@@ -34,8 +27,8 @@ PROVIDERS = {
 
 
 def _resolve_config():
-    provider = os.environ.get("LLM_PROVIDER", "deepseek").lower()
-    prov_cfg = PROVIDERS.get(provider, PROVIDERS["deepseek"])
+    provider = os.environ.get("LLM_PROVIDER", "zhipu").lower()
+    prov_cfg = PROVIDERS.get(provider, PROVIDERS.get("zhipu", {}))
 
     url = os.environ.get("LLM_API_URL", "")
     key = os.environ.get("LLM_API_KEY", "") or os.environ.get(prov_cfg["env_key"], "")
@@ -89,28 +82,50 @@ def call(prompt, system_prompt=None, temperature=0.3, timeout=30, max_tokens=102
         messages.append({"role": "system", "content": system_prompt})
     messages.append({"role": "user", "content": prompt})
 
-    extra_body = {"type": "disabled"} if model in ("deepseek-v4-flash", "deepseek-v4-pro") else None
     body_dict = {
         "model": model,
         "messages": messages,
         "temperature": temperature,
         "max_tokens": max_tokens,
     }
-    if extra_body:
-        body_dict["thinking"] = extra_body
+    # 智谱 Thinking Mode：关掉以免 content 为空
+    if "flash" in model.lower() or "glm" in model.lower():
+        body_dict["thinking_mode"] = False
+
     body = json.dumps(body_dict).encode()
 
     headers = {"Content-Type": "application/json"}
     if key:
         headers["Authorization"] = f"Bearer {key}"
 
-    try:
-        req = urllib.request.Request(url, data=body, headers=headers)
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            data = json.loads(resp.read())
-            return data.get("choices", [{}])[0].get("message", {}).get("content", "")
-    except Exception as e:
-        return {"error": str(e)}
+    for attempt in range(3):
+        try:
+            req = urllib.request.Request(url, data=body, headers=headers)
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                data = json.loads(resp.read())
+        except urllib.error.HTTPError as e:
+            if e.code == 429:
+                continue
+            try:
+                err = json.loads(e.read())
+                if err.get("error", {}).get("code") == "1305":
+                    continue
+            except Exception:
+                pass
+            return {"error": f"HTTP {e.code}"}
+        except Exception as e:
+            if attempt < 2:
+                continue
+            return {"error": str(e)}
+
+        msg = data.get("choices", [{}])[0].get("message", {})
+        content = msg.get("content", "")
+        # 当 content 为空但 reasoning_content 有时，说明还在推理阶段
+        if not content and msg.get("reasoning_content"):
+            return {"error": "模型输出为空（推理未完成）"}
+        return content
+
+    return {"error": "请求失败（限流重试耗尽）"}
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 {
   "_meta": {
     "version": 2,
-    "updated": "2026-07-23",
+    "updated": "2026-07-24",
     "source": "state/team_work.json",
     "team_members": [
       "李林骁",
@@ -13,19 +13,6 @@
     ]
   },
   "confirmed_entities": [
-    {
-      "name": "李林骁",
-      "aliases": [],
-      "route_hint": [
-        "G"
-      ],
-      "weight": 1.0,
-      "role": "工班长",
-      "source": "state/team_work.json",
-      "leaders": null,
-      "area": "",
-      "team": "铁炉西工班"
-    },
     {
       "name": "郝晓平",
       "aliases": [],
@@ -109,6 +96,19 @@
       "team": "铁炉西工班",
       "leaders": null,
       "area": ""
+    },
+    {
+      "name": "李林骁",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "工班长",
+      "source": "state/team_work.json",
+      "leaders": null,
+      "area": "",
+      "team": "铁炉西工班"
     },
     {
       "name": "程智",
@@ -263,7 +263,7 @@
         "G"
       ],
       "weight": 1.0,
-      "role": "接手苗笑天所交接的中小件区后对交接卫生方面",
+      "role": "材料棚+管理用房+废旧",
       "source": "state/team_work.json",
       "traits": "波动·荣誉驱动·怕被说·近期改善",
       "trust": "需半日节点",
@@ -285,7 +285,7 @@
         "G"
       ],
       "weight": 1.0,
-      "role": "接手苗笑天所交接的中小件区后对交接卫生方面",
+      "role": "立体库区+中小件区",
       "source": "state/team_work.json",
       "traits": "情绪驱动·责任感在·需推动",
       "trust": "中间检查(特定任务可靠，主动性不稳)",

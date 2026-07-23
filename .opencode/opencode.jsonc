@@ -1,29 +1,17 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  // ============================================================
-  // 项目级配置 — 与代码一起同步到 GitHub
-  // 放所有环境通用的 MCP 工具定义和能力声明
-  // 不要放密钥、API地址等环境相关配置
-  // ============================================================
-
   "provider": {
-    "deepseek": {
+    "zhipu": {
+      "name": "智谱AI",
       "options": {
-        "baseURL": "https://api.deepseek.com",
-        // 密钥已移至环境变量 DEEPSEEK_API_KEY / LLM_API_KEY
+        "baseURL": "https://open.bigmodel.cn/api/paas/v4",
+        "apiKey": "3d940169f4ef477a85459339f3de4ae9.nviJccDe752J2E80"
+      },
+      "models": {
+        "glm-4.7-flash": {
+          "name": "GLM-4.7-Flash"
+        }
       }
     }
-  },
-
-  "mcp": {
-    // 项目专属 MCP — 本地和 VPS 都需要的能力
-    // 示例：如果需要连接项目数据库的工具，放这里
-    // "project-db": {
-    //   "type": "remote",
-    //   "url": "${PROJECT_DB_MCP_URL}",
-    //   "headers": {
-    //     "Authorization": "Bearer ${PROJECT_DB_MCP_TOKEN}"
-    //   }
-    // }
-  },
+  }
 }
