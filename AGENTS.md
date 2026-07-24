@@ -151,7 +151,7 @@ Pipeline 6 层（核心）
   shared/schema.py              — RequestContext / Status / 数据合约
   shared/task_format.py         — 标题格式化工坊
   shared/semantic.py            — 语义分类（降级）
-  core/llm_client.py            — DeepSeek API（model: deepseek-v4-flash, thinking 禁用）
+  core/llm_client.py            — 智谱 API（model: GLM-4-Flash-250414, thinking 禁用）
   core/hierarchy_resolver.py    — 组织层级查询
 
 Memory 层（跨层共享）
@@ -201,10 +201,10 @@ WebUI
 ## 测试体系
 
 ```bash
-pytest tests/ -v    # 26 tests
+pytest tests/ -v    # 32 tests
 ```
 
-当前: **26/26 全部通过**（含 SSOT/CognitiveLoop/MCP 服务器测试）。任何修改必须保持。
+当前: **32/32 全部通过**（含 SSOT/CognitiveLoop/MCP 服务器测试）。任何修改必须保持。
 
 ## 开发纪律
 
@@ -239,8 +239,8 @@ LLM 输出写入长期记忆时必须分层（facts/patterns/conclusions）。
 
 ## 废弃模块清单
 
-所有文件已删除。历史记录见 `files/架构审计-v3.md`。
+所有文件已删除。历史记录见 `files/架构重构方案-规则+LLM混合.md`。
 
 详细设计:
-- `files/架构审计-v3.md` — 全架构审计报告
+- `files/架构重构方案-规则+LLM混合.md` — 全架构审计报告
 - `files/mcp-server.md` — MCP 工具文档

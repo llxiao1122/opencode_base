@@ -3,7 +3,7 @@ memory/observation_store.py — Observation Store with index.
 Index: memory/observations/.index.json — auto-maintained for fast search.
 """
 
-import json, re, threading
+import json, re, threading, os
 from pathlib import Path
 from datetime import date, datetime, timedelta
 
@@ -106,16 +106,18 @@ def write(text: str, source: str = "", obs_type: str = "",
                       text.strip().split("\n")[0])
 
     # Trigger Phase A reflection (fire-and-forget, non-blocking)
-    try:
-        threading.Thread(target=_run_reflection, daemon=True).start()
-    except Exception:
-        pass
+    if not os.environ.get("OP_SKIP_BG"):
+        try:
+            threading.Thread(target=_run_reflection, daemon=True).start()
+        except Exception:
+            pass
 
     # LLM classification for Knowledge/people routing (fire-and-forget)
-    try:
-        threading.Thread(target=_run_classify, args=(text, source), daemon=True).start()
-    except Exception:
-        pass
+    if not os.environ.get("OP_SKIP_BG"):
+        try:
+            threading.Thread(target=_run_classify, args=(text, source), daemon=True).start()
+        except Exception:
+            pass
 
 
 def _run_reflection():

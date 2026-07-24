@@ -1,6 +1,7 @@
 """Tests: observation write → LLM classify → people/Knowledge + FAISS read."""
 
 import sys, time, pathlib, json
+from unittest.mock import patch
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))

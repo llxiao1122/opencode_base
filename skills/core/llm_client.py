@@ -18,7 +18,7 @@ PROVIDERS = {
      #   },
     "zhipu": {
         "default_url": "https://open.bigmodel.cn/api/paas/v4/chat/completions",
-        "default_model": "GLM-4.7-Flash",
+        "default_model": "GLM-4-Flash-250414",
         "env_key": "ZHIPU_API_KEY",
         "config_key": "zhipu",
         "url_suffix": "/chat/completions",
