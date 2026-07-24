@@ -15,8 +15,8 @@ import sys
 import os
 import argparse
 
-TOKEN = "871e8ca746a4514807e8c958bf8fdebde00261ff0feba370f73173c967982639"
-WEBHOOK_URL = f"https://oapi.dingtalk.com/robot/send?access_token={TOKEN}"
+TOKEN = os.environ.get("DINGTALK_BOT_TOKEN", "")
+WEBHOOK_URL = f"https://oapi.dingtalk.com/robot/send?access_token={TOKEN}" if TOKEN else ""
 KEYWORD = "助手"
 
 
