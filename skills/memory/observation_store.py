@@ -105,27 +105,12 @@ def write(text: str, source: str = "", obs_type: str = "",
         _update_index(subj_type, subj_name, today, obs_type,
                       text.strip().split("\n")[0])
 
-    # Trigger Phase A reflection (fire-and-forget, non-blocking)
-    if not os.environ.get("OP_SKIP_BG"):
-        try:
-            threading.Thread(target=_run_reflection, daemon=True).start()
-        except Exception:
-            pass
-
     # LLM classification for Knowledge/people routing (fire-and-forget)
     if not os.environ.get("OP_SKIP_BG"):
         try:
             threading.Thread(target=_run_classify, args=(text, source), daemon=True).start()
         except Exception:
             pass
-
-
-def _run_reflection():
-    try:
-        from skills.core.reflection import trigger_reflection
-        trigger_reflection()
-    except Exception:
-        pass
 
 
 _KNOWLEDGE_FILES = [

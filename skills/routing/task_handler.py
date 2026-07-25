@@ -278,19 +278,26 @@ def _get_daily_work(user_input, target_date):
     lines_out.append("【值班】")
     lines_out.append(f"  当日值班人员: {duty_person}（参照'今日我值班工作提示卡'）")
 
-    # 库区负责人
+    # 库区负责人（合并材料棚轮值信息）
     lines_out.append("")
     lines_out.append("【库区负责人】")
+    import re as _re
+    _shed_raw = _get_material_shed(md, target)
+    _shed_name = ""
+    _shed_period = ""
+    if _shed_raw:
+        _m = _re.search(r": \S+?（(.+?)）", _shed_raw)
+        if _m:
+            _shed_period = _m.group(1)
+        _m2 = _re.search(r": (\S+?)（", _shed_raw)
+        if _m2:
+            _shed_name = _m2.group(1)
     zones = _get_zone_chiefs(md)
     for row in zones:
-        lines_out.append(f"  {row.get('库区', '')} — {row.get('负责人', '')}")
-
-    # 材料棚轮换
-    shed = _get_material_shed(md, target)
-    if shed:
-        lines_out.append("")
-        lines_out.append(f"【材料棚轮换】")
-        lines_out.append(f"  {shed}")
+        _line = f"  {row.get('库区', '')} — {row.get('负责人', '')}"
+        if row.get("负责人") == _shed_name and _shed_period:
+            _line += f"（轮值 {_shed_period}）"
+        lines_out.append(_line)
 
     # 汛期附加
     flood = _get_flood_season(md, target)

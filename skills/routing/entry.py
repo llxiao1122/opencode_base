@@ -96,18 +96,45 @@ def _update_event_lifecycle(user_input):
         pass
 
 
+def _fast_dispatch(route, user_input, ctx):
+    import importlib
+    ROUTE_HANDLERS = {
+        "task":      ("skills.routing.task_handler", "handle"),
+        "knowledge": ("skills.routing.knowledge_handler", "handle"),
+        "profile":   ("skills.agent.skills.profile", "handle"),
+    }
+    mod_path, func_name = ROUTE_HANDLERS[route]
+    mod = importlib.import_module(mod_path)
+    handler = getattr(mod, func_name)
+    return handler(user_input, ctx)
+
+
 def handle_core(user_input):
     _build_index_once()
     _update_event_lifecycle(user_input)
 
-    from core.pipeline import Pipeline
-    from shared.schema import RequestContext
+    from shared.schema import RequestContext, CT
+    from routing.query_router import classify
 
-    pipe = Pipeline.build_default()
+    route, confidence = classify(user_input)
     rctx = RequestContext(message=user_input)
-    result = pipe.run(rctx)
+
+    if confidence >= CT.HIGH and route != "event":
+        result = _fast_dispatch(route, user_input, rctx)
+        tool_id = route
+    else:
+        from agent.engine import run as agent_run
+        result = agent_run(user_input, rctx)
+        tool_id = rctx.route if hasattr(rctx, 'route') else route
 
     _detect_entity_changes(user_input)
+
+    try:
+        from correction.logger import append
+        append(rctx, result, tool_id=tool_id or "")
+    except Exception:
+        pass
+
     return result
 
 

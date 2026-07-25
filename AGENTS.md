@@ -64,39 +64,54 @@ Cipher 在合适时会主动调用 `state/personal/preferences.json` 和 `state/
 python3 skills/routing/entry.py '<消息>'
 ```
 
-函数: `skills/routing/entry.py::handle_core()` — 构建 Pipeline 并执行 6 层编排。
+函数: `skills/routing/entry.py::handle_core()` — 双路径：Pipeline（规则快速路径）或 Agent（LLM 模糊查询）。
 
-### Pipeline 执行流程
+### 执行流程
 
 ```
 entry.py::handle_core()
-  ├── _build_index_once()          — 重建 entity_index
-  ├── _update_event_lifecycle()    — 事件状态迁移
-  ├── Pipeline.build_default().run(ctx)
-  │     ├── L1: ingress.build()    — query_router.classify → 确定 route
-  │     ├── L2: intent.extract()   — event.extract + context.resolve + record
-  │     ├── L3: reasoning.reason() — LLM 分析（仅 event route）
-  │     ├── L4: execution.execute()— 按 route 分发
-  │     ├── L5: response.respond() — LLM 合成 + handler 回调
-  │     └── L6: reflection.reflect() — 观察提炼 + CognitiveLoop (fire-and-forget)
-  └── _detect_entity_changes()     — 检测人员变更关键词
+  ├── _build_index_once()              — 重建 entity_index
+  ├── _update_event_lifecycle()        — 事件状态迁移
+  ├── classify() → (route, confidence)
+  │   ├── conf >= 0.7 && route != "event" → Pipeline 快速路径
+  │   └── 其他（低置信/event/模糊）     → Agent 路径
+  │         └── agent/engine.py::run()
+  │               ├── LLM 意图+工具选择（结构化 JSON）
+  │               ├── registry.execute()     — 5 工具调度
+  │               └── _fallback_search()     — 知识库兜底
+  └── _detect_entity_changes()          — 检测人员变更关键词
 ```
 
-### Route 四路
+### Pipeline 5 层（快速路径，仅高置信非 event）
 
-| route | 触发条件 | 管线执行 | 终点 |
-|-------|---------|---------|------|
-| `event` | 含动词/时间/事项 | 完整 6 层 | LLM 回复 + 任务创建 |
-| `task` | 包含"任务/待办/今天"等 | L1→L2→SKIP | task_handler 日程 |
-| `profile` | 含人名+"负责/是谁"等 | L1→L2→SKIP | entity_resolver 查人 |
-| `knowledge` | 含知识库关键词 | L1→L2→SKIP | knowledge_retriever 查知识 |
+```
+Pipeline.build_default().run(ctx)
+  ├── L1: ingress.build()    — query_router.classify → 确定 route
+  ├── L2: intent.extract()   — event.extract + context.resolve + record
+  ├── L3: reasoning.reason() — LLM 分析（仅 event route）
+  ├── L4: execution.execute()— 按 route 分发
+  └── L5: response.respond() — LLM 回复合成
+```
 
-### CognitiveLoop 触发条件
+### Agent 工具注册表（Phase 3）
 
-- 消息含"如果/假如/假设/会怎样/万一/不干预/为什么"
-- **或者** route 为 `event`（通知/安排/协调类消息自动触发）
+| id | 用途 | handler |
+|----|------|---------|
+| `task_query` | 查询今日/本周/本月安排 | task_handler |
+| `knowledge_retrieve` | 查询制度/流程/规范 | knowledge_handler |
+| `profile_query` | 人员画像查询 | profile handle |
+| `notification_push` | 钉钉推送 | notification handle |
+| `event_record` | 事件记录 | event_record handle |
 
-触发后: Probe(LLM 分析+假设) → Simulate(因果推演) → 结果写入 observation_store
+### Route 历史（仍用于 FAISS 种子训练）
+
+| route | 触发条件 | 终点 |
+|-------|---------|------|
+| `event` | 含动词/时间/事项 | 完整 5 层 |
+| `task` | 任务/待办类 | task_handler |
+| `profile` | 人员查询 | entity_resolver |
+| `knowledge` | 知识查询 | knowledge_handler |
+| `agent` | LLM 动态路由 | Agent Engine + Registry |
 
 ### MCP Server（独立）
 
@@ -104,66 +119,59 @@ entry.py::handle_core()
 /home/admin/opencode_base/.venv/bin/python3 skills/memory/memory_server.py  # STDIO
 ```
 
-5 个工具: `memory_search` / `memory_save` / `knowledge_retrieve` / `cognitive_reflect` / `memory_reflect`(废弃，向后兼容)
+4 个工具: `memory_search` / `memory_save` / `knowledge_retrieve` / `memory_reflect`
 
 ## 架构分层
 
 ```
-Pipeline 6 层（核心）
-  core/pipeline.py              — Pipeline.build_default().run() 编排器
+Pipeline 5 层（核心）
+  已废弃。Phase 3 由 Agent + Skills Registry 替代。
 
-  Layer 1 — Ingress（路由分发）
-    core/ingress.py             — build(): query_router.classify → 确定 route
-    routing/query_router.py     — classify(): 关键词优先 + 语义降级
+Agent 层（Phase 3 核心）
+  skills/agent/engine.py         — Agent 核心：1 次 LLM 调用 + JSON 解析 + 容错链
+  skills/agent/registry.py       — Skills Registry：8 工具注册 + 参数校验 + 通用参数映射
+  skills/agent/skills/           — 工具 handler(s)
+    notification.py              — 钉钉推送（包装 dingbot）
+    event_record.py              — 事件记录（写 observation）
+    profile.py                   — 人员画像（包装 entity_resolver）
+    task_create.py               — 创建任务
+    task_feedback.py             — 任务完成反馈
+    org_lookup.py                — 组织关系查询
 
-  Layer 2 — Intent（意图提取）
-    core/intent.py              — extract(): 事实提取 + 责任判断 + 记录管理
-    core/event.py               — extract(): 时间/人员/事项 纯规则提取
-    core/context.py             — resolve(): 5 种责任类型 (executor/coordinator/supervisor/audience/observer)
-    memory/detect/signals.py    — 信号模式（ACTION_VERBS / TIME_PATTERNS 等）
-    memory/detect/extractors.py — 字段提取 (时间/动作/约束/发送人/执行人等)
-    memory/event_detector.py    — detect(): 信号检测入口
-    routing/record_manager.py   — 记录去重合并、缺失信息检测
-
-  Layer 3 — Reasoning（推理）
-    core/reasoning.py           — reason(): LLM 分析（仅 event route）
-
-  Layer 4 — Execution（执行）
-    core/execution.py           — execute(): 按 route 分发执行
-
-  Layer 5 — Response（回复）
-    core/response.py            — respond(): LLM 回复合成 + handler 回调
-    routing/task_handler.py     — 任务查询/日程生成
-    routing/knowledge_handler.py — 知识库查询
-    routing/entity_resolver.py  — 实体解析
-
-  Layer 6 — Reflection（反思）
-    core/reflection.py          — reflect(): Phase A 观察提炼 (LLM, 3600s cooldown)
-    core/cognitive_loop.py      — Phase B 认知反馈环: Probe + Simulate
-    reasoning/simulator.py      — CausalSimulator 因果推演
+路由层（FAISS 分类 + 入口分叉）
+  routing/entry.py               — 统一入口：Fast-Path + Agent 调度
+  routing/query_router.py        — FAISS 语义分类（快速路径 classify + 离线种子训练）
+  routing/route_index_manager.py — FAISS 索引管理
+  routing/task_handler.py        — 日程查询 handler（task_query skill）
+  routing/knowledge_handler.py   — 知识查询 handler（knowledge_retrieve skill）
+  routing/entity_resolver.py     — 实体解析
 
 跨层共享模块
-  organization/model.py         — 从 entity_index.json _meta.team_members 构建
-  task/manager.py               — create / update_from_event / check_complete
-  task/store.py                 — JSON 持久化 state/tasks.json
-  task/status.py                — 状态常量
-  task/priority.py              — 优先级推断
-  shared/schema.py              — RequestContext / Status / 数据合约
-  shared/task_format.py         — 标题格式化工坊
-  shared/semantic.py            — 语义分类（降级）
-  core/llm_client.py            — 智谱 API（model: GLM-4-Flash-250414, thinking 禁用）
-  core/hierarchy_resolver.py    — 组织层级查询
+  organization/model.py          — 从 entity_index.json _meta.team_members 构建
+  task/manager.py                — create / update_from_event / check_complete
+  task/store.py                  — JSON 持久化 state/tasks.json
+  task/status.py                 — 状态常量
+  task/priority.py               — 优先级推断
+  shared/schema.py               — RequestContext / Status / 数据合约
+  shared/task_format.py          — 标题格式化工坊
+  shared/semantic.py             — 语义分类（降级）
+  core/llm_client.py             — 智谱 API（model: GLM-4-Flash-250414, thinking 禁用）
+  routing/builder.py             — 实体索引构建
 
 Memory 层（跨层共享）
-  memory/memory_core.py         — FAISS 双索引语义/情景搜索
-  memory/event_recorder.py      — Event→Memory 记录器
-  memory/event_lifecycle.py     — Event 状态迁移
-  memory/observation_store.py   — 观察持久化 (facts/patterns/conclusions 三层)
-  memory/memory_server.py       — MCP STDIO 服务（含废弃 memory_reflect, 向后兼容）
+  memory/memory_core.py          — FAISS 双索引语义/情景搜索
+  memory/event_recorder.py       — Event→Memory 记录器
+  memory/event_lifecycle.py      — Event 状态迁移
+  memory/observation_store.py    — 观察持久化 (facts/patterns/conclusions 三层)
+  memory/memory_server.py        — MCP STDIO 服务（4 工具）
+
+Correction 层（Phase 2 自愈）
+  correction/logger.py           — decision_log 写入（tool_id 替代 route）
+  correction/learner.py          — 隐式纠错检测 + 种子更新
 
 WebUI
-  webui/server.py               — FastAPI 服务（9 个 API）
-  webui/index.html              — Vue 3 前端（工班任务/待确认 tab）
+  webui/server.py                — FastAPI 服务（9 个 API）
+  webui/index.html               — Vue 3 前端（工班任务/待确认 tab）
 
 废弃模块（不得重新调用，见完整清单）
 ```
@@ -201,10 +209,10 @@ WebUI
 ## 测试体系
 
 ```bash
-pytest tests/ -v    # 32 tests
+pytest tests/ -v    # 60 tests
 ```
 
-当前: **32/32 全部通过**（含 SSOT/CognitiveLoop/MCP 服务器测试）。任何修改必须保持。
+当前: **60/60 全部通过**。任何修改必须保持。
 
 ## 开发纪律
 
@@ -224,18 +232,16 @@ pytest tests/ -v    # 32 tests
 
 **优先**：扩展已有模块 → 其次：新增稳定边界模块 → 不做：临时规则文件
 
-## LLM 使用边界
+## LLM 使用边界（Phase 3）
 
-| 层 | LLM 权限 | 说明 |
-|----|---------|------|
-| Event 层 | 禁止 | 纯规则事实提取 |
-| Context 层 | 禁止 | 责任类型纯规则 |
-| Task 层 | 禁止 | 任务创建/状态/优先级纯规则；任务去重用 semantic 向量 |
-| Memory 层 | 受限 | `reflect()` 可调用，输出标记为 `pattern` 层，不直接写入 `facts` |
-| Response 层 | 允许 | 仅用于表达合成，不参与认知判断 |
+| 用途 | LLM 权限 | 说明 |
+|-----|---------|------|
+| Agent 意图理解 | 允许 | LLM 选择工具 + 提取参数 |
+| 工具执行 | 禁止 | handler 内部规则驱动 |
+| Memory 反射 | 受限 | 输出标记为 `pattern` 层，不直接写入 `facts` |
 
 LLM 输出写入长期记忆时必须分层（facts/patterns/conclusions）。
-废弃模块（route_request/composer/slow_think/value_arbiter/curiosity_engine/llm_tags/context_builder/plugins 中非 dingbot 部分）不得被主线重新调用。
+旧管线层（ingress/intent/reasoning/execution/response/context/event）已废弃，Phase 3 统一由 Agent + Skills Registry 替代。
 
 ## 废弃模块清单
 

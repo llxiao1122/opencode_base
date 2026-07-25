@@ -47,37 +47,7 @@ def test_org_ssot_team_name():
     assert org.get_team_name("李林骁") == "铁炉西工班"
 
 
-# ── 2. CognitiveLoop trigger ──
-
-
-def test_cognitive_trigger_keyword():
-    """含'如果'的消息触发 CognitiveLoop"""
-    from core.cognitive_loop import CognitiveLoop
-    from shared.schema import RequestContext
-    loop = CognitiveLoop.build_default()
-    ctx = RequestContext(message="如果明天不下雨就去巡查", route="task")
-    assert loop._should_trigger(ctx) is True
-
-
-def test_cognitive_trigger_event_route():
-    """route=event 自动触发 CognitiveLoop（方案A）"""
-    from core.cognitive_loop import CognitiveLoop
-    from shared.schema import RequestContext
-    loop = CognitiveLoop.build_default()
-    ctx = RequestContext(message="通知各班组明天下午3点开会", route="event")
-    assert loop._should_trigger(ctx) is True
-
-
-def test_cognitive_no_trigger_normal():
-    """task/profile 类查询不触发"""
-    from core.cognitive_loop import CognitiveLoop
-    from shared.schema import RequestContext
-    loop = CognitiveLoop.build_default()
-    assert loop._should_trigger(RequestContext(message="查看我的任务", route="task")) is False
-    assert loop._should_trigger(RequestContext(message="苗笑天负责什么", route="profile")) is False
-
-
-# ── 3. MCP Server ──
+# ── 2. MCP Server ──
 
 
 def test_mcp_initialize():
@@ -90,7 +60,7 @@ def test_mcp_initialize():
 
 
 def test_mcp_tools_list():
-    """MCP tools/list 返回 5 个工具"""
+    """MCP tools/list 返回 4 个工具"""
     from memory.memory_server import handle
     req = {"jsonrpc": "2.0", "id": 2, "method": "tools/list"}
     resp = handle(req)
@@ -99,9 +69,8 @@ def test_mcp_tools_list():
     assert "memory_search" in names
     assert "memory_save" in names
     assert "knowledge_retrieve" in names
-    assert "cognitive_reflect" in names
     assert "memory_reflect" in names
-    assert len(tools) == 5
+    assert len(tools) == 4
 
 
 def test_mcp_unknown_method():

@@ -462,6 +462,33 @@ class MemoryCore:
                         id_map[eid] = entry
                         counter += 1
 
+            # Also embed events from event_recorder log into episodic index
+            if idx_type == "episodic":
+                _evt_log = self.root / "memory" / "events" / "log.jsonl"
+                if _evt_log.exists():
+                    try:
+                        with open(_evt_log, "r", encoding="utf-8") as _f:
+                            for _line in _f:
+                                _line = _line.strip()
+                                if not _line:
+                                    continue
+                                try:
+                                    _evt = json.loads(_line)
+                                except json.JSONDecodeError:
+                                    continue
+                                _summary = _evt.get("action_summary", "") or _evt.get("raw_preview", "")
+                                _type = _evt.get("event_type", "unknown")
+                                _time = (_evt.get("import_time") or "")[:10]
+                                if _summary:
+                                    _chunk = f"{_summary}（{_type}, {_time}）"
+                                    vec = self._embed(_chunk)
+                                    new_index.add(vec)
+                                    eid = f"ep-{counter:04d}"
+                                    id_map[eid] = {"chunk": _chunk, "date": _time or str(date.today()), "source": "event_log"}
+                                    counter += 1
+                    except Exception:
+                        pass
+
             # Write rebuild
             tmp_path = self.vec_dir / f"{idx_type}.index.rebuild"
             faiss.write_index(new_index, str(tmp_path))

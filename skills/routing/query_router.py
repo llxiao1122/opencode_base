@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Tuple
 
 _SEEDS_PATH = Path(__file__).resolve().parent / "route_seeds.json"
+_STAMP_PATH = Path(__file__).resolve().parent.parent.parent / "state" / ".seeds_stamp"
 
 _idx_mgr = None
 _idx_lock = threading.Lock()
@@ -19,6 +20,11 @@ _idx_lock = threading.Lock()
 def _get_index():
     global _idx_mgr
     if _idx_mgr is not None:
+        if _STAMP_PATH.exists():
+            _STAMP_PATH.unlink(missing_ok=True)
+            from skills.routing.route_index_manager import RouteIndexManager
+            _idx_mgr = RouteIndexManager()
+            _idx_mgr.build(_SEEDS_PATH)
         return _idx_mgr
     with _idx_lock:
         if _idx_mgr is None:

@@ -1,9 +1,8 @@
 """
-shared/schema.py — 统一数据合约 (Phase 1).
+shared/schema.py — 统一数据合约 (Phase 3).
 
-所有层消费同一协议：
-  RequestContext 贯穿 Pipeline，每层只写自己的字段。
-  Status 控制流程，error 传递错误。
+RequestContext 贯穿 Agent 路径。
+Status 控制流程，error 传递错误。
 """
 
 from __future__ import annotations
@@ -22,13 +21,8 @@ class CT:
 
 class Status(Enum):
     PENDING = "pending"
-    INGRESS_DONE = "ingress_done"
-    INTENT_DONE = "intent_done"
-    REASONING_DONE = "reasoning_done"
-    EXECUTION_DONE = "execution_done"
     DONE = "done"
     ERROR = "error"
-    SKIP_REMAINING = "skip_remaining"
 
 
 class ValueDimension(Enum):

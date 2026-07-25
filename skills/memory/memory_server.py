@@ -13,7 +13,7 @@ sys.path.insert(0, str(_BASE / "skills"))
 
 from memory.memory_core import MemoryCore
 from skills.shared.schema import RequestContext
-from skills.core.cognitive_loop import CognitiveLoop
+
 
 ROOT = os.environ.get("MEMORY_DIR", str(Path(__file__).resolve().parent.parent.parent))
 core = MemoryCore(root_path=ROOT)
@@ -60,23 +60,12 @@ TOOLS = [
     },
     {
         "name": "memory_reflect",
-        "description": "[旧] 扫描近期观察记录，聚类压缩。已废弃，推荐使用 cognitive_reflect。",
+        "description": "扫描近期观察记录，聚类压缩。",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "since_days": {"type": "integer", "default": 7, "description": "扫描最近 N 天的记录"},
             },
-        },
-    },
-    {
-        "name": "cognitive_reflect",
-        "description": "[新] 认知反思路径。对输入问题进行 Probe(LLM分析+假设+评分) → Simulate(因果推演)。",
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "message": {"type": "string", "description": "待分析的问题或情境描述"},
-            },
-            "required": ["message"],
         },
     },
 ]
@@ -119,19 +108,6 @@ def handle(req):
         name = req["params"]["name"]
         args = req["params"].get("arguments", {})
         try:
-            if name == "cognitive_reflect":
-                msg = args.get("message", "")
-                ctx = RequestContext(message=msg, request_id="mcp_cognitive")
-                loop = CognitiveLoop.build_default()
-                loop.run(ctx)
-                return {
-                    "jsonrpc": "2.0",
-                    "id": req_id,
-                    "result": {
-                        "content": [{"type": "text", "text": "cognitive_reflect 已完成，结果已写入 observation_store"}]
-                    }
-                }
-
             method_map = {
                 "memory_search": "search",
                 "memory_save": "save",

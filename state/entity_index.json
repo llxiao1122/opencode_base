@@ -1,7 +1,7 @@
 {
   "_meta": {
     "version": 2,
-    "updated": "2026-07-24",
+    "updated": "2026-07-25",
     "source": "state/team_work.json",
     "team_members": [
       "李林骁",
@@ -13,19 +13,6 @@
     ]
   },
   "confirmed_entities": [
-    {
-      "name": "李林骁",
-      "aliases": [],
-      "route_hint": [
-        "G"
-      ],
-      "weight": 1.0,
-      "role": "工班长",
-      "source": "state/team_work.json",
-      "leaders": null,
-      "area": "",
-      "team": "铁炉西工班"
-    },
     {
       "name": "郝晓平",
       "aliases": [],
@@ -109,6 +96,19 @@
       "team": "铁炉西工班",
       "leaders": null,
       "area": ""
+    },
+    {
+      "name": "李林骁",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "工班长",
+      "source": "state/team_work.json",
+      "leaders": null,
+      "area": "",
+      "team": "铁炉西工班"
     },
     {
       "name": "程智",
@@ -263,7 +263,7 @@
         "G"
       ],
       "weight": 1.0,
-      "role": "负责什么",
+      "role": "材料棚+管理用房+废旧",
       "source": "state/team_work.json",
       "traits": "波动·荣誉驱动·怕被说·近期改善",
       "trust": "需半日节点",
@@ -396,6 +396,32 @@
     },
     {
       "name": "张梦圆(休假中)",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "",
+      "source": "state/team_work.json",
+      "team": "铁炉西工班",
+      "leaders": null,
+      "area": ""
+    },
+    {
+      "name": "资产+废旧)",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "",
+      "source": "state/team_work.json",
+      "team": "铁炉西工班",
+      "leaders": null,
+      "area": ""
+    },
+    {
+      "name": "危废)",
       "aliases": [],
       "route_hint": [
         "G"

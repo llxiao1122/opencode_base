@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-07-24T01:02:52",
+  "updated": "2026-07-25T23:00:15",
   "subjects": {
     "system/Cipher": {
       "file": "system/Cipher.md",
@@ -41214,6 +41214,466 @@
           "date": "2026-07-24",
           "type": "reflection",
           "summary": "1. 【模式】知识性查询（如定义类问题）会触发高安全评分（1.0）和高效能评分（0.9），且不涉及风险假设。"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "rule_change",
+          "summary": "交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "rule_change",
+          "summary": "库区交接必须经工班长现场评审判定"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "rule_change",
+          "summary": "交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "rule_change",
+          "summary": "库区交接必须经工班长现场评审判定"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "rule_change",
+          "summary": "交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "rule_change",
+          "summary": "库区交接必须经工班长现场评审判定"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "rule_change",
+          "summary": "交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "rule_change",
+          "summary": "库区交接必须经工班长现场评审判定"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "rule_change",
+          "summary": "交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "rule_change",
+          "summary": "库区交接必须经工班长现场评审判定"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "rule_change",
+          "summary": "交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "rule_change",
+          "summary": "库区交接必须经工班长现场评审判定"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "各工班 参与 10 条事件，发起10次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "巢磊 参与 6 条事件"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "李时博 参与 4 条事件"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "接部门 参与 4 条事件，发起4次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "接联络员 参与 4 条事件，发起4次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "各工班 常发起 instruction 类型（其中 9 次带截止时间），累计 10 次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "接部门 常发起 instruction 类型，累计 4 次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "接联络员 常发起 instruction 类型（其中 4 次带截止时间），累计 4 次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "事件类型分布: instruction 249 次（51%）"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "事件类型分布: feedback 94 次（19%）"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "事件类型分布: notification 55 次（11%）"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "事件类型分布: unknown 50 次（10%）"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "事件类型分布: inspection 20 次（4%）"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "事件类型分布: incident 18 次（3%）"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "各工班 参与 10 条事件，发起10次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "巢磊 参与 6 条事件"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "李时博 参与 4 条事件"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "接部门 参与 4 条事件，发起4次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "接联络员 参与 4 条事件，发起4次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "各工班 常发起 instruction 类型（其中 9 次带截止时间），累计 10 次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "接部门 常发起 instruction 类型，累计 4 次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "接联络员 常发起 instruction 类型（其中 4 次带截止时间），累计 4 次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "事件类型分布: instruction 249 次（51%）"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "事件类型分布: feedback 94 次（19%）"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "事件类型分布: notification 55 次（11%）"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "事件类型分布: unknown 50 次（10%）"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "事件类型分布: inspection 20 次（4%）"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "事件类型分布: incident 18 次（3%）"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "rule_change",
+          "summary": "交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "rule_change",
+          "summary": "库区交接必须经工班长现场评审判定"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "rule_change",
+          "summary": "交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "rule_change",
+          "summary": "库区交接必须经工班长现场评审判定"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "event",
+          "summary": "低置信度事件: 防汛应急预案是什么"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "event",
+          "summary": "低置信度事件: 你好"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "rule_change",
+          "summary": "交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "rule_change",
+          "summary": "库区交接必须经工班长现场评审判定"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "event",
+          "summary": "低置信度事件: 你好"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "event",
+          "summary": "低置信度事件: 通知各班组明天消防检查"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "event",
+          "summary": "低置信度事件: 你好"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "event",
+          "summary": "低置信度事件: 防汛应急预案是什么"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "event",
+          "summary": "低置信度事件: 你好"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "rule_change",
+          "summary": "交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "rule_change",
+          "summary": "库区交接必须经工班长现场评审判定"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "event",
+          "summary": "低置信度事件: 通知测试"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "task_created",
+          "summary": "事件类型: instruction"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "event",
+          "summary": "低置信度事件: 乱七八糟的输入"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "event",
+          "summary": "低置信度事件: 通知各班组明天开会检查"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "event",
+          "summary": "低置信度事件:"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "event",
+          "summary": "低置信度事件: 通知测试"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "task_created",
+          "summary": "事件类型: instruction"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "event",
+          "summary": "低置信度事件: 乱七八糟的输入"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "event",
+          "summary": "低置信度事件: 通知各班组明天开会检查"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "event",
+          "summary": "低置信度事件:"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "event",
+          "summary": "低置信度事件: 通知测试"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "task_created",
+          "summary": "事件类型: instruction"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "event",
+          "summary": "低置信度事件: 乱七八糟的输入"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "event",
+          "summary": "低置信度事件: 通知各班组明天开会检查"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "event",
+          "summary": "低置信度事件:"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "event",
+          "summary": "低置信度事件: 防汛应急预案是什么"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "event",
+          "summary": "低置信度事件: 你好"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "rule_change",
+          "summary": "交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "rule_change",
+          "summary": "库区交接必须经工班长现场评审判定"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "event",
+          "summary": "低置信度事件: 下周主要工作是什么"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "event",
+          "summary": "低置信度事件: 下周主要工作是什么"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "event",
+          "summary": "低置信度事件: 通知测试"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "task_created",
+          "summary": "事件类型: instruction"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "event",
+          "summary": "低置信度事件: 防汛应急预案是什么"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "event",
+          "summary": "低置信度事件: 你好"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "rule_change",
+          "summary": "交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "rule_change",
+          "summary": "库区交接必须经工班长现场评审判定"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "event",
+          "summary": "低置信度事件: 通知测试"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "task_created",
+          "summary": "事件类型: instruction"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "event",
+          "summary": "低置信度事件: 防汛应急预案是什么"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "event",
+          "summary": "低置信度事件: 你好"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "rule_change",
+          "summary": "交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "rule_change",
+          "summary": "库区交接必须经工班长现场评审判定"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "rule_change",
+          "summary": "交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "rule_change",
+          "summary": "库区交接必须经工班长现场评审判定"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "rule_change",
+          "summary": "交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "rule_change",
+          "summary": "库区交接必须经工班长现场评审判定"
         }
       ]
     },
@@ -46069,6 +46529,466 @@
           "date": "2026-07-24",
           "type": "note",
           "summary": "测试并发写入第0条陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "陈红洁今天主动整理了办公区域文件柜"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第0条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第1条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第2条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第3条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第4条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "陈红洁今天主动整理了办公区域文件柜"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第0条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第1条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第2条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第3条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第4条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "陈红洁今天主动整理了办公区域文件柜"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第0条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第1条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第2条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第3条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第4条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "陈红洁今天主动整理了办公区域文件柜"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第0条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第1条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第2条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第3条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第4条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "陈红洁今天主动整理了办公区域文件柜"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第0条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第1条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第2条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第3条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第4条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "陈红洁今天主动整理了办公区域文件柜"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第0条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第1条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第2条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第3条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第4条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "陈红洁 参与 4 条事件，发起1次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "陈红洁 参与 4 条事件，发起1次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "陈红洁今天主动整理了办公区域文件柜"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第0条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第1条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第2条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第3条 陈红洁"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "测试并发写入第4条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "陈红洁今天主动整理了办公区域文件柜"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第0条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第1条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第2条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第3条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第4条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "陈红洁今天主动整理了办公区域文件柜"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第0条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第1条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第2条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第3条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第4条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "陈红洁今天主动整理了办公区域文件柜"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第0条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第1条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第2条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第3条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第4条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "陈红洁今天主动整理了办公区域文件柜"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第0条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第1条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第2条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第3条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第4条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "陈红洁今天主动整理了办公区域文件柜"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第0条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第1条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第2条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第3条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第4条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "陈红洁今天主动整理了办公区域文件柜"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第0条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第1条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第2条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第3条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第4条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "陈红洁今天主动整理了办公区域文件柜"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第0条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第1条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第2条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第3条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第4条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "陈红洁今天主动整理了办公区域文件柜"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第0条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第1条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第2条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第3条 陈红洁"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "测试并发写入第4条 陈红洁"
         }
       ]
     },
@@ -46614,6 +47534,361 @@
           "date": "2026-07-24",
           "type": "note",
           "summary": "谭继衡建议库区交接应经工班长评审判定，合格方可移交"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "谭继衡建议库区交接应经工班长评审判定，合格方可移交"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "谭继衡建议库区交接应经工班长评审判定，合格方可移交"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "谭继衡建议库区交接应经工班长评审判定，合格方可移交"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "谭继衡建议库区交接应经工班长评审判定，合格方可移交"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "谭继衡建议库区交接应经工班长评审判定，合格方可移交"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "谭继衡建议库区交接应经工班长评审判定，合格方可移交"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "谭继衡 参与 10 条事件"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "谭继衡 参与 10 条事件"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "note",
+          "summary": "谭继衡建议库区交接应经工班长评审判定，合格方可移交"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "谭继衡建议库区交接应经工班长评审判定，合格方可移交"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "谭继衡建议库区交接应经工班长评审判定，合格方可移交"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "谭继衡建议库区交接应经工班长评审判定，合格方可移交"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "谭继衡建议库区交接应经工班长评审判定，合格方可移交"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "谭继衡建议库区交接应经工班长评审判定，合格方可移交"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "谭继衡建议库区交接应经工班长评审判定，合格方可移交"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "谭继衡建议库区交接应经工班长评审判定，合格方可移交"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "谭继衡建议库区交接应经工班长评审判定，合格方可移交"
+        }
+      ]
+    },
+    "people/李林骁": {
+      "file": "people/李林骁.md",
+      "sections": [
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "李林骁 参与 248 条事件，发起58次、被指派执行184次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "李林骁 常发起 instruction 类型（其中 32 次带截止时间），累计 32 次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "李林骁 常发起 feedback 类型（其中 32 次带截止时间），累计 12 次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "李林骁 常发起 notification 类型（其中 32 次带截止时间），累计 8 次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "李林骁 常发起 inspection 类型（其中 32 次带截止时间），累计 6 次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "李林骁 参与 248 条事件，发起58次、被指派执行184次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "李林骁 常发起 instruction 类型（其中 16 次带截止时间），累计 32 次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "李林骁 常发起 feedback 类型（其中 6 次带截止时间），累计 12 次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "李林骁 常发起 notification 类型（其中 8 次带截止时间），累计 8 次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "李林骁 常发起 inspection 类型（其中 2 次带截止时间），累计 6 次"
+        },
+        {
+          "date": "2026-07-25",
+          "type": "note",
+          "summary": "情境:与李林骁讨论了Cipher系统从Phase 3到5再到开放领域的完整架构演进方案，确定了每个阶段的核心能力边界和设计原则 行动:创建files/Agent"
+        }
+      ]
+    },
+    "people/张梦圆": {
+      "file": "people/张梦圆.md",
+      "sections": [
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "张梦圆 参与 34 条事件"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "张梦圆 参与 34 条事件"
+        }
+      ]
+    },
+    "people/王超": {
+      "file": "people/王超.md",
+      "sections": [
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "王超 参与 21 条事件，发起9次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "王超 常发起 instruction 类型（其中 5 次带截止时间），累计 5 次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "王超 参与 21 条事件，发起9次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "王超 常发起 instruction 类型（其中 3 次带截止时间），累计 5 次"
+        }
+      ]
+    },
+    "people/程智": {
+      "file": "people/程智.md",
+      "sections": [
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "程智 参与 18 条事件，发起4次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "程智 常发起 instruction 类型（其中 4 次带截止时间），累计 4 次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "程智 参与 18 条事件，发起4次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "程智 常发起 instruction 类型（其中 4 次带截止时间），累计 4 次"
+        }
+      ]
+    },
+    "people/靳攀": {
+      "file": "people/靳攀.md",
+      "sections": [
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "靳攀 参与 16 条事件，发起4次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "靳攀 常发起 instruction 类型（其中 4 次带截止时间），累计 4 次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "靳攀 参与 16 条事件，发起4次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "靳攀 常发起 instruction 类型（其中 4 次带截止时间），累计 4 次"
+        }
+      ]
+    },
+    "people/刘欢": {
+      "file": "people/刘欢.md",
+      "sections": [
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "刘欢 参与 13 条事件，发起5次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "刘欢 参与 13 条事件，发起5次"
+        }
+      ]
+    },
+    "people/王红义": {
+      "file": "people/王红义.md",
+      "sections": [
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "王红义 参与 12 条事件"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "王红义 参与 12 条事件"
+        }
+      ]
+    },
+    "people/王敬宇": {
+      "file": "people/王敬宇.md",
+      "sections": [
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "王敬宇 参与 6 条事件，发起2次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "王敬宇 参与 6 条事件，发起2次"
+        }
+      ]
+    },
+    "people/董文静": {
+      "file": "people/董文静.md",
+      "sections": [
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "董文静 参与 6 条事件"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "董文静 参与 6 条事件"
+        }
+      ]
+    },
+    "people/荆幸斌": {
+      "file": "people/荆幸斌.md",
+      "sections": [
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "荆幸斌 参与 4 条事件，发起2次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "荆幸斌 参与 4 条事件，发起2次"
+        }
+      ]
+    },
+    "people/卢丽英": {
+      "file": "people/卢丽英.md",
+      "sections": [
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "卢丽英 参与 4 条事件"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "卢丽英 参与 4 条事件"
+        }
+      ]
+    },
+    "people/王亮": {
+      "file": "people/王亮.md",
+      "sections": [
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "王亮 参与 4 条事件，发起3次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "王亮 参与 4 条事件，发起3次"
+        }
+      ]
+    },
+    "people/苗笑天": {
+      "file": "people/苗笑天.md",
+      "sections": [
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "苗笑天 参与 3 条事件，发起1次"
+        },
+        {
+          "date": "2026-07-24",
+          "type": "pattern",
+          "summary": "苗笑天 参与 3 条事件，发起1次"
         }
       ]
     }
