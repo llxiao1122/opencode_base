@@ -10,7 +10,7 @@ import os, threading, faiss, numpy as np
 from pathlib import Path
 from typing import Tuple
 
-_SEEDS_PATH = Path(__file__).resolve().parent.parent.parent / "state" / "route_seeds.json"
+_SEEDS_PATH = Path(__file__).resolve().parent / "route_seeds.json"
 
 _idx_mgr = None
 _idx_lock = threading.Lock()
