@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "skills"))
 
-from skills.shared.schema import RequestContext, Status
+from skills.shared.schema import RequestContext, Status, CT
 
 
 class DefaultExecutor:
@@ -91,6 +91,19 @@ class DefaultExecutor:
         ctx.status = Status.EXECUTION_DONE
 
     def _create_task(self, ctx: RequestContext):
+        # 极低置信度：仅记录 observation，不建任务
+        if ctx.confidence < CT.CONFIRM:
+            try:
+                from skills.memory.observation_store import write as obs_write
+                obs_write(f"低置信度事件: {ctx.message[:80]}",
+                          source="pipeline", obs_type="event",
+                          layer="rule", confidence=ctx.confidence)
+            except Exception:
+                pass
+            ctx.result = {"note": "低置信度事件，仅记录"}
+            ctx.status = Status.EXECUTION_DONE
+            return
+
         pos = (ctx.subject_context or {}).get("my_position", {})
         if pos.get("type") == "observer":
             ctx.status = Status.EXECUTION_DONE
@@ -105,6 +118,11 @@ class DefaultExecutor:
 
         if managed_task.get("status") == "uncertain":
             ctx.result = {"pending_question": f"{managed_task.get('action', '')} 需要分派给谁？"}
+            ctx.status = Status.EXECUTION_DONE
+            return
+
+        if ctx.confidence < CT.EXECUTE:
+            ctx.result = {"pending_question": "这个事件我不太确定，需要创建任务吗？"}
             ctx.status = Status.EXECUTION_DONE
             return
 

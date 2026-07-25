@@ -12,6 +12,14 @@ from dataclasses import dataclass, field
 from typing import Optional, List
 
 
+class CT:
+    """置信度阈值统一收拢——调优只改这里"""
+    HIGH    = 0.7   # L5 确定性语气水线
+    EXECUTE = 0.6   # L2/L4 正常提取与自动建任务水线
+    HEDGE   = 0.5   # L5 模棱两可语气水线
+    CONFIRM = 0.4   # L4 挂起待确认 / L5 追问触发
+
+
 class Status(Enum):
     PENDING = "pending"
     INGRESS_DONE = "ingress_done"

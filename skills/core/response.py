@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "skills"))
 
-from skills.shared.schema import RequestContext, Status
+from skills.shared.schema import RequestContext, Status, CT
 
 
 class DefaultResponseBuilder:
@@ -108,7 +108,17 @@ class DefaultResponseBuilder:
         if ctx.result and ctx.result.get("pending_question"):
             pending = f"\n❓ {ctx.result['pending_question']}"
 
-        return f"[Cipher:{pos_type}]\n{prefix}{llm_reply}{task_info}{pending}"
+        # 置信度语气
+        hedge = ""
+        if ctx.confidence > 0:
+            if ctx.confidence < CT.CONFIRM:
+                hedge = "\n\n（⚠️ 我不太确定，请确认是否需要调整）"
+            elif ctx.confidence < CT.HEDGE:
+                hedge = "\n\n（我的判断可能不准确，请核实）"
+            elif ctx.confidence < CT.HIGH:
+                hedge = "\n\n（推测，供参考）"
+
+        return f"[Cipher:{pos_type}]\n{prefix}{llm_reply}{task_info}{pending}{hedge}"
 
     def _feedback_reply(self, ctx: RequestContext) -> str:
         result = ctx.result or {}

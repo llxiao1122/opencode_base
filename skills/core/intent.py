@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "skills"))
 
-from skills.shared.schema import RequestContext, Status
+from skills.shared.schema import RequestContext, Status, CT
 
 
 class DefaultIntentExtractor:
@@ -23,9 +23,11 @@ class DefaultIntentExtractor:
                 ctx.status = Status.INTENT_DONE
                 return
 
-            if ctx.route != "event":
+            if ctx.route != "event" and ctx.confidence >= CT.EXECUTE:
                 ctx.status = Status.INTENT_DONE
                 return
+            if ctx.route != "event":
+                ctx.route = "event"
 
             from skills.core.event import extract as extract_event
             from skills.core.context import resolve as ctx_resolve
