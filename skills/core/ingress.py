@@ -17,7 +17,7 @@ class DefaultIngress:
         from skills.routing.query_router import classify
         from skills.shared import has_known_entity
 
-        route = classify(ctx.message)
+        route, confidence = classify(ctx.message)
 
         ltext = ctx.message.lstrip()
         if any(ltext.startswith(m) for m in _RECORD_MARKERS):
@@ -28,4 +28,5 @@ class DefaultIngress:
                 route = "event"
 
         ctx.route = route
+        ctx.confidence = confidence
         ctx.status = Status.INGRESS_DONE

@@ -1,61 +1,65 @@
 """
-routing/query_router.py — Query type classifier (Phase 12.1).
+routing/query_router.py — Query type classifier (Phase 0).
 
-Keyword-first, semantic-fallback. No LLM.
-Priority: profile > task > knowledge > event.
+FAISS semantic routing with confidence. Replaces keyword-first approach.
+Returns (route, confidence) where route ∈ {profile, task, knowledge, event}.
+Routes with confidence < 0.6 fall back to "event".
 """
 
-PROFILE_WORDS = [
-    "什么样", "怎么样", "评价", "能力", "表现",
-    "画像", "是谁", "性格", "优缺点",
-    "做事", "为人", "如何",
-]
+import os, threading, faiss, numpy as np
+from pathlib import Path
+from typing import Tuple
 
-TASK_WORDS = [
-    "今天", "明天", "本周", "待办", "任务",
-    "做了什么", "有什么活", "近期", "还有什么", "这周",
-]
+_SEEDS_PATH = Path(__file__).resolve().parent.parent.parent / "state" / "route_seeds.json"
 
-KNOWLEDGE_WORDS = [
-    "制度", "规定", "流程", "标准", "规范", "条例",
-    "要求", "禁止", "不得", "应做", "怎么办",
-]
-
-SEMANTIC_ANCHORS = {
-    "profile": [
-        "这个人怎么样", "性格怎么样", "能力如何", "评价一下",
-        "他的表现", "为人处世", "工作态度", "靠谱吗", "是什么样的人",
-    ],
-    "task": [
-        "今天要做什么", "工作安排", "待办事项", "有什么任务",
-        "最近的事情", "还有什么事", "忙不忙", "有啥活",
-    ],
-    "knowledge": [
-        "制度规定是什么", "操作规程", "标准流程", "怎么处理",
-        "有什么要求", "应急预案", "合规检查", "规章制度",
-    ],
-}
+_idx_mgr = None
+_idx_lock = threading.Lock()
 
 
-def classify(user_input: str) -> str:
-    """Return: profile | task | knowledge | event"""
+def _get_index():
+    global _idx_mgr
+    if _idx_mgr is not None:
+        return _idx_mgr
+    with _idx_lock:
+        if _idx_mgr is None:
+            from skills.routing.route_index_manager import RouteIndexManager
+            _idx_mgr = RouteIndexManager()
+            _idx_mgr.build(_SEEDS_PATH)
+    return _idx_mgr
+
+
+def classify(user_input: str) -> Tuple[str, float]:
+    """Return (route, confidence). confidence ∈ [0.0, 1.0].
+
+    confidence < 0.6 returns ("event", confidence) as fallback.
+    """
     text = user_input.strip()
+    if not text:
+        return ("event", 0.0)
 
-    if any(w in text for w in PROFILE_WORDS):
-        return "profile"
+    try:
+        idx_mgr = _get_index()
+        raw = idx_mgr.embed(text)
+        # embed() 可能返回 1D(384,) 或 2D(1,384)，统一成 2D
+        raw = np.asarray(raw, dtype=np.float32)
+        if raw.ndim == 1:
+            raw = raw.reshape(1, -1)
 
-    if any(w in text for w in TASK_WORDS):
-        return "task"
+        # 模长判定：近零向量（空/纯符号输入）直接回退
+        if np.linalg.norm(raw) < 1e-8:
+            return ("event", 0.0)
 
-    if any(w in text for w in KNOWLEDGE_WORDS):
-        return "knowledge"
+        faiss.normalize_L2(raw)
 
-    # No keyword hit — semantic fallback
-    if len(text) >= 2:
-        try:
-            from shared.semantic import classify as sem_classify
-            return sem_classify(text, SEMANTIC_ANCHORS, fallback="event", threshold=0.52)
-        except Exception:
-            pass
+        distances, indices = idx_mgr.search(raw, k=3)
+        top_dist = float(distances[0][0])
+        top_idx = int(indices[0][0])
 
-    return "event"
+        confidence = max(0.0, min(1.0, top_dist))
+
+        if confidence < 0.6:
+            return ("event", confidence)
+
+        return (idx_mgr.route_labels[top_idx], confidence)
+    except Exception:
+        return ("event", 0.0)

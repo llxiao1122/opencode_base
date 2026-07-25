@@ -35,6 +35,11 @@ def _build_index_once():
         build()
     except Exception:
         pass
+    try:
+        from routing.query_router import _get_index
+        _get_index()
+    except Exception:
+        pass
     _index_built = True
 
 

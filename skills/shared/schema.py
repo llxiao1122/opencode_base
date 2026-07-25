@@ -51,6 +51,7 @@ class RequestContext:
     error: Optional[str] = None
 
     route: Optional[str] = None
+    confidence: float = 0.0
 
     event: Optional[dict] = None
     subject_context: Optional[dict] = None
