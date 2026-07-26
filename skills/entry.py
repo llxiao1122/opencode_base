@@ -6,7 +6,7 @@ Usage:
   python3 -m skills.entry --core '<消息>'
 """
 
-import logging, os, sys, threading
+import logging, os, sys, threading, typing
 from pathlib import Path
 
 from skills.shared.path import ensure_paths, root as _root
@@ -100,13 +100,13 @@ def _update_event_lifecycle(user_input):
         logger.warning("event lifecycle update failed: %s", e, exc_info=True)
 
 
-def _auto_handle_corrections(user_input: str) -> str | None:
+def _auto_handle_corrections(user_input: str) -> typing.Optional[str]:
     if not any(kw in user_input for kw in _CORRECTION_KW):
         return None
     return "correction_detected"
 
 
-def _should_route_to_workflow(user_input: str) -> str | None:
+def _should_route_to_workflow(user_input: str) -> typing.Optional[str]:
     from skills.workflow.definitions import list_triggers
     triggers = list_triggers()
     tag = _auto_handle_corrections(user_input)

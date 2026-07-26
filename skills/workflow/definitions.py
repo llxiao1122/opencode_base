@@ -1,4 +1,6 @@
 """Workflow definitions — declarative step sequences."""
+from __future__ import annotations
+import typing
 
 WORKFLOWS = {
     "correction": {
@@ -14,7 +16,7 @@ WORKFLOWS = {
 }
 
 
-def get(workflow_id: str) -> dict | None:
+def get(workflow_id: str) -> typing.Optional[dict]:
     return WORKFLOWS.get(workflow_id)
 
 
