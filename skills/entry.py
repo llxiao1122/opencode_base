@@ -22,6 +22,7 @@ if _VENV_PYTHON.exists() and sys.executable != str(_VENV_PYTHON):
     os.execve(str(_VENV_PYTHON), [str(_VENV_PYTHON)] + sys.argv, os.environ)
 
 _index_built = False
+_daemon_started = False
 
 _CHANGE_KW = ["负责", "接手", "调整", "转交", "改管", "分管", "接管",
               "离职", "休假", "调走", "借调", "辞职", "退休"]
@@ -164,6 +165,20 @@ def handle_core(user_input):
         t.start()
     except Exception as e:
         logger.debug("reflect async start failed: %s", e)
+
+    global _daemon_started
+    if not _daemon_started:
+        _daemon_started = True
+        try:
+            from skills.trigger.daemon import ProactiveDaemon
+            t = threading.Thread(
+                target=ProactiveDaemon(check_interval_sec=300).start_loop,
+                daemon=True,
+            )
+            t.start()
+            logger.info("ProactiveDaemon thread started")
+        except Exception as e:
+            logger.warning("daemon start failed: %s", e)
 
     return result
 

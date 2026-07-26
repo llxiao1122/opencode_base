@@ -124,6 +124,10 @@ def _extract_time(text):
                 y = now.year
                 result["deadline"] = f"{y}-{month:02d}-{day:02d}"
 
+    if not result["deadline"]:
+        result["deadline"] = now.strftime("%Y-%m-%d")
+        result["time_note"] = "默认当日"
+
     return result
 
 

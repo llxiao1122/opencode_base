@@ -54,11 +54,16 @@ def _cleanup_expired():
 def _parse_dt(s):
     if not s:
         return datetime.min
-    for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%d"):
+    for fmt in ("%Y-%m-%dT%H:%M:%S",):
         try:
             return datetime.strptime(s, fmt)
         except ValueError:
             continue
+    try:
+        dt = datetime.strptime(s, "%Y-%m-%d")
+        return dt.replace(hour=18, minute=0)
+    except ValueError:
+        pass
     return datetime.min
 
 
@@ -136,6 +141,36 @@ def update_executor_status(task_id: str, executor_name: str, new_status: str) ->
 def get_active_tasks(owner_name: str) -> list:
     from task.status import IN_PROGRESS
     return list_by_owner(owner_name, status=IN_PROGRESS)
+
+
+def get_impending_tasks(threshold_hours: int, now_dt=None) -> list:
+    """Return active tasks with deadline within threshold_hours and not yet notified at this level."""
+    now = now_dt or datetime.now()
+    tasks = _read()
+    result = []
+    for t in tasks:
+        if t.get("status") in ("completed", "cancelled", "archived"):
+            continue
+        dl = _parse_dt(t.get("deadline", ""))
+        if not dl or dl == datetime.min:
+            continue
+        notified = t.get("notified_levels", [])
+        if threshold_hours in notified:
+            continue
+        remaining = (dl - now).total_seconds() / 3600
+        if 0 < remaining <= threshold_hours:
+            result.append(t)
+    return result
+
+
+def mark_notified(task_id: str, level: int):
+    task = load(task_id)
+    if not task:
+        return
+    levels = task.get("notified_levels", [])
+    if level not in levels:
+        levels.append(level)
+    update(task_id, {"notified_levels": levels})
 
 
 def close(task_id: str) -> bool:

@@ -17,8 +17,8 @@ import json, logging, os, sys, re
 from pathlib import Path
 
 # ── path bootstrap ──────────────────────────────────────────────
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "skills"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "skills"))
 from skills.shared.path import root as project_root
 
 ROOT = project_root()

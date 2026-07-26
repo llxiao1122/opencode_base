@@ -10,6 +10,11 @@ NORMAL = "normal"
 
 _SAFETY_KW = ["安全", "消防", "防汛", "暴雨", "应急", "火灾", "严禁", "预警", "整改", "漏水"]
 
+THRESHOLD_MAP = {
+    HIGH:   [24, 2],
+    NORMAL: [2],
+}
+
 
 def infer_priority(raw_text: str) -> dict:
     """Return {value, reason, rule} for a given message text."""
