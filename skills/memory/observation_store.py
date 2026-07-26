@@ -215,11 +215,14 @@ def _llm_classify(text, filenames):
         raw = llm_call(prompt, system_prompt="你是一个信息分类助手，只输出 JSON。",
                        max_tokens=500, temperature=0.1)
         raw = str(raw).strip() if raw else ""
+        raw = raw.strip()
+        if not raw:
+            return []
         import json as _j
         result = _j.loads(raw)
         return result if isinstance(result, list) else []
     except Exception as e:
-        logger.warning("LLM classify failed: %s", e, exc_info=True)
+        logger.debug("LLM classify failed: %s", e)
         return []
 
 
@@ -239,11 +242,14 @@ def _dedup_check(filename, text):
         raw = llm_call(prompt, system_prompt="只返回 JSON。",
                        max_tokens=100, temperature=0.1)
         raw = str(raw).strip() if raw else ""
+        raw = raw.strip()
+        if not raw:
+            return "append"
         import json as _j
         d = _j.loads(raw)
         return d.get("action", "append")
     except Exception as e:
-        logger.warning("dedup check failed: %s", e, exc_info=True)
+        logger.warning("dedup check failed: %s", e)
         return "append"
 
 

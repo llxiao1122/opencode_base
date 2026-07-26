@@ -94,7 +94,8 @@ def _fallback_search(query: str) -> str:
         return f"[Cipher]\n已记录：{query}"
 
 
-def run(user_input: str, ctx: Optional[RequestContext] = None) -> str:
+def run(user_input: str, ctx: Optional[RequestContext] = None,
+        tracer=None) -> str:
     if ctx is None:
         ctx = RequestContext(message=user_input)
         ctx.user = _resolve_user()
@@ -120,7 +121,8 @@ def run(user_input: str, ctx: Optional[RequestContext] = None) -> str:
     from skills.core.llm_client import call as llm_call
 
     try:
-        raw = llm_call(user_input, system_prompt=sys_prompt, max_tokens=800, temperature=0.3)
+        with (tracer.span("agent.llm_think") if tracer else _nullctx()):
+            raw = llm_call(user_input, system_prompt=sys_prompt, max_tokens=800, temperature=0.3)
         if isinstance(raw, dict) and "error" in raw:
             logger.warning("LLM call returned error: %s", raw.get("error"))
             return _fallback_search(user_input)
@@ -143,7 +145,8 @@ def run(user_input: str, ctx: Optional[RequestContext] = None) -> str:
             logger.warning("param validation failed for %s: %s", tool_id, err)
             return f"[Cipher:agent]\n{err}，请补充后重试。"
 
-        result = execute(tool_id, params, ctx=ctx)
+        with (tracer.span("agent.execute", tool=tool_id) if tracer else _nullctx()):
+            result = execute(tool_id, params, ctx=ctx)
         ctx.route = tool_id
         ctx.confidence = 0.8
         return result
@@ -151,3 +154,8 @@ def run(user_input: str, ctx: Optional[RequestContext] = None) -> str:
     except Exception as e:
         logger.error("agent run failed: %s", e, exc_info=True)
         return f"[Cipher:error]\n处理失败: {e}"
+
+
+def _nullctx():
+    from contextlib import nullcontext
+    return nullcontext()

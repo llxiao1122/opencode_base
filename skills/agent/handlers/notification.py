@@ -4,6 +4,9 @@ logger = logging.getLogger(__name__)
 
 
 def handle(title: str, content: str) -> str:
+    import os
+    if not os.environ.get("DINGTALK_BOT_TOKEN", ""):
+        return "[Cipher:notification]\n⚠ 钉钉未配置（DINGTALK_BOT_TOKEN 为空），通知已记录。"
     from skills.plugins.dingbot.send_msg import send_markdown
     result = send_markdown(title, content)
     if result.get("errcode") != 0:

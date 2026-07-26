@@ -66,6 +66,7 @@ class RequestContext:
     user: Optional[dict] = None
     channel: str = "cli"
     request_id: str = ""
+    trace_id: str = ""
     status: Status = Status.PENDING
     error: Optional[str] = None
 

@@ -10,6 +10,11 @@ logger = logging.getLogger(__name__)
 _POOL = ThreadPoolExecutor(max_workers=4)
 
 
+def _nullctx():
+    from contextlib import nullcontext
+    return nullcontext()
+
+
 class WorkflowResult:
     def __init__(self, text: str, audit: dict | None = None):
         self.text = text
@@ -17,6 +22,9 @@ class WorkflowResult:
 
 
 class WorkflowEngine:
+    def __init__(self, tracer=None):
+        self._tracer = tracer
+
     def run(self, workflow_id: str, user_input: str, ctx) -> WorkflowResult:
         wf = _get_def(workflow_id)
         if not wf:
@@ -25,24 +33,27 @@ class WorkflowEngine:
         steps = wf["steps"]
         results: dict[str, dict] = {}
 
-        futures = {}
-        for step in steps:
-            sid = step["skill"]
-            fut = _POOL.submit(self._run_step, sid, step, user_input, ctx)
-            futures[sid] = fut
+        span_mgr = (self._tracer.span("wf.parallel", steps=len(steps))
+                    if self._tracer else _nullctx())
+        with span_mgr:
+            futures = {}
+            for step in steps:
+                sid = step["skill"]
+                fut = _POOL.submit(self._run_step, sid, step, user_input, ctx)
+                futures[sid] = fut
 
-        for step in steps:
-            sid = step["skill"]
-            timeout = step.get("timeout", 15)
-            try:
-                step_result = futures[sid].result(timeout=timeout)
-            except _TimeoutError:
-                logger.warning("workflow step '%s' timed out after %ss", sid, timeout)
-                step_result = {"status": "timeout", "text": "", "raw": ""}
-            except Exception as e:
-                logger.error("workflow step '%s' failed: %s", sid, e, exc_info=True)
-                step_result = {"status": "error", "text": "", "raw": str(e)}
-            results[sid] = step_result
+            for step in steps:
+                sid = step["skill"]
+                timeout = step.get("timeout", 15)
+                try:
+                    step_result = futures[sid].result(timeout=timeout)
+                except _TimeoutError:
+                    logger.warning("workflow step '%s' timed out after %ss", sid, timeout)
+                    step_result = {"status": "timeout", "text": "", "raw": ""}
+                except Exception as e:
+                    logger.error("workflow step '%s' failed: %s", sid, e, exc_info=True)
+                    step_result = {"status": "error", "text": "", "raw": str(e)}
+                results[sid] = step_result
 
         audit_log = {}
         user_facing = []
@@ -65,7 +76,10 @@ class WorkflowEngine:
 
     def _run_step(self, skill_id: str, step: dict, user_input: str, ctx) -> dict:
         params = self._build_params(step, skill_id, user_input)
-        raw = _exec_skill(skill_id, params, ctx=ctx)
+        span_mgr = (self._tracer.span("wf.step", skill=skill_id)
+                    if self._tracer else _nullctx())
+        with span_mgr:
+            raw = _exec_skill(skill_id, params, ctx=ctx)
         text = str(raw).strip() if raw else ""
         return {"status": "ok", "text": text, "raw": text}
 
@@ -82,15 +96,20 @@ class WorkflowEngine:
 
     def _llm_summarize(self, user_input: str, texts: list[str], timeout: int) -> str:
         from skills.core.llm_client import call as llm_call
-        context = "\n\n".join(texts)
+        from skills.shared.context_pruner import ContextPruner
+        pruned = ContextPruner(token_budget=1500).prune(texts, query=user_input)
+        context = "\n\n".join(pruned)
         prompt = (
             f"用户消息：{user_input}\n\n"
             f"系统执行结果：\n{context}\n\n"
             f"请根据以上结果，生成一段简洁的自然语言回复。"
         )
-        fut = _POOL.submit(llm_call, prompt,
-                           system_prompt="你是 Cipher，一个企业智能助手。用自然语言回复用户。",
-                           temperature=0.3, max_tokens=300)
+        span_mgr = (self._tracer.span("wf.llm_summary", tokens=len(context)//4)
+                    if self._tracer else _nullctx())
+        with span_mgr:
+            fut = _POOL.submit(llm_call, prompt,
+                               system_prompt="你是 Cipher，一个企业智能助手。用自然语言回复用户。",
+                               temperature=0.3, max_tokens=300)
         try:
             result = fut.result(timeout=timeout)
             if isinstance(result, dict) and "error" in result:

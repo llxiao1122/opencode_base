@@ -43,6 +43,8 @@ def send_markdown(title: str, text: str, at_mobiles: list = None, at_all: bool =
 
 
 def _post(payload: dict) -> dict:
+    if not WEBHOOK_URL:
+        return {"errcode": -1, "errmsg": "webhook 未配置"}
     resp = requests.post(WEBHOOK_URL, json=payload, timeout=10)
     resp.raise_for_status()
     return resp.json()

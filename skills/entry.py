@@ -6,7 +6,7 @@ Usage:
   python3 -m skills.entry --core '<消息>'
 """
 
-import logging, os, sys, threading, typing
+import logging, os, sys, threading
 from pathlib import Path
 
 from skills.shared.path import ensure_paths, root as _root
@@ -19,7 +19,11 @@ ROOT_DIR = _root()
 
 _VENV_PYTHON = ROOT_DIR / ".venv" / "bin" / "python3"
 if _VENV_PYTHON.exists() and sys.executable != str(_VENV_PYTHON):
-    os.execve(str(_VENV_PYTHON), [str(_VENV_PYTHON)] + sys.argv, os.environ)
+    env = os.environ.copy()
+    expat_lib = "/opt/homebrew/opt/expat/lib"
+    if expat_lib not in env.get("DYLD_LIBRARY_PATH", ""):
+        env["DYLD_LIBRARY_PATH"] = f"{expat_lib}:{env.get('DYLD_LIBRARY_PATH', '')}"
+    os.execve(str(_VENV_PYTHON), [str(_VENV_PYTHON)] + sys.argv, env)
 
 _index_built = False
 _daemon_started = False
@@ -100,13 +104,13 @@ def _update_event_lifecycle(user_input):
         logger.warning("event lifecycle update failed: %s", e, exc_info=True)
 
 
-def _auto_handle_corrections(user_input: str) -> typing.Optional[str]:
+def _auto_handle_corrections(user_input: str) -> str | None:
     if not any(kw in user_input for kw in _CORRECTION_KW):
         return None
     return "correction_detected"
 
 
-def _should_route_to_workflow(user_input: str) -> typing.Optional[str]:
+def _should_route_to_workflow(user_input: str) -> str | None:
     from skills.workflow.definitions import list_triggers
     triggers = list_triggers()
     tag = _auto_handle_corrections(user_input)
@@ -147,68 +151,77 @@ def _fast_dispatch(route, user_input, ctx):
 
 
 def handle_core(user_input):
+    from skills.shared.tracer import Tracer
+    tracer = Tracer()
+
     _build_index_once()
     _update_event_lifecycle(user_input)
 
     from skills.shared.schema import RequestContext, CT
     from skills.router.faiss_router import classify
 
-    rctx = RequestContext(message=user_input)
+    rctx = RequestContext(message=user_input, trace_id=tracer.trace_id)
 
-    workflow_id = _should_route_to_workflow(user_input)
-    if workflow_id:
-        from skills.workflow.engine import WorkflowEngine
-        wf_result = WorkflowEngine().run(workflow_id, user_input, rctx)
-        result = wf_result.text
-        tool_id = workflow_id
-        rctx.route = workflow_id
-        rctx.confidence = 0.9
-    else:
-        route, confidence = classify(user_input)
-
-        if confidence >= CT.HIGH and route != "event":
-            result = _fast_dispatch(route, user_input, rctx)
-            tool_id = route
-            rctx.route = route
-            rctx.confidence = confidence
+    with tracer.span("entry.route", input_len=len(user_input)):
+        workflow_id = _should_route_to_workflow(user_input)
+        if workflow_id:
+            with tracer.span("workflow", workflow_id=workflow_id):
+                from skills.workflow.engine import WorkflowEngine
+                wf_result = WorkflowEngine(tracer=tracer).run(workflow_id, user_input, rctx)
+                result = wf_result.text
+                tool_id = workflow_id
+                rctx.route = workflow_id
+                rctx.confidence = 0.9
         else:
-            from agent.engine import run as agent_run
-            result = agent_run(user_input, rctx)
-            tool_id = rctx.route if rctx.route else route
+            route, confidence = classify(user_input)
 
-    _detect_entity_changes(user_input)
+            if confidence >= CT.HIGH and route != "event":
+                with tracer.span("fast_dispatch", route=route):
+                    result = _fast_dispatch(route, user_input, rctx)
+                    tool_id = route
+                    rctx.route = route
+                    rctx.confidence = confidence
+            else:
+                with tracer.span("agent.run"):
+                    from agent.engine import run as agent_run
+                    result = agent_run(user_input, rctx, tracer=tracer)
+                    tool_id = rctx.route if rctx.route else route
 
-    try:
-        from correction.logger import append
-        append(rctx, result, tool_id=tool_id or "")
-    except Exception as e:
-        logger.warning("decision log append failed: %s", e, exc_info=True)
+    with tracer.span("post_process"):
+        _detect_entity_changes(user_input)
 
-    try:
-        from agent.reflector import reflect
-        t = threading.Thread(
-            target=reflect,
-            args=(tool_id or "", {}, str(result or ""), user_input),
-            daemon=True,
-        )
-        t.start()
-    except Exception as e:
-        logger.debug("reflect async start failed: %s", e)
-
-    global _daemon_started
-    if not _daemon_started:
-        _daemon_started = True
         try:
-            from skills.trigger.daemon import ProactiveDaemon
+            from correction.logger import append
+            append(rctx, result, tool_id=tool_id or "")
+        except Exception as e:
+            logger.warning("decision log append failed: %s", e, exc_info=True)
+
+        try:
+            from agent.reflector import reflect
             t = threading.Thread(
-                target=ProactiveDaemon(check_interval_sec=300).start_loop,
+                target=reflect,
+                args=(tool_id or "", {}, str(result or ""), user_input),
                 daemon=True,
             )
             t.start()
-            logger.info("ProactiveDaemon thread started")
         except Exception as e:
-            logger.warning("daemon start failed: %s", e)
+            logger.debug("reflect async start failed: %s", e)
 
+        global _daemon_started
+        if not _daemon_started:
+            _daemon_started = True
+            try:
+                from skills.trigger.daemon import ProactiveDaemon
+                t = threading.Thread(
+                    target=ProactiveDaemon(check_interval_sec=300).start_loop,
+                    daemon=True,
+                )
+                t.start()
+                logger.info("ProactiveDaemon thread started")
+            except Exception as e:
+                logger.warning("daemon start failed: %s", e)
+
+    tracer.dump()
     return result
 
 
