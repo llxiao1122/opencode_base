@@ -43,6 +43,9 @@ Knowledge/**/*.doc
 # Vector index (runtime)
 memory/.vector/
 
+# ONNX model (runtime, too large for GitHub)
+data/models/
+
 # Event store (runtime data)
 memory/events/active/
 memory/events/detected/

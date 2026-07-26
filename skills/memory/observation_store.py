@@ -33,6 +33,7 @@ _write_lock = threading.Lock()
 _faiss_lock = threading.Lock()
 
 _entity_names = None
+_EXCLUDED_PEOPLE = {"值班", "现场管理与6S"}
 
 
 def reset_cache():
@@ -470,13 +471,23 @@ def _extract_fact(sec: str) -> dict:
 
 
 def _route(text: str) -> tuple:
-    for name in _load_entity_names():
+    all_names = _load_entity_names() + _load_people_file_names()
+    all_names.sort(key=len, reverse=True)
+    for name in all_names:
         if name in text:
             return ("people", name)
     for kw in _team_keywords:
         if kw in text:
             return ("teams", kw)
     return ("system", "Cipher")
+
+
+def _load_people_file_names() -> list:
+    people_dir = OBS_DIR / "people"
+    if not people_dir.is_dir():
+        return []
+    return [p.stem for p in people_dir.iterdir()
+            if p.suffix == ".md" and p.stem not in _EXCLUDED_PEOPLE]
 
 
 def _can_merge(existing: str, text: str, source: str, obs_type: str, today: str) -> bool:

@@ -17,7 +17,7 @@ class ONNXEmbedder:
     def __init__(self, model_path: Optional[str] = None,
                  tokenizer_id: Optional[str] = None,
                  max_length: int = 128):
-        model_path = model_path or str(_BASE / "onnx_model_fp32" / "model.onnx")
+        model_path = model_path or str(_BASE / "data" / "models" / "model.onnx")
         tokenizer_id = tokenizer_id or "shibing624/text2vec-base-chinese"
         self._model_path = model_path
         self._tokenizer_id = tokenizer_id
