@@ -48,7 +48,7 @@ TOOL_REGISTRY = {
             "name": {"type": "str", "required": True,
                      "description": "人员姓名"},
         },
-        "handler": "skills.agent.skills.profile:handle",
+        "handler": "skills.agent.profile:handle",
     },
     "notification_push": {
         "description": "推送通知消息到钉钉群，用于安全宣贯、通知下达",
@@ -57,7 +57,7 @@ TOOL_REGISTRY = {
             "content": {"type": "str", "required": True},
             "target": {"type": "str", "required": False, "default": "dingtalk_group"},
         },
-        "handler": "skills.agent.skills.notification:handle",
+        "handler": "skills.agent.notification:handle",
     },
     "event_record": {
         "description": "记录一条事件信息，包含时间、人员、动作，用于任务创建或日常记录",
@@ -66,7 +66,7 @@ TOOL_REGISTRY = {
             "time": {"type": "str", "required": False},
             "people": {"type": "str", "required": False},
         },
-        "handler": "skills.agent.skills.event_record:handle",
+        "handler": "skills.agent.event_record:handle",
     },
     "task_create": {
         "description": "从事件信息创建任务/待办事项",
@@ -78,7 +78,7 @@ TOOL_REGISTRY = {
             "assignee": {"type": "str", "required": False,
                          "description": "执行人"},
         },
-        "handler": "skills.agent.skills.task_create:handle",
+        "handler": "skills.agent.task_create:handle",
     },
     "task_feedback": {
         "description": "反馈任务完成状态，标记完成/取消",
@@ -90,7 +90,7 @@ TOOL_REGISTRY = {
             "task_id": {"type": "str", "required": False,
                         "description": "任务ID"},
         },
-        "handler": "skills.agent.skills.task_feedback:handle",
+        "handler": "skills.agent.task_feedback:handle",
     },
     "org_lookup": {
         "description": "查询组织关系、班组结构、人员上下级",
@@ -98,7 +98,7 @@ TOOL_REGISTRY = {
             "name": {"type": "str", "required": True,
                      "description": "人员姓名"},
         },
-        "handler": "skills.agent.skills.org_lookup:handle",
+        "handler": "skills.agent.org_lookup:handle",
     },
 }
 

@@ -1,11 +1,11 @@
 """
-pattern/miner.py — 从 event_recorder + tasks.json 提取模式并写入 observation_store.
+memory/pattern_miner.py — 从 event_recorder + tasks.json 提取模式并写入 observation_store.
 
 纯统计，无 LLM。输出为自然语言观察，自动路由到对应人员文件。
 每次运行覆盖更新，不追加。
 
 用法:
-  python3 -m skills.pattern.miner
+   python3 -m skills.memory.pattern_miner
 """
 
 import sys, json

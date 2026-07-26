@@ -12,7 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / "skills"))
 
-from memory.event_detector import change_status, load_index
+from memory.detect import change_status, load_index
 
 COMPLETE_WORDS = ["完成", "结束了", "已处理", "已关闭", "已完成", "搞定了", "处理好了"]
 CANCEL_WORDS = ["取消", "暂停", "终止", "不做了", "撤销"]

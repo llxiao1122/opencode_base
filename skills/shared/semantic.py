@@ -50,23 +50,20 @@ class SemanticMatcher:
         self._cache = {}
 
     @property
-    def _dim(self):
-        return 384
-
     def _load_model(self):
         if self._model is not None:
             return
-        from sentence_transformers import SentenceTransformer
-        self._model = SentenceTransformer('all-MiniLM-L6-v2')
+        from shared.onnx_embedder import ONNXEmbedder
+        self._model = ONNXEmbedder()
 
     def _embed(self, texts: list[str]) -> np.ndarray:
         self._load_model()
         if isinstance(texts, str):
             texts = [texts]
         vecs = self._model.encode(texts, normalize_embeddings=True)
-        if vecs.ndim == 1:
+        if isinstance(vecs, np.ndarray) and vecs.ndim == 1:
             vecs = vecs.reshape(1, -1)
-        return vecs.astype(np.float32)
+        return np.asarray(vecs, dtype=np.float32)
 
     def _anchor_key(self, name: str, anchors: tuple) -> str:
         import hashlib

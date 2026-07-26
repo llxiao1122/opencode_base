@@ -11,7 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT / "skills"))
 
-from memory.event_detector import change_status, load_index
+from memory.detect import change_status, load_index
 
 
 def run_maintenance():

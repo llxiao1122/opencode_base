@@ -22,13 +22,13 @@ def _get_index():
     if _idx_mgr is not None:
         if _STAMP_PATH.exists():
             _STAMP_PATH.unlink(missing_ok=True)
-            from skills.routing.route_index_manager import RouteIndexManager
+            from routing.route_index_manager import RouteIndexManager
             _idx_mgr = RouteIndexManager()
             _idx_mgr.build(_SEEDS_PATH)
         return _idx_mgr
     with _idx_lock:
         if _idx_mgr is None:
-            from skills.routing.route_index_manager import RouteIndexManager
+            from routing.route_index_manager import RouteIndexManager
             _idx_mgr = RouteIndexManager()
             _idx_mgr.build(_SEEDS_PATH)
     return _idx_mgr
@@ -46,7 +46,7 @@ def classify(user_input: str) -> Tuple[str, float]:
     try:
         idx_mgr = _get_index()
         raw = idx_mgr.embed(text)
-        # embed() 可能返回 1D(384,) 或 2D(1,384)，统一成 2D
+        # embed() 可能返回 1D 或 2D，统一成 2D
         raw = np.asarray(raw, dtype=np.float32)
         if raw.ndim == 1:
             raw = raw.reshape(1, -1)

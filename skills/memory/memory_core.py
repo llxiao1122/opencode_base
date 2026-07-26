@@ -61,7 +61,7 @@ class MemoryCore:
 
         # Metadata
         self.meta = self._load_meta()
-        self.dim = 384
+        self.dim = 768
 
         # Embedding model (lazy load)
         self._model = None
@@ -112,8 +112,8 @@ class MemoryCore:
     def model(self):
         if self._model is None:
             try:
-                from sentence_transformers import SentenceTransformer
-                self._model = SentenceTransformer('all-MiniLM-L6-v2')
+                from shared.onnx_embedder import ONNXEmbedder
+                self._model = ONNXEmbedder()
             except (ImportError, Exception):
                 self._model = _FallbackEmbedder()
         return self._model

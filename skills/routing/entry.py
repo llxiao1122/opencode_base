@@ -96,14 +96,29 @@ def _update_event_lifecycle(user_input):
         pass
 
 
+def _profile_handle(text, ctx):
+    from skills.routing.entity_resolver import resolve_entities
+    resolved = resolve_entities(text)
+    entities = resolved.get("entities", [])
+    if not entities:
+        return f"[Cipher:profile]\n暂无记录。"
+    e = entities[0]
+    return f"[Cipher:profile]\n{e.get('name', '?')}: {e.get('role', '未知')}（{e.get('team', '')}）"
+
+_FAST_HANDLERS = {
+    "task_query":      ("skills.routing.task_handler", "handle"),
+    "knowledge_retrieve": ("skills.routing.knowledge_handler", "handle"),
+    "profile_query":   _profile_handle,
+}
+
 def _fast_dispatch(route, user_input, ctx):
+    hit = _FAST_HANDLERS.get(route)
+    if not hit:
+        return None
+    if callable(hit):
+        return hit(user_input, ctx)
     import importlib
-    ROUTE_HANDLERS = {
-        "task":      ("skills.routing.task_handler", "handle"),
-        "knowledge": ("skills.routing.knowledge_handler", "handle"),
-        "profile":   ("skills.agent.skills.profile", "handle"),
-    }
-    mod_path, func_name = ROUTE_HANDLERS[route]
+    mod_path, func_name = hit
     mod = importlib.import_module(mod_path)
     handler = getattr(mod, func_name)
     return handler(user_input, ctx)

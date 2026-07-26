@@ -132,7 +132,6 @@ def _extract_time(text):
 
 def _extract_entities(text):
     try:
-        sys.path.insert(0, str(_root / "tools"))
         from routing.entity_resolver import resolve_entities
         resolved = resolve_entities(text)
         result = []

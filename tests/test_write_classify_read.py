@@ -84,5 +84,5 @@ def test_faiss_index_updated():
     """Knowledge 写入后 FAISS sem_index 包含新内容."""
     from memory.memory_core import MemoryCore
     mc = MemoryCore()
-    before = mc.sem_index.ntotal if mc.sem_index else 0
-    assert before > 0, "FAISS sem_index 应有向量"
+    mc._rebuild_full()
+    assert mc.sem_index.ntotal > 0, "FAISS sem_index 应有向量"

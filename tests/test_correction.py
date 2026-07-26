@@ -189,10 +189,10 @@ def test_sem_score_dissimilar():
 # ── Group C: Learner seed update ───────────────────────────────────────
 
 CROSS_SESSION_ENTRIES = [
-    {"session": "sa", "seq": 1, "msg": "张三", "route": "profile", "conf": 0.7},
-    {"session": "sa", "seq": 2, "msg": "查一下张三的任务", "route": "task", "conf": 0.85},
-    {"session": "sb", "seq": 1, "msg": "张三", "route": "profile", "conf": 0.65},
-    {"session": "sb", "seq": 2, "msg": "查一下张三的任务", "route": "task", "conf": 0.9},
+    {"session": "sa", "seq": 1, "msg": "张三", "route": "profile_query", "conf": 0.7},
+    {"session": "sa", "seq": 2, "msg": "查一下张三的任务", "route": "task_query", "conf": 0.85},
+    {"session": "sb", "seq": 1, "msg": "张三", "route": "profile_query", "conf": 0.65},
+    {"session": "sb", "seq": 2, "msg": "查一下张三的任务", "route": "task_query", "conf": 0.9},
 ]
 
 
@@ -221,7 +221,7 @@ def test_run_learner_updates_seeds(monkeypatch):
         assert result["added"] >= 1
 
         updated = json.loads(LEARNER_SEEDS_PATH.read_text(encoding="utf-8"))
-        assert "张三" in updated["task"]["seeds"]
+        assert "张三" in updated["task_query"]["seeds"]
 
         assert stamp_file.exists()
     finally:
@@ -251,7 +251,7 @@ def test_run_learner_dedup(monkeypatch):
     try:
         run_learner(min_count=2)
         updated = json.loads(LEARNER_SEEDS_PATH.read_text(encoding="utf-8"))
-        count = updated["task"]["seeds"].count("张三")
+        count = updated["task_query"]["seeds"].count("张三")
         assert count <= 1, f"Dup found: count={count}"
     finally:
         restore_seeds()

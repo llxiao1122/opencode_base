@@ -34,7 +34,7 @@ class _FallbackEmbedder:
 class RouteIndexManager:
     """FAISS route index manager — build once, search many times."""
 
-    _dim = 384
+    _fallback_dim = 384
 
     def __init__(self):
         self._embed_fn: Optional[callable] = None
@@ -45,13 +45,15 @@ class RouteIndexManager:
         if self._embed_fn is not None:
             return
         try:
-            from sentence_transformers import SentenceTransformer
-            model = SentenceTransformer("all-MiniLM-L6-v2")
-            self._embed_fn = lambda texts: model.encode(
-                texts, normalize_embeddings=True
+            from shared.onnx_embedder import ONNXEmbedder
+            self._model = ONNXEmbedder()
+            self._dim = 768
+            self._embed_fn = lambda texts: np.asarray(
+                self._model.encode(texts, normalize_embeddings=True)
             ).astype(np.float32)
         except Exception:
             fb = _FallbackEmbedder()
+            self._dim = fb._dim
             self._embed_fn = fb.encode
 
     def embed(self, texts):
@@ -68,6 +70,7 @@ class RouteIndexManager:
         if not seeds:
             raise ValueError("route_seeds.json is empty")
 
+        self._load_embedder()
         vecs = self.embed(seeds)
         if vecs.ndim == 1:
             vecs = vecs.reshape(1, -1)

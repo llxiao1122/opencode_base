@@ -20,7 +20,7 @@ SCHEMA_FORBIDDEN = ["_ai_error", "debug", "trace"]
 
 def test_event_schema():
     """Case 010: event 必须字段检查"""
-    from memory.event_detector import detect
+    from memory.detect import detect
 
     events = detect("王亮在钉钉群各班组督促一下郑轨学苑内未完成人员，于14日下班前完成。", current_user=CURRENT_USER)
 
@@ -40,7 +40,7 @@ def test_event_persist():
     """验证 event 写入后可从 log.jsonl 读取"""
     import json
     from pathlib import Path
-    from memory.event_detector import detect
+    from memory.detect import detect
 
     events = detect("王亮通知铁炉西工班做好危废处置", current_user=CURRENT_USER)
 
@@ -56,7 +56,7 @@ def test_event_persist():
 
 def test_detect_timing():
     """Case 011: detect 单消息耗时 < 3秒"""
-    from memory.event_detector import detect
+    from memory.detect import detect
 
     t0 = time.time()
     events = detect("王亮通知铁炉西工班做好危废处置", current_user=CURRENT_USER)
