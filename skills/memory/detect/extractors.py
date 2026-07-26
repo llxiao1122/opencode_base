@@ -9,11 +9,8 @@ sender, executor, target, title, items extraction.
 
 import json
 import re
-import sys
 from datetime import datetime, timedelta
 from pathlib import Path as _PathInternal
-
-_root = _PathInternal(__file__).resolve().parent.parent.parent.parent
 
 from .signals import ACTION_VERBS, TIME_PATTERNS, NUMBERED_PATTERN
 
@@ -24,8 +21,8 @@ def _init_team_maps():
     global TEAM_MAP, TEAM_LEADER_MAP
     if TEAM_MAP:
         return
-    import sys as _sys
-    _sys.path.insert(0, str(_root))
+    from skills.shared.path import ensure_paths
+    ensure_paths()
     from organization.model import OrganizationModel
     org = OrganizationModel()
     for team_name, team in org._teams.items():
@@ -132,7 +129,7 @@ def _extract_time(text):
 
 def _extract_entities(text):
     try:
-        from routing.entity_resolver import resolve_entities
+        from skills.router.entity_resolver import resolve_entities
         resolved = resolve_entities(text)
         result = []
         for e in resolved["entities"]:
@@ -227,9 +224,9 @@ def _extract_report_to(text):
 
     results = []
     try:
-        import sys as _sys
-        _sys.path.insert(0, str(_root / "tools"))
-        from routing.entity_resolver import resolve_entities
+        from skills.shared.path import ensure_paths
+        ensure_paths()
+        from skills.router.entity_resolver import resolve_entities
         for candidate in candidates:
             if candidate in ("我", "本人", "自己", "我们", "俺"):
                 continue

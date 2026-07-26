@@ -13,9 +13,8 @@ from pathlib import Path
 from collections import Counter
 from datetime import datetime
 
-ROOT = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(ROOT / "skills"))
+from skills.shared.path import ensure_paths
+ensure_paths()
 
 from memory.event_recorder import list_events
 from memory.observation_store import write as obs_write

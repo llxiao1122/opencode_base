@@ -1,11 +1,11 @@
 """
 event_recorder.py — Event → Memory Recorder (Phase 2)
 
-Records confirmed Events to memory/events/log.jsonl.
+Records confirmed Events to data/memory/events/log.jsonl.
 Not raw messages — only Events that have passed through core/event.extract().
 
 Input: Event dict from core/event.py
-Output: memory/events/log.jsonl (one JSON per line)
+Output: data/memory/events/log.jsonl (one JSON per line)
 """
 
 import json
@@ -13,7 +13,7 @@ from pathlib import Path
 from datetime import datetime
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-LOG_PATH = ROOT / "memory" / "events" / "log.jsonl"
+LOG_PATH = ROOT / "data" / "memory" / "events" / "log.jsonl"
 
 
 def record(event: dict):

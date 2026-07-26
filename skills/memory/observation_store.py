@@ -1,21 +1,43 @@
 """
 memory/observation_store.py — Observation Store with index.
-Index: memory/observations/.index.json — auto-maintained for fast search.
+Index: data/memory/observations/.index.json — auto-maintained for fast search.
 """
 
-import json, re, threading, os
+import json, logging, re, threading, os
 from pathlib import Path
 from datetime import date, datetime, timedelta
+from enum import Enum
 
-ROOT = Path(__file__).resolve().parent.parent.parent
-OBS_DIR = ROOT / "memory" / "observations"
+from skills.shared.path import ensure_paths, root as _root
+from skills.shared.schema import ObservationType, ObservationLayer
+
+ensure_paths()
+
+logger = logging.getLogger(__name__)
+
+ROOT = _root()
+OBS_DIR = ROOT / "data" / "memory" / "observations"
 INDEX_PATH = OBS_DIR / ".index.json"
-ENTITY_PATH = ROOT / "state" / "entity_index.json"
+ENTITY_PATH = ROOT / "data" / "state" / "entity_index.json"
+
+
+TYPE_MAP = {
+    "note": ObservationType.EVENT,
+    "task_completion": ObservationType.TASK_FEEDBACK,
+    "task_update": ObservationType.TASK_FEEDBACK,
+    "dingtalk": ObservationType.NOTIFICATION,
+    "push": ObservationType.NOTIFICATION,
+}
 
 _write_lock = threading.Lock()
 _faiss_lock = threading.Lock()
 
 _entity_names = None
+
+
+def reset_cache():
+    global _entity_names
+    _entity_names = None
 _team_keywords = ["铁炉西工班", "物资总库", "综合工班"]
 
 
@@ -29,8 +51,8 @@ def _load_entity_names() -> list:
             data = json.loads(ENTITY_PATH.read_text(encoding="utf-8"))
             as_list = data if isinstance(data, list) else data.get("confirmed_entities", [])
             _entity_names = [e["name"] for e in as_list if isinstance(e, dict)]
-        except (json.JSONDecodeError, KeyError):
-            pass
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.debug("load entity names failed: %s", e)
     return _entity_names
 
 
@@ -43,7 +65,8 @@ def _load_index() -> dict:
         return default
     try:
         return json.loads(INDEX_PATH.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, ValueError):
+    except (json.JSONDecodeError, ValueError) as e:
+        logger.debug("load index failed, returning default: %s", e)
         return default
 
 
@@ -84,13 +107,32 @@ def _update_index(subj_type: str, subj_name: str, section_date: str,
 
 def write(text: str, source: str = "", obs_type: str = "",
           layer: str = "rule", confidence: float = 0.0):
+    _ot = ObservationType
+    _ol = ObservationLayer
+    obs_type = TYPE_MAP.get(obs_type, _ot(obs_type).value if obs_type in _ot.__members__ else obs_type)
+    if layer not in {e.value for e in _ol} and layer not in [getattr(_ol, m).value for m in _ol.__members__]:
+        layer = "rule"
     subj_type, subj_name = _route(text)
     target_dir = OBS_DIR / subj_type
     target_dir.mkdir(parents=True, exist_ok=True)
     filepath = target_dir / f"{subj_name}.md"
 
     today = date.today().isoformat()
-    new_section = f"\n---\n\n## {today}\n\nsource: {source}\ntype: {obs_type}\nlayer: {layer}\n\n{text}\n"
+    first_line = text.strip().split("\n")[0][:80]
+    second_line = ""
+    parts = text.strip().split("\n", 1)
+    if len(parts) > 1 and parts[1].strip():
+        second_line = parts[1].strip()
+    summary = first_line
+    details = second_line if second_line else first_line
+    new_section = (
+        f"\n---\n\n## {today}\n\n"
+        f"source: {source}\n"
+        f"type: {obs_type}\n"
+        f"layer: {layer}\n\n"
+        f"### Summary\n{summary}\n\n"
+        f"### Details\n{details}\n"
+    )
     if confidence > 0:
         new_section += f"confidence: {confidence}\n"
 
@@ -109,15 +151,31 @@ def write(text: str, source: str = "", obs_type: str = "",
     if not os.environ.get("OP_SKIP_BG"):
         try:
             threading.Thread(target=_run_classify, args=(text, source), daemon=True).start()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("classify thread start failed: %s", e, exc_info=True)
 
 
 _KNOWLEDGE_FILES = [
-    "00-日常工作指引.md", "01-采购与计划.md", "02-仓储与验收.md",
-    "03-考核与细则.md", "04-制度修订记录.md", "05-安全管理.md",
-    "06-工作指导手册.md", "07-工作台账与工具.md", "08-培训与学习资料.md",
-    "09-公文模板与规范.md", "10-现场管理与6S.md",
+    "01-仓储业务/00-日常工作指引.md", "01-仓储业务/01-采购与计划.md",
+    "01-仓储业务/06-工作指导手册.md", "01-仓储业务/10-现场管理与6S.md",
+    "01-仓储业务/17-物资仓储管理办法-B1.md",
+    "01-仓储业务/18-物资验收入库管理规定-A2.md",
+    "01-仓储业务/19-二级仓库管理规定-A5.md",
+    "01-仓储业务/20-修复件和周转件管理细则-A1.md",
+    "02-安全与应急/05-安全管理.md",
+    "02-安全与应急/13-法规标准.md",
+    "02-安全与应急/14-特种设备证书台账.md",
+    "02-安全与应急/16-台风红霞保障方案.md",
+    "02-安全与应急/消防知识提炼.md",
+    "03-危废与废旧/22-危险废物回收及处置规定-A3.md",
+    "03-危废与废旧/23-报废物资回收及处置规定-A3.md",
+    "04-资产与鉴定/24-通用类实物资产报废技术鉴定管理规定-V1.2.md",
+    "05-行政综合/04-制度修订记录.md", "05-行政综合/07-工作台账与工具.md",
+    "05-行政综合/08-培训与学习资料.md", "05-行政综合/09-公文模板与规范.md",
+    "05-行政综合/11-三菱备件专项.md", "05-行政综合/12-评估表.md",
+    "05-行政综合/15-员工纠错反馈.md", "05-行政综合/21-捐赠物资管理细则-A2.md",
+    "05-行政综合/物资管理.md", "05-行政综合/此心安处.md",
+    "05-行政综合/物资管理部物资调配室绩效考核细则.md",
 ]
 
 
@@ -128,7 +186,8 @@ def _knowledge_tail(filename, lines=20):
     try:
         content = path.read_text(encoding="utf-8")
         return "\n".join(content.strip().split("\n")[-lines:])
-    except Exception:
+    except Exception as e:
+        logger.debug("read knowledge tail failed: %s", e)
         return ""
 
 
@@ -158,7 +217,8 @@ def _llm_classify(text, filenames):
         import json as _j
         result = _j.loads(raw)
         return result if isinstance(result, list) else []
-    except Exception:
+    except Exception as e:
+        logger.warning("LLM classify failed: %s", e, exc_info=True)
         return []
 
 
@@ -181,7 +241,8 @@ def _dedup_check(filename, text):
         import json as _j
         d = _j.loads(raw)
         return d.get("action", "append")
-    except Exception:
+    except Exception as e:
+        logger.warning("dedup check failed: %s", e, exc_info=True)
         return "append"
 
 
@@ -199,7 +260,8 @@ def _append_knowledge(filename, text, confidence):
     try:
         with open(path, "a", encoding="utf-8") as f:
             f.write(entry)
-    except Exception:
+    except Exception as e:
+        logger.warning("append knowledge file failed: %s", e, exc_info=True)
         return
 
     # Incrementally update FAISS semantic index so new entry is immediately searchable
@@ -214,8 +276,8 @@ def _append_knowledge(filename, text, confidence):
             mc._save_index("semantic", mc.sem_index)
             mc._save_meta()
             mc._search_raw.cache_clear()
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("FAISS incremental update failed: %s", e, exc_info=True)
 
 
 def _run_classify(text, source=""):
@@ -235,7 +297,7 @@ def _run_classify(text, source=""):
                 content = r.get("content", "")
                 if content:
                     write(content, source="llm_classify",
-                          obs_type="note", layer="rule", confidence=conf)
+                          obs_type="event", layer="rule", confidence=conf)
             elif cat == "knowledge":
                 target = r.get("target", "")
                 if target in _KNOWLEDGE_FILES and target not in all_targets:
@@ -243,8 +305,8 @@ def _run_classify(text, source=""):
                     action = _dedup_check(target, text)
                     if action == "append":
                         _append_knowledge(target, r.get("content", text[:100]), conf)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("run_classify failed: %s", e, exc_info=True)
 
 
 def read(subject_type: str, subject_name: str) -> str:
@@ -349,7 +411,8 @@ def _filter_index(idx, target, obs_type, cutoff_date):
                 continue
             try:
                 sd = date.fromisoformat(sec["date"])
-            except (ValueError, KeyError):
+            except (ValueError, KeyError) as e:
+                logger.debug("skipping invalid date in index: %s", e)
                 continue
             if sd < cutoff_date:
                 continue
@@ -372,7 +435,8 @@ def _parse_section_date(sec: str) -> date:
     if m:
         try:
             return date.fromisoformat(m.group(1))
-        except ValueError:
+        except ValueError as e:
+            logger.debug("invalid date in section header: %s", e)
             return None
     return None
 

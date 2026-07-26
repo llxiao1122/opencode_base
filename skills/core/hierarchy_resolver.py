@@ -9,15 +9,15 @@ say "安排王亮" when 王亮 is a safety manager giving directives.
 """
 
 import json
-import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+from skills.shared.path import ensure_paths
+ensure_paths()
 
 from skills.shared import get_role as _shared_get_role
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-ENTITY_INDEX_PATH = ROOT / "state" / "entity_index.json"
+ENTITY_INDEX_PATH = ROOT / "data" / "state" / "entity_index.json"
 
 
 def _load_leaders_map() -> dict:

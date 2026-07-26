@@ -53,7 +53,7 @@ class SemanticMatcher:
     def _load_model(self):
         if self._model is not None:
             return
-        from shared.onnx_embedder import ONNXEmbedder
+        from skills.shared.onnx_embedder import ONNXEmbedder
         self._model = ONNXEmbedder()
 
     def _embed(self, texts: list[str]) -> np.ndarray:

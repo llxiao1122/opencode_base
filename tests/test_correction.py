@@ -198,8 +198,8 @@ CROSS_SESSION_ENTRIES = [
 
 def test_run_learner_updates_seeds(monkeypatch):
     import skills.correction.learner as mod
-    log_file = ROOT / "state" / "decision_log.jsonl"
-    stamp_file = ROOT / "state" / ".seeds_stamp"
+    log_file = ROOT / "data" / "state" / "decision_log.jsonl"
+    stamp_file = ROOT / "data" / "state" / ".seeds_stamp"
     if log_file.exists():
         log_file.unlink()
 
@@ -234,8 +234,8 @@ def test_run_learner_updates_seeds(monkeypatch):
 
 def test_run_learner_dedup(monkeypatch):
     import skills.correction.learner as mod
-    log_file = ROOT / "state" / "decision_log.jsonl"
-    stamp_file = ROOT / "state" / ".seeds_stamp"
+    log_file = ROOT / "data" / "state" / "decision_log.jsonl"
+    stamp_file = ROOT / "data" / "state" / ".seeds_stamp"
     if log_file.exists():
         log_file.unlink()
 

@@ -13,9 +13,9 @@ from collections import Counter
 from pathlib import Path
 from typing import List, Tuple
 
-_LOG_PATH = Path(__file__).resolve().parent.parent.parent / "state" / "decision_log.jsonl"
-_SEEDS_PATH = Path(__file__).resolve().parent.parent.parent / "skills" / "routing" / "route_seeds.json"
-_STAMP_PATH = Path(__file__).resolve().parent.parent.parent / "state" / ".seeds_stamp"
+_LOG_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "state" / "decision_log.jsonl"
+_SEEDS_PATH = Path(__file__).resolve().parent.parent.parent / "skills" / "router" / "route_seeds.json"
+_STAMP_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "state" / ".seeds_stamp"
 
 _SIMILARITY_M = None
 

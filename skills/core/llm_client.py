@@ -4,8 +4,10 @@ llm_client.py - 统一 LLM 调用封装
 供 simulator、memory_core 等模块共享 DeepSeek API 调用。
 """
 
-import os, json, re, time, urllib.request
+import logging, os, json, re, time, urllib.request
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 PROVIDERS = {
@@ -14,7 +16,7 @@ PROVIDERS = {
         "default_model": "deepseek-v4-flash",
         "env_key": "DEEPSEEK_API_KEY",
         "config_key": "deepseek",
-        "url_suffix": "/v1/chat/completions",
+        "url_suffix": "/chat/completions",
     },
     "gemini": {
         "default_url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
@@ -117,11 +119,12 @@ def call(prompt, system_prompt=None, temperature=0.3, timeout=120, max_tokens=10
                 time.sleep(2 ** attempt)
                 continue
             try:
-                err = json.loads(e.read())
+                body = e.read()
+                err = json.loads(body)
                 if err.get("error", {}).get("code") == "1305":
                     continue
             except Exception:
-                pass
+                logger.warning("DeepSeek API error parse failed: code=%s body=%s", e.code, body if 'body' in locals() else 'N/A')
             return {"error": f"HTTP {e.code}"}
         except Exception as e:
             if attempt < 2:

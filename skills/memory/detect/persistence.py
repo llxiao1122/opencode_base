@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from pathlib import Path as _PathInternal
 
 _root = _PathInternal(__file__).resolve().parent.parent.parent.parent
-STORE_PATH = _root / "state" / "tasks.json"
+STORE_PATH = _root / "data" / "state" / "tasks.json"
 RETENTION_DAYS = 30
 
 

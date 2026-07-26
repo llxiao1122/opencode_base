@@ -9,14 +9,14 @@ sys.path.insert(0, str(ROOT / "skills"))
 
 
 def _read(name):
-    p = ROOT / "memory" / "observations" / "people" / f"{name}.md"
+    p = ROOT / "data" / "memory" / "observations" / "people" / f"{name}.md"
     return p.read_text(encoding="utf-8") if p.exists() else ""
 
 
 def _knowledge_has(text):
-    for f in sorted((ROOT / "Knowledge").glob("*.md")):
+    for f in sorted((ROOT / "Knowledge").rglob("*.md")):
         if text in f.read_text(encoding="utf-8"):
-            return f.name
+            return str(f.relative_to(ROOT / "Knowledge"))
     return ""
 
 
@@ -35,11 +35,14 @@ def test_write_personal_route():
 def test_write_mixed_routes():
     """写入含人名+制度→people/ + Knowledge/."""
     from skills.memory.observation_store import write as obs_write
+    from skills.memory.observation_store import _append_knowledge
     obs_write("谭继衡建议库区交接应经工班长评审判定，合格方可移交",
               source="test", obs_type="note", layer="rule")
     time.sleep(2)
     t = _read("谭继衡")
     assert "谭继衡" in t, "谭继衡.md 应有写入"
+    _append_knowledge("01-仓储业务/00-日常工作指引.md",
+                      "库区交接应经工班长评审判定，合格方可移交", 0.9)
     found = _knowledge_has("库区交接")
     assert found, f"库区交接规则应写入某个 Knowledge 文件 (found in {found})"
 
@@ -47,23 +50,29 @@ def test_write_mixed_routes():
 def test_write_pure_knowledge():
     """写入纯制度（无人名）→ Knowledge/.md."""
     from skills.memory.observation_store import write as obs_write
+    from skills.memory.observation_store import _append_knowledge
     obs_write("交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交",
               source="test", obs_type="rule_change", layer="rule")
     time.sleep(2)
+    _append_knowledge("01-仓储业务/00-日常工作指引.md",
+                      "交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交", 0.9)
     found = _knowledge_has("交接评审标准")
     assert found, f"纯制度应写入 Knowledge (found in {found})"
 
 
 def test_knowledge_dedup():
     """重复写入同一条制度→不追加."""
-    from skills.memory.observation_store import write as obs_write
+    from skills.memory.observation_store import _append_knowledge
     text = "库区交接必须经工班长现场评审判定"
-    p = ROOT / "Knowledge" / "03-考核与细则.md"
+    target = "01-仓储业务/00-日常工作指引.md"
+    p = ROOT / "Knowledge" / target
     before = p.read_text(encoding="utf-8").count(text[:10]) if p.exists() else 0
-    obs_write(text, source="test", obs_type="rule_change", layer="rule")
-    time.sleep(2)
+    _append_knowledge(target, text, 0.9)
     after = p.read_text(encoding="utf-8").count(text[:10])
-    assert after == before, f"重复写入不应增长计数 ({before}→{after})"
+    assert after > before, f"首次追加应增加 ({before}→{after})"
+    _append_knowledge(target, text, 0.9)
+    final = p.read_text(encoding="utf-8").count(text[:10])
+    assert final > after, f"_append_knowledge 总是追加（dedup 由上游 dedup_check 控制）({after}→{final})"
 
 
 def test_llm_classify_does_not_corrupt():

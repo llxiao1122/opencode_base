@@ -7,7 +7,7 @@ from datetime import date, datetime
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "skills"))
 
-from skills.routing.task_handler import _detect_scope, _get_daily_work
+from skills.agent.handlers.task_query import _detect_scope, _get_daily_work
 
 
 def test_detect_scope_today():

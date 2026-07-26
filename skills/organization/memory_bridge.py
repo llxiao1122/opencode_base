@@ -13,21 +13,21 @@ Systems accumulates facts here; profile_store reasons about them later.
 """
 
 import json
-import sys
 from collections import Counter
 from pathlib import Path
 from datetime import datetime
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+from skills.shared.path import ensure_paths
+ensure_paths()
 
 from skills.shared import load_entities
 
 TOOLS_DIR = Path(__file__).resolve().parent.parent
 ROOT = TOOLS_DIR.parent
 
-LOG_PATH = ROOT / "memory" / "events" / "log.jsonl"
-TASKS_PATH = ROOT / "state" / "tasks.json"
-OUTPUT_PATH = ROOT / "state" / "org_memory.json"
+LOG_PATH = ROOT / "data" / "memory" / "events" / "log.jsonl"
+TASKS_PATH = ROOT / "data" / "state" / "tasks.json"
+OUTPUT_PATH = ROOT / "data" / "state" / "org_memory.json"
 
 
 def _load_entity_roles() -> dict:

@@ -5,11 +5,12 @@ Creates tasks from Event + Context, with subtask splitting.
 No LLM, pure rules.
 """
 
-import sys
+import logging
 from datetime import datetime
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+from skills.shared.path import ensure_paths
+ensure_paths()
 
 TOOLS_DIR = Path(__file__).resolve().parent.parent
 
@@ -29,8 +30,6 @@ class TaskManager:
             owner {name, role}, action, executors[{name,status}],
             subtasks[{action,assignee,done}], deadline, status, created_at
         """
-        import sys
-        sys.path.insert(0, str(TOOLS_DIR))
         from task.store import save
         from task.status import IN_PROGRESS, EXECUTOR_PENDING
         from task.priority import infer_priority
@@ -70,7 +69,7 @@ class TaskManager:
             clean_summary = "相关任务"
 
         event_time = event.get("detected_at") or event.get("time", {}).get("start", "")
-        from shared.task_format import build_title
+        from skills.shared.task_format import build_title
         formatted_title = build_title(summary, event.get("raw", ""), deadline)
 
         executors = []
@@ -132,6 +131,19 @@ class TaskManager:
             "created_source": "event_time" if event_time else "import_time",
         }
 
+        # Dedup: skip if same action + source_event_id already exists and not terminal
+        from task.store import list_all as _list_all
+        for existing in _list_all():
+            if existing.get("status") in ("completed", "cancelled", "archived"):
+                continue
+            if (existing.get("action", "").strip() == task.get("action", "").strip()
+                    and existing.get("source_event_id", "") == task.get("source_event_id", "")
+                    and existing.get("source_event_id", "")):
+                logging.getLogger(__name__).info(
+                    "Dedup: skip task creation (action=%s, event=%s)",
+                    task["action"][:40], task["source_event_id"])
+                return existing
+
         save(task)
         return task
 
@@ -181,7 +193,6 @@ class TaskManager:
             {matched: bool, task_id, executor, all_done, status}
         """
         import sys
-        sys.path.insert(0, str(TOOLS_DIR))
         from task.store import update_executor_status, get_active_tasks, close as store_close
         from task.status import EXECUTOR_DONE
 
@@ -203,7 +214,7 @@ class TaskManager:
             # Person not in 铁炉西工班 — try org-wide search for known persons
             if _is_known_person(executor_name):
                 import json
-                tasks = json.loads((TOOLS_DIR.parent / "state" / "tasks.json").read_text(encoding="utf-8"))
+                tasks = json.loads((TOOLS_DIR.parent / "data" / "state" / "tasks.json").read_text(encoding="utf-8"))
                 from task.status import IN_PROGRESS
                 for t in tasks:
                     if t.get("status") != IN_PROGRESS:
@@ -265,8 +276,6 @@ class TaskManager:
 
     def _check_complete(self, task_id: str) -> bool:
         """Check if all executors are done (owner subtask auto-closes with team)."""
-        import sys
-        sys.path.insert(0, str(TOOLS_DIR))
         from task.store import load, update_executor_status
 
         task = load(task_id)

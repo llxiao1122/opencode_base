@@ -5,15 +5,20 @@ agent/engine.py — Agent 核心。
 容错链保证永不崩溃。
 """
 
-import json, re
+import json, logging, re
 from typing import Optional
 from pathlib import Path
 
+from skills.shared.path import ensure_paths, root as _root
 from skills.shared.schema import RequestContext, CT
 from skills.correction.logger import append as log_append
 from skills.agent.registry import list_tools, validate_params, execute
 
-ROOT = Path(__file__).resolve().parent.parent.parent
+ensure_paths()
+
+logger = logging.getLogger(__name__)
+
+ROOT = _root()
 
 AGENT_SYSTEM_PROMPT = """\
 你是 Cipher，{user_name}的企业智能助手。基于用户消息，选择最合适的工具。
@@ -52,40 +57,50 @@ def _extract_json(raw: str) -> Optional[dict]:
     m = re.search(r'"tool"\s*:\s*"([^"]+)"', raw)
     if m:
         return {"thought": "", "intent": "", "tool": m.group(1), "params": {}}
+    lines = raw.strip().split("\n", 1)
+    if len(lines) == 2:
+        tool_candidate = lines[0].strip()
+        known_tools = {t["id"] for t in list_tools()}
+        if tool_candidate in known_tools:
+            try:
+                params = json.loads(lines[1])
+            except json.JSONDecodeError:
+                params = {}
+            return {"thought": "", "intent": "", "tool": tool_candidate, "params": params}
     return None
+
+
+def _resolve_user():
+    try:
+        idx = json.loads((ROOT / "data" / "state" / "entity_index.json").read_text(encoding="utf-8"))
+        for e in idx.get("confirmed_entities", []):
+            if e["name"] == "李林骁":
+                return {"name": "李林骁", "role": e.get("role", "工班长"),
+                        "team": e.get("team", "铁炉西工班")}
+    except Exception as e:
+        logger.warning("resolve user from entity_index failed: %s", e, exc_info=True)
+    return {"name": "李林骁", "role": "工班长", "team": "铁炉西工班"}
 
 
 def _fallback_search(query: str) -> str:
     try:
-        from skills.routing.knowledge_handler import handle as kh
+        from skills.agent.handlers.knowledge_retrieve import handle as kh
         ctx = RequestContext(message=query)
-        try:
-            idx = json.loads((ROOT / "state" / "entity_index.json").read_text(encoding="utf-8"))
-            for e in idx.get("confirmed_entities", []):
-                if e["name"] == "李林骁":
-                    ctx.user = {"name": "李林骁", "role": e.get("role", "工班长"),
-                                "team": e.get("team", "铁炉西工班")}
-                    break
-        except Exception:
-            ctx.user = {"name": "李林骁", "role": "工班长", "team": "铁炉西工班"}
+        ctx.user = _resolve_user()
         result = kh(query, ctx)
         return result or f"[Cipher]\n已记录：{query}"
-    except Exception:
+    except Exception as e:
+        logger.error("fallback search failed: %s", e, exc_info=True)
         return f"[Cipher]\n已记录：{query}"
 
 
 def run(user_input: str, ctx: Optional[RequestContext] = None) -> str:
     if ctx is None:
         ctx = RequestContext(message=user_input)
-        try:
-            idx = json.loads((ROOT / "state" / "entity_index.json").read_text(encoding="utf-8"))
-            for e in idx.get("confirmed_entities", []):
-                if e["name"] == "李林骁":
-                    ctx.user = {"name": "李林骁", "role": e.get("role", "工班长"),
-                                "team": e.get("team", "铁炉西工班")}
-                    break
-        except Exception:
-            ctx.user = {"name": "李林骁", "role": "工班长", "team": "铁炉西工班"}
+        ctx.user = _resolve_user()
+    else:
+        if ctx.user is None:
+            ctx.user = _resolve_user()
 
     ctx.route = "agent"
     ctx.confidence = 0.0
@@ -107,10 +122,12 @@ def run(user_input: str, ctx: Optional[RequestContext] = None) -> str:
     try:
         raw = llm_call(user_input, system_prompt=sys_prompt, max_tokens=800, temperature=0.3)
         if isinstance(raw, dict) and "error" in raw:
+            logger.warning("LLM call returned error: %s", raw.get("error"))
             return _fallback_search(user_input)
 
         decision = _extract_json(str(raw))
         if not decision:
+            logger.warning("LLM response could not be parsed as JSON: %.200s", str(raw))
             return _fallback_search(user_input)
 
         tool_id = decision.get("tool", "")
@@ -118,16 +135,19 @@ def run(user_input: str, ctx: Optional[RequestContext] = None) -> str:
 
         available = [t["id"] for t in list_tools()]
         if tool_id not in available:
+            logger.warning("LLM selected unknown tool '%s'", tool_id)
             return _fallback_search(user_input)
 
         ok, err = validate_params(tool_id, params)
         if not ok:
+            logger.warning("param validation failed for %s: %s", tool_id, err)
             return f"[Cipher:agent]\n{err}，请补充后重试。"
 
-        result = execute(tool_id, params)
+        result = execute(tool_id, params, ctx=ctx)
         ctx.route = tool_id
         ctx.confidence = 0.8
         return result
 
     except Exception as e:
+        logger.error("agent run failed: %s", e, exc_info=True)
         return f"[Cipher:error]\n处理失败: {e}"

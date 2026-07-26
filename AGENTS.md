@@ -23,7 +23,7 @@
 
 ## 入口
 ```bash
-python3 skills/routing/entry.py '<消息>'
+python3 -m skills.entry '<消息>'
 ```
 
 handle_core(): classify() → 高置信非 event 走 _fast_dispatch(task/knowledge/profile 三路由) / 其他走 agent/engine.py → LLM 选工具 + registry.execute()。

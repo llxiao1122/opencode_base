@@ -5,14 +5,16 @@ Appends one JSON line to state/decision_log.jsonl after every pipeline run.
 No guessing, no marking. Just raw facts.
 """
 
-import json, os
+import json, logging, os
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
 from skills.shared.schema import RequestContext
 
-_LOG_PATH = Path(__file__).resolve().parent.parent.parent / "state" / "decision_log.jsonl"
+logger = logging.getLogger(__name__)
+
+_LOG_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "state" / "decision_log.jsonl"
 
 _session: str = datetime.now().strftime("%Y%m%d%H%M%S")
 _seq: int = 0
@@ -46,5 +48,5 @@ def append(ctx: RequestContext, reply: str, tool_id: str = ""):
 
         with open(_LOG_PATH, "a", encoding="utf-8") as f:
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("append decision log failed: %s", e, exc_info=True)

@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-STORE_PATH = ROOT / "state" / "tasks.json"
+STORE_PATH = ROOT / "data" / "state" / "tasks.json"
 RETENTION_DAYS = 30
 
 
@@ -73,6 +73,10 @@ def save(task: dict):
             return
     tasks.append(task)
     _write(tasks)
+
+
+def list_all() -> list:
+    return _read()
 
 
 def load(task_id: str):

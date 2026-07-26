@@ -6,11 +6,10 @@ Message-driven updates via update_from_message().
 
 import json
 import re
-import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(ROOT / "skills"))
+from skills.shared.path import ensure_paths
+ensure_paths()
 
 from memory.detect import change_status, load_index
 
@@ -37,7 +36,7 @@ def expire(event_id):
 
 def _extract_entities_from_text(text):
     try:
-        from routing.entity_resolver import resolve_entities
+        from skills.router.entity_resolver import resolve_entities
 
         resolved = resolve_entities(text)
         return [e["name"] for e in resolved.get("entities", [])]

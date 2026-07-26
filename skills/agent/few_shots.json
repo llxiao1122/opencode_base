@@ -1,0 +1,109 @@
+[
+  {
+    "input": "帮我看看今天立库区有什么专项任务",
+    "thought": "需要查看tasks.md中今天待办的非【固定】条目",
+    "tool": "task_query",
+    "params": {
+      "scope": "立库区专项任务"
+    }
+  },
+  {
+    "input": "杂品库今天需要做什么",
+    "thought": "杂品库的每日必做工作在工班日常固定工作.md中，需要按日期筛选",
+    "tool": "task_query",
+    "params": {
+      "scope": "杂品库每日必做"
+    }
+  },
+  {
+    "input": "通知车辆中心明天需要演练",
+    "thought": "需要发送通知，使用notification_push工具",
+    "tool": "notification_push",
+    "params": {
+      "title": "明日演练通知",
+      "content": "车辆中心明天将进行演练，请做好准备。"
+    }
+  },
+  {
+    "input": "记录一下今天的消防巡查",
+    "thought": "需要记录事件，使用event_record工具",
+    "tool": "event_record",
+    "params": {
+      "summary": "消防巡查",
+      "time": "2026-07-16",
+      "people": "各库区负责人"
+    }
+  },
+  {
+    "input": "大件区二层杨梦卓需要领料",
+    "thought": "需要创建任务，使用task_create工具",
+    "tool": "task_create",
+    "params": {
+      "summary": "大件区二层领料",
+      "assignee": "杨梦卓"
+    }
+  },
+  {
+    "input": "陈红洁完成了杂品库的钥匙登记",
+    "thought": "需要反馈任务状态，使用task_feedback工具",
+    "tool": "task_feedback",
+    "params": {
+      "action": "完成",
+      "executor": "陈红洁",
+      "task_id": "杂品库钥匙登记"
+    }
+  },
+  {
+    "input": "查询一下2026年1月的演练计划",
+    "thought": "需要检索知识，使用knowledge_retrieve工具",
+    "tool": "knowledge_retrieve",
+    "params": {
+      "topic": "2026年1月演练计划"
+    }
+  },
+  {
+    "input": "张志斌需要领大件区一层的物资",
+    "thought": "需要创建任务，使用task_create工具",
+    "tool": "task_create",
+    "params": {
+      "summary": "大件区一层领料",
+      "assignee": "张志斌"
+    }
+  },
+  {
+    "input": "陈红洁借了钥匙，需要记录",
+    "thought": "需要查询人员信息，使用profile_query工具",
+    "tool": "profile_query",
+    "params": {
+      "name": "陈红洁"
+    }
+  },
+  {
+    "input": "需要将物资总库的物资调拨到车辆中心",
+    "thought": "需要创建任务，使用task_create工具",
+    "tool": "task_create",
+    "params": {
+      "summary": "物资调拨",
+      "assignee": "车辆中心"
+    }
+  },
+  {
+    "input": "记录一下今天的值班人员",
+    "thought": "需要记录事件，使用event_record工具",
+    "tool": "event_record",
+    "params": {
+      "summary": "值班人员",
+      "time": "2026-07-16",
+      "people": "陈红洁"
+    }
+  },
+  {
+    "input": "发现物资管理部制度有更新，需要记录",
+    "thought": "需要记录事件，使用event_record工具",
+    "tool": "event_record",
+    "params": {
+      "summary": "物资管理部制度更新",
+      "time": "2026-07-16"
+    }
+  }
+]

@@ -6,10 +6,9 @@ Manual or cron-driven; not auto-hooked into message pipeline.
 
 import sys
 from datetime import datetime
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(ROOT / "skills"))
+from skills.shared.path import ensure_paths
+ensure_paths()
 
 from memory.detect import change_status, load_index
 

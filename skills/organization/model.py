@@ -9,8 +9,8 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-ENTITY_INDEX_PATH = ROOT / "state" / "entity_index.json"
-TEAM_WORK_PATH = ROOT / "state" / "team_work.json"
+ENTITY_INDEX_PATH = ROOT / "data" / "state" / "entity_index.json"
+TEAM_WORK_PATH = ROOT / "data" / "state" / "team_work.json"
 
 
 def _build_teams():

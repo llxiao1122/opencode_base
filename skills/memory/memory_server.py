@@ -7,9 +7,16 @@ memory_server.py — MCP STDIO wrapper for MemoryCore.
 import sys, json, os, traceback
 from pathlib import Path
 
-_BASE = Path(__file__).resolve().parent.parent.parent  # project root: .../opencode_base
-sys.path.insert(0, str(_BASE))
-sys.path.insert(0, str(_BASE / "skills"))
+# ── path bootstrap: MCP 启动时 cwd 不在项目根 ──
+_self = Path(__file__).resolve()
+_proj = _self.parent.parent.parent
+if str(_proj) not in sys.path:
+    sys.path.insert(0, str(_proj))
+if str(_proj / "skills") not in sys.path:
+    sys.path.insert(0, str(_proj / "skills"))
+
+from skills.shared.path import ensure_paths
+ensure_paths()
 
 from memory.memory_core import MemoryCore
 from skills.shared.schema import RequestContext

@@ -80,10 +80,10 @@
 
 ```bash
 # 统一入口
-python3 skills/routing/entry.py '<消息>'
+python3 -m skills.entry '<消息>'
 
 # 跳转核心管道（跳过路由）
-python3 skills/routing/entry.py --core '<消息>'
+python3 -m skills.entry --core '<消息>'
 ```
 
 ---

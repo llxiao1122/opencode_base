@@ -1,0 +1,13 @@
+{
+  "core_values": {
+    "safety_priority": 1.0,
+    "operational_efficiency": 0.8,
+    "team_stability": 0.7,
+    "compliance": 0.9,
+    "innovation": 0.5
+  },
+  "veto_conditions": {
+    "human_safety": "violated",
+    "structural_safety": "violated"
+  }
+}

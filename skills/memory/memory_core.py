@@ -4,13 +4,15 @@ memory_core.py — 工班 AI 记忆核心引擎
 Pure logic layer. No MCP protocol, no network dependencies.
 """
 
-import json, os, sys, re, hashlib, threading, time
+import json, logging, os, sys, re, hashlib, threading, time
 from pathlib import Path
 from datetime import datetime, date, timedelta
 from functools import lru_cache
 
 import faiss
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -52,12 +54,12 @@ class MemoryCore:
         if not root_path:
             root_path = str(Path(__file__).resolve().parent.parent.parent)
         self.root = Path(root_path)
-        self.vec_dir = self.root / "memory" / ".vector"
+        self.vec_dir = self.root / "data" / "memory" / ".vector"
         self.vec_dir.mkdir(parents=True, exist_ok=True)
 
         self.knowledge_dir = self.root / "Knowledge"
-        self.obs_dir = self.root / "memory" / "observations"
-        self.log_dir = self.root / "memory"
+        self.obs_dir = self.root / "data" / "memory" / "observations"
+        self.log_dir = self.root / "data" / "memory"
 
         # Metadata
         self.meta = self._load_meta()
@@ -93,8 +95,8 @@ class MemoryCore:
                                 _key = os.environ.get(_rk[5:-1], "")
                             else:
                                 _key = _rk
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug("config parsing skipped: %s", e)
         self._llm_api_key = _key
         self._llm_model = os.environ.get("LLM_MODEL", "deepseek-v4-flash")
 
@@ -112,9 +114,17 @@ class MemoryCore:
     def model(self):
         if self._model is None:
             try:
-                from shared.onnx_embedder import ONNXEmbedder
+                from sentence_transformers import SentenceTransformer
+                self._model = SentenceTransformer("all-MiniLM-L6-v2")
+                self.dim = 384
+                return self._model
+            except Exception as e:
+                logger.debug("sentence_transformers unavailable: %s", e)
+            try:
+                from skills.shared.onnx_embedder import ONNXEmbedder
                 self._model = ONNXEmbedder()
-            except (ImportError, Exception):
+            except (ImportError, Exception) as e:
+                logger.debug("ONNX embedder unavailable, using fallback: %s", e)
                 self._model = _FallbackEmbedder()
         return self._model
 
@@ -159,7 +169,8 @@ class MemoryCore:
         try:
             with open(filepath, "r", encoding="utf-8") as f:
                 text = f.read()[:100000]  # cap at 100KB per file
-        except Exception:
+        except Exception as e:
+            logger.debug("chunk_markdown read failed: %s", e)
             return []
         paras = re.split(r'\n\n+', text)
         chunks = []
@@ -269,10 +280,10 @@ class MemoryCore:
         # Write to ObservationStore (auto-routes by entity name)
         try:
             from memory.observation_store import write as obs_write
-            obs_write(text, source="mcp_save", obs_type="note", layer="rule",
+            obs_write(text, source="mcp_save", obs_type="event", layer="rule",
                       confidence={"high": 0.9, "medium": 0.7, "low": 0.5}.get(importance, 0.7))
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("obs_write failed in memory_save: %s", e, exc_info=True)
         vec = self._embed(text)
 
         index = self.epi_index or self._create_index()
@@ -348,8 +359,8 @@ class MemoryCore:
             try:
                 if date.fromisoformat(fname) >= since_date:
                     scanned += 1
-            except ValueError:
-                pass
+            except ValueError as e:
+                logger.debug("skip non-date filename %s: %s", fname, e)
 
         clusters = self._cluster_by_topic(since_days=since_days)
         compressed = self._compress_if_needed(clusters)
@@ -404,8 +415,8 @@ class MemoryCore:
                     if raw in ("high", "medium", "low"):
                         self._pending_scores.append((entry_id, raw))
                         self._flush_scores()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("score flush encountered issues: %s", e)
 
         t = threading.Thread(target=_run, daemon=True)
         t.start()
@@ -464,7 +475,7 @@ class MemoryCore:
 
             # Also embed events from event_recorder log into episodic index
             if idx_type == "episodic":
-                _evt_log = self.root / "memory" / "events" / "log.jsonl"
+                _evt_log = self.root / "data" / "memory" / "events" / "log.jsonl"
                 if _evt_log.exists():
                     try:
                         with open(_evt_log, "r", encoding="utf-8") as _f:
@@ -486,8 +497,8 @@ class MemoryCore:
                                     eid = f"ep-{counter:04d}"
                                     id_map[eid] = {"chunk": _chunk, "date": _time or str(date.today()), "source": "event_log"}
                                     counter += 1
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning("event log scanning failed: %s", e, exc_info=True)
 
             # Write rebuild
             tmp_path = self.vec_dir / f"{idx_type}.index.rebuild"
@@ -509,7 +520,7 @@ class MemoryCore:
 
     def _warmup_cache(self):
         """Pre-search hot queries to populate LRU cache after rebuild."""
-        hot_path = self.root / "memory" / "hot_queries.txt"
+        hot_path = self.root / "data" / "memory" / "hot_queries.txt"
         defaults = ["安全", "暴雨", "防汛", "台账", "检查", "消防"]
 
         queries = defaults
@@ -519,15 +530,15 @@ class MemoryCore:
                     custom = [l.strip() for l in f if l.strip() and not l.startswith("#")]
                 if custom:
                     queries = custom[:20]
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("hot_queries load failed: %s", e)
 
         for q in queries:
             for tt in [("episodic",), ("semantic",), ("episodic", "semantic")]:
                 try:
                     self._search_raw(q, tt)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("cache warmup skipped: %s", e)
 
     # ══════════════════════════════════════════════════════════════
     # clustering
@@ -558,7 +569,8 @@ class MemoryCore:
                 if file_date < since_date:
                     continue
             except ValueError:
-                pass  # new format (person names), always include
+                # new format (person names), always include
+                pass
 
             try:
                 with open(fpath, "r", encoding="utf-8") as f:
@@ -590,7 +602,8 @@ class MemoryCore:
                         entries.append({"text": fact_line, "file": fpath.name})
                         v = self._embed(fact_line)
                         vectors.append(v[0])
-            except Exception:
+            except Exception as e:
+                logger.debug("obs line parse skipped: %s", e)
                 continue
 
         if len(entries) < 3:
@@ -652,8 +665,8 @@ class MemoryCore:
                     layer="pattern",
                     confidence=0.7,
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("compress obs_write skipped: %s", e)
 
             compressed.append({"group": key, "rule": rule, "n": len(group)})
 

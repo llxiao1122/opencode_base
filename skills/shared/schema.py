@@ -25,6 +25,23 @@ class Status(Enum):
     ERROR = "error"
 
 
+class ObservationType(str, Enum):
+    EVENT = "event"
+    TASK_CREATED = "task_created"
+    TASK_FEEDBACK = "task_feedback"
+    NOTIFICATION = "notification"
+    REFLECTION = "reflection"
+    PATTERN = "pattern"
+    CONCLUSION = "conclusion"
+    PROBE = "probe"
+
+
+class ObservationLayer(str, Enum):
+    RULE = "rule"
+    PATTERN = "pattern"
+    CONCLUSION = "conclusion"
+
+
 class ValueDimension(Enum):
     SAFETY = "safety"
     EFFICIENCY = "efficiency"

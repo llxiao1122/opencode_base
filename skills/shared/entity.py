@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-ENTITY_INDEX_PATH = ROOT / "state" / "entity_index.json"
+ENTITY_INDEX_PATH = ROOT / "data" / "state" / "entity_index.json"
 
 BROADCAST_WORDS = [
     "各班组", "各工班", "各工班长", "全体人员", "所有工班", "各部门",

@@ -21,10 +21,10 @@ from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-ENTITY_INDEX = ROOT / "state" / "entity_index.json"
-PENDING_FILE = ROOT / "state" / "_changes" / "pending.md"
-CONFIRMED_FILE = ROOT / "state" / "_changes" / "confirmed.md"
-REJECTED_FILE = ROOT / "state" / "_changes" / "rejected.md"
+ENTITY_INDEX = ROOT / "data" / "state" / "entity_index.json"
+PENDING_FILE = ROOT / "data" / "state" / "_changes" / "pending.md"
+CONFIRMED_FILE = ROOT / "data" / "state" / "_changes" / "confirmed.md"
+REJECTED_FILE = ROOT / "data" / "state" / "_changes" / "rejected.md"
 
 RESPONSIBILITY_KEYWORDS = ["负责", "接手", "调整", "转交", "改管", "分管", "接管"]
 STATUS_KEYWORDS = ["离职", "休假", "调走", "借调", "辞职", "退休"]
