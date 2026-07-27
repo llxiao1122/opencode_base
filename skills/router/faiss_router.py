@@ -68,7 +68,7 @@ def classify(user_input: str) -> Tuple[str, float]:
 
         confidence = max(0.0, min(1.0, top_dist))
 
-        if confidence < 0.6:
+        if confidence < 0.5:
             return ("event", confidence)
 
         return (idx_mgr.route_labels[top_idx], confidence)

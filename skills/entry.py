@@ -171,7 +171,7 @@ def handle_core(user_input: str) -> str:
     with tracer.span("entry.route", input_len=len(user_input)):
         route, confidence = classify(user_input)
 
-        if route == "correction" and confidence >= 0.6:
+        if route == "correction" and confidence >= 0.5:
             with tracer.span("workflow.correction"):
                 from skills.workflow.engine import WorkflowEngine
                 wf_result = WorkflowEngine(tracer=tracer).run("correction", user_input, rctx)
