@@ -38,12 +38,10 @@ for item in queue:
     if dt > now:
         continue
 
-    item["pushed"] = True
-    changed = True
     body = item.get("body", "")
-    lines = body.split("\n")
+    title = item.get("title", "⏰ 提醒")
 
-    if "查一下工班每个人的情况" in body[:60] or "每个人的情况" in body[:60]:
+    if "工班每个人" in body[:60] or "每个人的情况" in body[:60]:
         from skills.organization.model import OrganizationModel
         from skills.agent.handlers.profile_query import handle as profile_handle
         org = OrganizationModel()
@@ -57,12 +55,21 @@ for item in queue:
             except Exception:
                 out.append(f"  {m} — 查询失败")
         body = "\n".join(out)
+    elif title == "⏰ 提醒" and len(body) < 200:
+        from skills.entry import handle_core
+        try:
+            reply = handle_core(body)
+            body = f"{body}\n\n{reply[:1500]}"
+        except Exception as e:
+            body = f"{body}\n\n（处理失败: {e}）"
 
-    resp = send_markdown(item.get("title", "⏰ 提醒"), body)
-    if resp.get("errcode") != 0 and resp.get("errcode") != -1:
-        print(f"PUSH_FAIL: {item['id']} {resp.get('errmsg', '')}")
+    resp = send_markdown(title, body)
+    if resp.get("errcode") == 0:
+        item["pushed"] = True
+        changed = True
+        print(f"PUSH_OK: {item['id']} {body[:60]}")
     else:
-        print(f"PUSH_OK: {item['id']}")
+        print(f"PUSH_FAIL: {item['id']} {resp.get('errmsg', '未发送')}")
 
 if changed:
     QUEUE.write_text(json.dumps(queue, ensure_ascii=False, indent=2), encoding="utf-8")
