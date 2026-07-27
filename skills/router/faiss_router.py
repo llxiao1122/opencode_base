@@ -1,4 +1,18 @@
+"""
+skills/router/faiss_router.py — 基于 FAISS 的消息路由分类。
+
+将用户输入编码为向量，与预定义的路由种子（task_query / event /
+profile_query / knowledge_retrieve）对比相似度，返回最高分路由 + 置信度。
+
+流程：
+  classify(msg) → (route, confidence)
+    1. 空消息 → ("event", 0.0)
+    2. 短消息 (< 3 字) → ("event", 0.0)
+    3. 编码 → FAISS search → 取 top-1 路由 + 归一化置信度
+"""
+
 import os, threading, faiss, numpy as np
+from functools import lru_cache
 from pathlib import Path
 from typing import Tuple
 
@@ -30,6 +44,7 @@ def _get_index():
     return _idx_mgr
 
 
+@lru_cache(maxsize=1024)
 def classify(user_input: str) -> Tuple[str, float]:
     text = user_input.strip()
     if not text:

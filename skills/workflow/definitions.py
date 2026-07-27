@@ -1,4 +1,14 @@
-"""Workflow definitions — declarative step sequences with param extraction rules."""
+"""
+skills/workflow/definitions.py — Workflow 步骤定义。
+
+每个 Step 包含：
+  - skill_id: 要调用的工具名
+  - params:   参数字典，支持 "input"（用户原文）、"input[:N]"（截断）、字面量
+  - on_success / on_failure: 条件跳转（预留）
+
+list_triggers() 返回关键词 → workflow_id 的映射，
+供 entry.py _should_route_to_workflow 使用。
+"""
 from __future__ import annotations
 
 WORKFLOWS = {

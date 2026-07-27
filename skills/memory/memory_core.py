@@ -50,6 +50,9 @@ class _FallbackEmbedder:
 
 
 class MemoryCore:
+    # TTL 过期阈值：按重要性区分，超过天数自动硬删除
+    _TTL_BY_IMPORTANCE = {"high": 90, "medium": 30, "low": 7}
+
     def __init__(self, root_path=""):
         if not root_path:
             root_path = str(Path(__file__).resolve().parent.parent.parent)
@@ -106,6 +109,7 @@ class MemoryCore:
         if self.epi_index is None:
             self.epi_index = self._create_index()
 
+        self._expire_episodic()
         self._warmup_cache()
 
     # ---- model ----
@@ -304,6 +308,7 @@ class MemoryCore:
 
         self._search_raw.cache_clear()
         self._async_llm_score(entry_id, text)
+        self._expire_episodic()
         self._maybe_rebuild()
 
         return {"status": "ok", "id": entry_id, "importance": importance}
@@ -539,6 +544,37 @@ class MemoryCore:
                     self._search_raw(q, tt)
                 except Exception as e:
                     logger.debug("cache warmup skipped: %s", e)
+
+    # ══════════════════════════════════════════════════════════════
+    # TTL expiry
+    # ══════════════════════════════════════════════════════════════
+
+    def _expire_episodic(self):
+        now = date.today()
+        alive = {}
+        for eid, entry in list(self.meta.get("id_map", {}).items()):
+            if not isinstance(entry, dict):
+                alive[eid] = entry
+                continue
+            date_str = entry.get("date", "")
+            if not date_str:
+                alive[eid] = entry
+                continue
+            ttl = self._TTL_BY_IMPORTANCE.get(entry.get("importance", "medium"), 30)
+            try:
+                age = (now - date.fromisoformat(date_str)).days
+            except Exception:
+                alive[eid] = entry
+                continue
+            if age >= ttl:
+                self.meta.setdefault("deleted_ids", []).append(eid)
+                logger.info("TTL expired: %s (age=%dd, ttl=%dd, importance=%s)",
+                            eid, age, ttl, entry.get("importance", "?"))
+            else:
+                alive[eid] = entry
+        self.meta["id_map"] = alive
+        self._save_meta()
+        self._search_raw.cache_clear()
 
     # ══════════════════════════════════════════════════════════════
     # clustering

@@ -1,4 +1,10 @@
-"""WorkflowEngine: parallel skill execution + LLM kill + fallback."""
+"""
+skills/workflow/engine.py — Workflow 引擎。
+
+根据 definitions.py 定义的步骤列表，依次调用各 handler。
+单步无依赖时并行（暂未实现，目前顺序执行）。
+LLM 超时 / 失败时有降级兜底（fallback）。
+"""
 
 import json, logging
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as _TimeoutError

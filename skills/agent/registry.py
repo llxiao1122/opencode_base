@@ -4,30 +4,19 @@ agent/registry.py — Skills Registry + 参数校验 + 动态导入 handler.
 Phase 3: Agentic Pipeline. Refactored: declarative param map, no if/elif chain.
 """
 
-import importlib, json, logging
+import importlib, logging
 from pathlib import Path
 from typing import Optional
 
 from skills.shared.path import ensure_paths, root as _root
 from skills.shared.schema import RequestContext
+from skills.shared.entity import resolve_user
 
 ensure_paths()
 
 logger = logging.getLogger(__name__)
 
 ROOT = _root()
-
-
-def _resolve_user():
-    try:
-        idx = json.loads((ROOT / "data" / "state" / "entity_index.json").read_text(encoding="utf-8"))
-        for e in idx.get("confirmed_entities", []):
-            if e["name"] == "李林骁":
-                return {"name": "李林骁", "role": e.get("role", "工班长"),
-                        "team": e.get("team", "铁炉西工班")}
-    except Exception as e:
-        logger.warning("resolve user from entity_index failed: %s", e, exc_info=True)
-    return {"name": "李林骁", "role": "工班长", "team": "铁炉西工班"}
 
 
 TOOL_REGISTRY = {
@@ -204,7 +193,7 @@ def execute(tool_id: str, params: dict, ctx: Optional[RequestContext] = None) ->
 
     if ctx is None:
         ctx = RequestContext(message="")
-        ctx.user = _resolve_user()
+        ctx.user = resolve_user()
 
     params = _clean_params(params)
     args = _apply_param_map(tool_id, params, ctx)

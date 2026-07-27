@@ -37,7 +37,9 @@ task_query/knowledge_retrieve/profile_query → 快速查询。notification_push
 | Memory 反射 | 受限，输出标记 pattern 层，不直接写入 facts |
 
 ## 开发纪律
-修改前回答：1) 能力属哪层？2) 已有模块承担？3) 是否临时规则？4) 是否应等数据积累？
+修改前回答：1) 能力属哪层？2) 已有模块承担？3) 是否临时规则？4) 是否应等数据积累？“5. 尽量用确定性的 Python 规则做判断，不要什么都调 LLM。”
+“6. 改动任何模块前，先检查会不会破坏已有的功能。”
+“7. 每次改动后，必须运行测试用例确认通过。”
 
 禁止：为一个规则建 engine / 为一个字段建 manager / 用 LLM 替代 Context / 用 prompt 修架构。
 

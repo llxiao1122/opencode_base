@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 """
-memory_server.py — MCP STDIO wrapper for MemoryCore.
+skills/memory/memory_server.py — MCP STDIO 服务包装器。
+
+通过 stdin/stdout JSON-RPC 暴露：
+  - knowledge_retrieve(topic, max_chars)
+  - memory_save(situation, action, outcome, importance)
+  - memory_search(query, types, top_k)
+  - memory_reflect(since_days)
+供外部 MCP 客户端（如 Claude Desktop）调用。
 完整 MCP 协议实现：支持 initialize 握手与 JSON-RPC id 回传。
 """
 

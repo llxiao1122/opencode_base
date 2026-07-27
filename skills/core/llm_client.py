@@ -81,7 +81,7 @@ def _resolve_config():
     return url or prov_cfg["default_url"], key, model or prov_cfg["default_model"]
 
 
-def call(prompt, system_prompt=None, temperature=0.3, timeout=120, max_tokens=1024):
+def call(prompt, system_prompt=None, temperature=0.0, timeout=120, max_tokens=1024):
     url, key, model = _resolve_config()
 
     if not url or not key:

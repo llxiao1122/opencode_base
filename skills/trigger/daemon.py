@@ -1,3 +1,11 @@
+"""
+skills/trigger/daemon.py — 主动巡检守护线程。
+
+每 5 分钟扫描 tasks.json，检查到期/临期任务，
+按多级阈值（红色/橙色/黄色/绿色）触发钉钉通知。
+由 entry.py handle_core 在首次消息处理时启动。
+"""
+
 import time
 import logging
 from datetime import datetime

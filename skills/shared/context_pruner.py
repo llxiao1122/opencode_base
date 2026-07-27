@@ -1,3 +1,9 @@
+"""
+skills/shared/context_pruner.py — LLM 上下文裁剪。
+
+移除过长的 intermediate_steps、去重相似文本、控制消息总数。
+防止 Agent 上下文超出模型窗口。
+"""
 import re
 from typing import Optional
 

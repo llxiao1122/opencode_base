@@ -79,6 +79,8 @@ class RequestContext:
 
     decision: Optional[dict] = None
 
+    memory_context: Optional[str] = None
+
     result: Optional[dict] = None
 
     reply: str = ""

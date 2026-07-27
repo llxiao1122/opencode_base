@@ -1,12 +1,17 @@
 """
-skills/entry.py — Cipher main entry.
+skills/entry.py — Cipher 主入口。
 
-Usage:
-  python3 -m skills.entry '<消息>'
-  python3 -m skills.entry --listen [--port 9099]
+用法：
+  python3 -m skills.entry '<消息>'        # 单次处理
+  python3 -m skills.entry --listen          # 持久服务模式（TCP 长驻）
+  python3 -m skills.entry --warm            # 预加载索引后退出
+
+流程：
+  用户消息 → 分类 (FAISS / 关键词) → 高置信走 _fast_dispatch → 否则走 Agent
+  后处理 → 实体变更检测 + 决策日志 + 异步反射 + 守护线程
 """
 
-import logging, os, sys, threading
+import logging, os, re, sys, threading
 from pathlib import Path
 
 # Ensure skills/ is importable before anything else
@@ -137,10 +142,10 @@ _FAST_HANDLERS = {
 }
 
 
-def _fast_dispatch(route, user_input, ctx):
+def _fast_dispatch(route: str, user_input: str, ctx) -> str:
     hit = _FAST_HANDLERS.get(route)
     if not hit:
-        return None
+        return "[Cipher:error]\n未知路由"
     if callable(hit):
         return hit(user_input, ctx)
     import importlib
@@ -150,7 +155,26 @@ def _fast_dispatch(route, user_input, ctx):
     return handler(user_input, ctx)
 
 
-def handle_core(user_input):
+def _search_episodic(user_input: str) -> str:
+    """搜索 epi_index，返回格式化情景记忆。仅 Agent 路径调用。"""
+    try:
+        from skills.memory.memory_core import MemoryCore
+        mc = MemoryCore()
+        raw = mc.search(user_input, types=["episodic"], top_k=5)
+        hits = raw.get("hits", [])
+        filtered = [h for h in hits if h.get("r", 0) >= 0.6][:2]
+        if not filtered:
+            return ""
+        lines = ["[历史情景记忆]:"]
+        for h in filtered:
+            lines.append(f"  • {h.get('d', '?')} [{h.get('i', 'medium')}] {h['c'][:200]}")
+        return "\n".join(lines)
+    except Exception as e:
+        logger.warning("episodic memory search failed: %s", e)
+        return ""
+
+
+def handle_core(user_input: str) -> str:
     from skills.shared.tracer import Tracer
     tracer = Tracer()
 
@@ -161,6 +185,8 @@ def handle_core(user_input):
     from skills.router.faiss_router import classify
 
     rctx = RequestContext(message=user_input, trace_id=tracer.trace_id)
+    route = None
+    confidence = 0.0
 
     with tracer.span("entry.route", input_len=len(user_input)):
         workflow_id = _should_route_to_workflow(user_input)
@@ -183,6 +209,7 @@ def handle_core(user_input):
                     rctx.confidence = confidence
             else:
                 with tracer.span("agent.run"):
+                    rctx.memory_context = _search_episodic(user_input)
                     from agent.engine import run as agent_run
                     result = agent_run(user_input, rctx, tracer=tracer)
                     tool_id = rctx.route if rctx.route else route
@@ -222,6 +249,13 @@ def handle_core(user_input):
                 logger.warning("daemon start failed: %s", e)
 
     tracer.dump()
+
+    conf_label = rctx.confidence or confidence or 0.0
+    result = re.sub(
+        r'^\[Cipher:(\w+)\]',
+        lambda m: f'[Cipher:{m.group(1)}@{conf_label:.2f}]',
+        result
+    )
     return result
 
 

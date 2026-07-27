@@ -1,3 +1,9 @@
+"""
+skills/shared/tracer.py — Agent 决策调用链追踪。
+
+每次 LLM 调用产生一个 trace（trace_id + parent_id 树），
+记录 request / response / duration / error，最终写入 trace JSON。
+"""
 import logging, json, time, uuid
 from contextlib import contextmanager
 from typing import Optional

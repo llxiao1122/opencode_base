@@ -11,6 +11,7 @@ from pathlib import Path
 
 from skills.shared.path import ensure_paths, root as _root
 from skills.shared.schema import RequestContext, CT
+from skills.shared.entity import resolve_user
 from skills.correction.logger import append as log_append
 from skills.agent.registry import list_tools, validate_params, execute
 
@@ -22,8 +23,7 @@ ROOT = _root()
 
 AGENT_SYSTEM_PROMPT = """\
 你是 Cipher，{user_name}的企业智能助手。基于用户消息，选择最合适的工具。
-
-可选工具：
+{memory_context}可选工具：
 {tools_desc}
 
 输出格式（严格 JSON，只输出 JSON 对象，不要 markdown 代码块）：
@@ -70,23 +70,11 @@ def _extract_json(raw: str) -> Optional[dict]:
     return None
 
 
-def _resolve_user():
-    try:
-        idx = json.loads((ROOT / "data" / "state" / "entity_index.json").read_text(encoding="utf-8"))
-        for e in idx.get("confirmed_entities", []):
-            if e["name"] == "李林骁":
-                return {"name": "李林骁", "role": e.get("role", "工班长"),
-                        "team": e.get("team", "铁炉西工班")}
-    except Exception as e:
-        logger.warning("resolve user from entity_index failed: %s", e, exc_info=True)
-    return {"name": "李林骁", "role": "工班长", "team": "铁炉西工班"}
-
-
 def _fallback_search(query: str) -> str:
     try:
         from skills.agent.handlers.knowledge_retrieve import handle as kh
         ctx = RequestContext(message=query)
-        ctx.user = _resolve_user()
+        ctx.user = resolve_user()
         result = kh(query, ctx)
         return result or f"[Cipher]\n已记录：{query}"
     except Exception as e:
@@ -98,10 +86,10 @@ def run(user_input: str, ctx: Optional[RequestContext] = None,
         tracer=None) -> str:
     if ctx is None:
         ctx = RequestContext(message=user_input)
-        ctx.user = _resolve_user()
+        ctx.user = resolve_user()
     else:
         if ctx.user is None:
-            ctx.user = _resolve_user()
+            ctx.user = resolve_user()
 
     ctx.route = "agent"
     ctx.confidence = 0.0
@@ -116,7 +104,14 @@ def run(user_input: str, ctx: Optional[RequestContext] = None,
         )
         for t in list_tools()
     )
-    sys_prompt = AGENT_SYSTEM_PROMPT.format(user_name=user_name, tools_desc=tools_desc)
+    memory_text = (ctx.memory_context or "").strip()
+    if memory_text and not memory_text.endswith("\n"):
+        memory_text += "\n"
+    sys_prompt = AGENT_SYSTEM_PROMPT.format(
+        user_name=user_name,
+        tools_desc=tools_desc,
+        memory_context=memory_text,
+    )
 
     from skills.core.llm_client import call as llm_call
 

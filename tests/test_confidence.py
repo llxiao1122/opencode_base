@@ -77,3 +77,11 @@ def test_full_pipeline_empty_message():
     from skills.entry import handle_core
     result = handle_core("")
     assert result is not None
+
+
+# ── Group G: Output stability ──────────────────────────────────────────
+
+def test_same_query_10x_identical():
+    from skills.entry import handle_core
+    rs = [handle_core("明天什么工作安排") for _ in range(10)]
+    assert len(set(r for r in rs)) == 1

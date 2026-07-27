@@ -52,22 +52,17 @@ def get_role(name: str) -> str:
     return ""
 
 
-def get_team(name: str) -> str:
-    """Look up a person's team name via OrganizationModel."""
-    from organization.model import OrganizationModel
-    org = OrganizationModel()
-    for team_name, team in org._teams.items():
-        if team["leader"] == name or name in team["members"]:
-            return team_name
-    return ""
-
-
-def get_team_leader(team: str) -> str:
-    """Return team leader name for a given team via OrganizationModel."""
-    from organization.model import OrganizationModel
-    org = OrganizationModel()
-    t = org._teams.get(team)
-    return t["leader"] if t else ""
+def resolve_user() -> dict:
+    """从 entity_index 解析当前用户（李林骁）的姓名/角色/班组。"""
+    try:
+        data = json.loads(ENTITY_INDEX_PATH.read_text(encoding="utf-8"))
+        for e in data.get("confirmed_entities", []):
+            if e["name"] == "李林骁":
+                return {"name": "李林骁", "role": e.get("role", "工班长"),
+                        "team": e.get("team", "铁炉西工班")}
+    except Exception:
+        pass
+    return {"name": "李林骁", "role": "工班长", "team": "铁炉西工班"}
 
 
 def has_known_entity(text: str) -> bool:

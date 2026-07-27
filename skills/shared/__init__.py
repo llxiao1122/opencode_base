@@ -1,19 +1,13 @@
 """
-skills/shared/ — Unified shared utilities (v2.1 refactor).
+skills/shared/ — 共享工具集。
 
-Single source of truth for: entity loading, role lookup, team map,
-broadcast detection, and time/deadline parsing.
-
-Previously duplicated across 8+ files (core/event.py, core/context.py,
-pipeline/instruction_resolver.py, context/hierarchy_resolver.py,
-organization/memory_bridge.py, profile/retriever.py, etc.).
+职责：entity 加载/角色查询、时间解析、路径管理。
+所有核心模块共用此处工具，禁止各自实现相同功能。
 """
 
 from .entity import (
     load_entities,
     get_role,
-    get_team,
-    get_team_leader,
     has_known_entity,
     find_entities_in_text,
     BROADCAST_WORDS,
@@ -31,8 +25,6 @@ from .time_parse import (
 __all__ = [
     "load_entities",
     "get_role",
-    "get_team",
-    "get_team_leader",
     "has_known_entity",
     "find_entities_in_text",
     "BROADCAST_WORDS",
