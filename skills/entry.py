@@ -171,21 +171,20 @@ def handle_core(user_input: str) -> str:
     with tracer.span("entry.route", input_len=len(user_input)):
         route, confidence = classify(user_input)
 
-        if confidence >= CT.HIGH and route != "event":
-            if route == "correction":
-                with tracer.span("workflow.correction"):
-                    from skills.workflow.engine import WorkflowEngine
-                    wf_result = WorkflowEngine(tracer=tracer).run("correction", user_input, rctx)
-                    result = wf_result.text
-                    tool_id = "correction"
-                    rctx.route = "correction"
-                    rctx.confidence = confidence
-            else:
-                with tracer.span("fast_dispatch", route=route):
-                    result = _fast_dispatch(route, user_input, rctx)
-                    tool_id = route
-                    rctx.route = route
-                    rctx.confidence = confidence
+        if route == "correction" and confidence >= 0.6:
+            with tracer.span("workflow.correction"):
+                from skills.workflow.engine import WorkflowEngine
+                wf_result = WorkflowEngine(tracer=tracer).run("correction", user_input, rctx)
+                result = wf_result.text
+                tool_id = "correction"
+                rctx.route = "correction"
+                rctx.confidence = confidence
+        elif confidence >= CT.HIGH and route != "event":
+            with tracer.span("fast_dispatch", route=route):
+                result = _fast_dispatch(route, user_input, rctx)
+                tool_id = route
+                rctx.route = route
+                rctx.confidence = confidence
         else:
             with tracer.span("agent.run"):
                 rctx.memory_context = _search_episodic(user_input)
