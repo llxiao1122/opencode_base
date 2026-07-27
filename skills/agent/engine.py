@@ -117,7 +117,7 @@ def run(user_input: str, ctx: Optional[RequestContext] = None,
 
     try:
         with (tracer.span("agent.llm_think") if tracer else _nullctx()):
-            raw = llm_call(user_input, system_prompt=sys_prompt, max_tokens=800, temperature=0.3)
+            raw = llm_call(user_input, system_prompt=sys_prompt, max_tokens=800, temperature=0.0)
         if isinstance(raw, dict) and "error" in raw:
             logger.warning("LLM call returned error: %s", raw.get("error"))
             return _fallback_search(user_input)
