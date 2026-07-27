@@ -12,6 +12,8 @@ from functools import lru_cache
 import faiss
 import numpy as np
 
+from skills.shared.embedder import create_embedder
+
 logger = logging.getLogger(__name__)
 
 
@@ -24,29 +26,6 @@ def _atomic_write(filepath, data):
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     os.replace(tmp, filepath)
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# MemoryCore
-# ═══════════════════════════════════════════════════════════════════════
-
-class _FallbackEmbedder:
-    _dim = 384
-
-    def encode(self, texts, normalize_embeddings=True):
-        if isinstance(texts, str):
-            texts = [texts]
-        vecs = np.zeros((len(texts), self._dim), dtype=np.float32)
-        _seed = np.array([hash(c) % (1 << 31) for c in "abcdefghijklmnopqrstuvwxyz0123456789"])
-        for i, t in enumerate(texts):
-            for c in t.lower():
-                xi = hash(c) % self._dim
-                vecs[i, xi] += 1.0
-        if normalize_embeddings:
-            norms = np.linalg.norm(vecs, axis=1, keepdims=True)
-            norms = np.where(norms == 0, 1.0, norms)
-            vecs /= norms
-        return vecs
 
 
 class MemoryCore:
@@ -66,10 +45,10 @@ class MemoryCore:
 
         # Metadata
         self.meta = self._load_meta()
-        self.dim = 768
+        self.dim = 512  # bge-small-zh-v1.5 / FallbackEmbedder
 
         # Embedding model (lazy load)
-        self._model = None
+        self._embedder = None
 
         # FAISS indices
         self.sem_index = self._load_index("semantic")
@@ -109,28 +88,24 @@ class MemoryCore:
         if self.epi_index is None:
             self.epi_index = self._create_index()
 
+        # Dimension guard: if existing index dim != self.dim, delete for rebuild
+        for name, idx in [("semantic", self.sem_index), ("episodic", self.epi_index)]:
+            if idx is not None and idx.d != self.dim:
+                logger.warning("%s.index dim=%d != self.dim=%d — force rebuild on next warmup", name, idx.d, self.dim)
+                (self.vec_dir / f"{name}.index").unlink(missing_ok=True)
+        if self.sem_index is not None and not (self.vec_dir / "semantic.index").exists():
+            self.sem_index = self._create_index()
+        if self.epi_index is not None and not (self.vec_dir / "episodic.index").exists():
+            self.epi_index = self._create_index()
+
         self._expire_episodic()
         self._warmup_cache()
 
-    # ---- model ----
-    # ---- model ----
-    @property
-    def model(self):
-        if self._model is None:
-            try:
-                from sentence_transformers import SentenceTransformer
-                self._model = SentenceTransformer("all-MiniLM-L6-v2")
-                self.dim = 384
-                return self._model
-            except Exception as e:
-                logger.debug("sentence_transformers unavailable: %s", e)
-            try:
-                from skills.shared.onnx_embedder import ONNXEmbedder
-                self._model = ONNXEmbedder()
-            except (ImportError, Exception) as e:
-                logger.debug("ONNX embedder unavailable, using fallback: %s", e)
-                self._model = _FallbackEmbedder()
-        return self._model
+    # ---- embedder ----
+    def _get_embedder(self):
+        if self._embedder is None:
+            self._embedder = create_embedder()
+        return self._embedder
 
     # ---- metadata ----
     def _load_meta(self):
@@ -160,10 +135,11 @@ class MemoryCore:
         return faiss.IndexFlatIP(self.dim)
 
     # ---- embedding helpers ----
-    def _embed(self, texts):
+    def _embed(self, texts, is_query=False):
         if isinstance(texts, str):
             texts = [texts]
-        vecs = self.model.encode(texts, normalize_embeddings=True)
+        emb = self._get_embedder()
+        vecs = emb.encode(texts, normalize_embeddings=True, is_query=is_query)
         if vecs.ndim == 1:
             vecs = vecs.reshape(1, -1)
         return vecs.astype(np.float32)
@@ -208,7 +184,7 @@ class MemoryCore:
     def _search_raw(self, query: str, types_tuple: tuple) -> str:
         hits = []
         type_set = set(types_tuple)
-        qvec = self._embed(query)
+        qvec = self._embed(query, is_query=True)
 
         def _collect(name, index, prefix, date_key, source_key):
             if index is None or index.ntotal == 0:

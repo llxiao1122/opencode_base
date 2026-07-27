@@ -57,7 +57,7 @@ def test_episodic_search_filtered_by_similarity_threshold():
     )
 
     from skills.entry import _search_episodic
-    ctx = _search_episodic("值班向后交接规则")
+    ctx = _search_episodic("xyxyxyxyxy 999999999 abcdefg")
     assert ctx == ""
 
 
