@@ -1,0 +1,1451 @@
+{
+  "_meta": {
+    "version": 2,
+    "updated": "2026-07-27",
+    "source": "data/state/team_work.json",
+    "team_members": [
+      "李林骁",
+      "陈红洁",
+      "杨梦卓",
+      "谭继衡",
+      "苗笑天",
+      "张志斌"
+    ]
+  },
+  "confirmed_entities": [
+    {
+      "name": "郝晓平",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "",
+      "source": "data/state/team_work.json",
+      "team": "铁炉西工班",
+      "leaders": null,
+      "area": ""
+    },
+    {
+      "name": "商丽娜",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "副总/分管物资管理中心+财务部",
+      "source": "data/state/team_work.json",
+      "leaders": {
+        "category": "upper"
+      },
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "李彦奎",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "部长/物资管理中心",
+      "source": "data/state/team_work.json",
+      "leaders": {
+        "category": "upper"
+      },
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "张新宇",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "副经理/物资管理中心",
+      "source": "data/state/team_work.json",
+      "leaders": {
+        "category": "upper"
+      },
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "王敬宇(业)",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "",
+      "source": "data/state/team_work.json",
+      "team": "铁炉西工班",
+      "leaders": null,
+      "area": ""
+    },
+    {
+      "name": "卢丽英(安)",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "",
+      "source": "data/state/team_work.json",
+      "team": "铁炉西工班",
+      "leaders": null,
+      "area": ""
+    },
+    {
+      "name": "李林骁",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.2,
+      "role": "工班长",
+      "source": "data/state/team_work.json",
+      "leaders": null,
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "程智",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.2,
+      "role": "物资管理岗",
+      "source": "data/state/team_work.json",
+      "leaders": {
+        "category": "colleague"
+      },
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "董文静",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.2,
+      "role": "物资管理岗/包保(铁炉西物资总库+圃田物资总库)/转达各级领导指令",
+      "source": "data/state/team_work.json",
+      "leaders": {
+        "category": "colleague"
+      },
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "王红义",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.2,
+      "role": "物资管理岗/捐赠验收推进",
+      "source": "data/state/team_work.json",
+      "leaders": {
+        "category": "colleague"
+      },
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "刘朋",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "物资管理岗",
+      "source": "data/state/team_work.json",
+      "leaders": {
+        "category": "colleague"
+      },
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "靳攀",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.2,
+      "role": "物资管理岗",
+      "source": "data/state/team_work.json",
+      "leaders": {
+        "category": "colleague"
+      },
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "王亮",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.2,
+      "role": "安全管理岗/",
+      "source": "data/state/team_work.json",
+      "leaders": {
+        "category": "colleague"
+      },
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "刘欢",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.3,
+      "role": "负责对物资库内的消防设施设计及使用情况进行交",
+      "source": "data/state/team_work.json",
+      "leaders": {
+        "category": "colleague"
+      },
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "杨梦卓",
+      "aliases": [
+        "大件库区负责人"
+      ],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "大件库区(上下两层)+空调库房(二楼)",
+      "source": "data/state/team_work.json",
+      "traits": "主动·强迫症·能力强·骄傲",
+      "trust": "独立(不检查)",
+      "notes": "勿给其对他人任务评判权",
+      "trigger_conditions": "能力评价/工作质量/人际冲突/任务分配/考勤异常",
+      "evaluations": [
+        "紧急发料被谭推责心情受影响(人际冲突)",
+        "接管大件库区(上下两层+空调库房)(8月)"
+      ],
+      "leaders": null,
+      "area": "大件库区(上下两层)+空调库房(二楼)",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "陈红洁",
+      "aliases": [
+        "杂品库负责人"
+      ],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.2,
+      "role": "安全员(7.16起)·工班内勤(考勤公文简报)·不参与库区业务",
+      "source": "data/state/team_work.json",
+      "traits": "独立高效·外向·内勤特长",
+      "trust": "独立(不检查)",
+      "trigger_conditions": "能力评价/职责变更/工作独立完成/安员相关",
+      "evaluations": [
+        "7.17暴雨防汛主动发现通知并按时到岗(7月)",
+        "担任工班兼职安全员(8月)"
+      ],
+      "leaders": null,
+      "area": "安全员(7.16起)·工班内勤(考勤公文简报)·不参与库区业务",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "苗笑天",
+      "aliases": [
+        "材料棚负责人",
+        "材料棚及办公用房负责人",
+        "杂品库负责人"
+      ],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.2,
+      "role": "材料棚+管理用房+废旧",
+      "source": "data/state/team_work.json",
+      "traits": "波动·荣誉驱动·怕被说·近期改善",
+      "trust": "需半日节点",
+      "trigger_conditions": "能力评价/工作质量/考勤异常/激励响应/任务执行",
+      "evaluations": [
+        "提前到岗但关键缺位(能力评价)",
+        "被怼后主动推进能接受反馈(激励响应)",
+        "起晚请假规避迟到(考勤异常)",
+        "废旧测试不及格(能力评价 07月)"
+      ],
+      "leaders": null,
+      "area": "材料棚+管理用房+废旧",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "谭继衡",
+      "aliases": [
+        "立体库区负责人",
+        "中小件区负责人"
+      ],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.2,
+      "role": "立体库区+中小件区",
+      "source": "data/state/team_work.json",
+      "traits": "情绪驱动·责任感在·需推动",
+      "trust": "中间检查(特定任务可靠，主动性不稳)",
+      "trigger_conditions": "人际冲突/推责/任务配合/主动性/流程建议",
+      "evaluations": [
+        "紧急发料推责(推责)",
+        "补位废旧隔离主动打扫(主动性波动)"
+      ],
+      "leaders": null,
+      "area": "立体库区+中小件区",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "张志斌",
+      "aliases": [
+        "杂品库负责人"
+      ],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "杂品库",
+      "source": "data/state/team_work.json",
+      "traits": "被动·需明确指令·非主动但不差",
+      "trust": "半日节点(被动需清单)",
+      "trigger_conditions": "能力评价/工作质量/任务执行/士气波动",
+      "evaluations": [
+        "安全竞赛无回报感失落士气低点(7月)"
+      ],
+      "leaders": null,
+      "area": "杂品库",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "王敬宇",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.2,
+      "role": "主任·直接上级·物资管理中心",
+      "source": "data/state/team_work.json",
+      "leaders": {
+        "category": "direct",
+        "strategy": "按节点汇报·偏差主动预警"
+      },
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "卢丽英",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.2,
+      "role": "副主任·安全·物资管理中心物资调配室",
+      "source": "data/state/team_work.json",
+      "leaders": {
+        "category": "direct",
+        "strategy": "安全优先响应"
+      },
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "荆幸斌",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.2,
+      "role": "科室废旧危废总负责人·资产管理员",
+      "source": "data/state/team_work.json",
+      "leaders": {
+        "category": "colleague"
+      },
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "王超",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.2,
+      "role": "科室危废负责人·危废系统/联单/催办",
+      "source": "data/state/team_work.json",
+      "leaders": {
+        "category": "colleague"
+      },
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "张梦圆",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.2,
+      "role": "科室内勤(借调)·考勤公文简报",
+      "source": "data/state/team_work.json",
+      "leaders": {
+        "category": "colleague"
+      },
+      "area": "",
+      "team": "铁炉西工班"
+    },
+    {
+      "name": "张梦圆(休假中)",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "",
+      "source": "data/state/team_work.json",
+      "team": "铁炉西工班",
+      "leaders": null,
+      "area": ""
+    },
+    {
+      "name": "资产+废旧)",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "",
+      "source": "data/state/team_work.json",
+      "team": "铁炉西工班",
+      "leaders": null,
+      "area": ""
+    },
+    {
+      "name": "危废)",
+      "aliases": [],
+      "route_hint": [
+        "G"
+      ],
+      "weight": 1.0,
+      "role": "",
+      "source": "data/state/team_work.json",
+      "team": "铁炉西工班",
+      "leaders": null,
+      "area": ""
+    },
+    {
+      "name": "立式库区",
+      "type": "location",
+      "aliases": [
+        "自动化立体库区"
+      ],
+      "role": "仓库区域",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "中小件区",
+      "type": "location",
+      "aliases": [],
+      "role": "仓库区域",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "空调库房",
+      "type": "location",
+      "aliases": [],
+      "role": "",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "大件区",
+      "type": "location",
+      "aliases": [],
+      "role": "",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "材料棚",
+      "type": "location",
+      "aliases": [],
+      "role": "仓库区域",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "料场",
+      "type": "location",
+      "aliases": [],
+      "role": "仓库区域",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "Route B",
+      "type": "project",
+      "aliases": [],
+      "role": "输出模板",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "专项",
+      "type": "project",
+      "aliases": [],
+      "role": "工作安排类别",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "每日必做",
+      "type": "project",
+      "aliases": [],
+      "role": "工作安排类别",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "值班",
+      "type": "project",
+      "aliases": [],
+      "role": "",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "演练后续",
+      "type": "project",
+      "aliases": [],
+      "role": "工作安排类别",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "周五任务",
+      "type": "project",
+      "aliases": [],
+      "role": "工作安排类别",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "月度任务",
+      "type": "project",
+      "aliases": [],
+      "role": "工作安排类别",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "工班日常固定工作",
+      "type": "document",
+      "aliases": [],
+      "role": "工作安排文档",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "物资管理考核细则",
+      "type": "regulation",
+      "aliases": [],
+      "role": "考核制度",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "物资编码管理细则",
+      "type": "regulation",
+      "aliases": [],
+      "role": "管理细则",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "物资仓储管理办法",
+      "type": "regulation",
+      "aliases": [],
+      "role": "管理细则",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "二级仓库管理规定",
+      "type": "regulation",
+      "aliases": [
+        "Q/ZDYY-CCH-GD-03"
+      ],
+      "role": "管理细则",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "总库各库区物资存放标准",
+      "type": "regulation",
+      "aliases": [],
+      "role": "管理细则",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "安全生产责任制",
+      "type": "regulation",
+      "aliases": [],
+      "role": "安全制度",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "危险废物回收处置工作指导手册",
+      "type": "regulation",
+      "aliases": [],
+      "role": "工作指导手册",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "值班表模板",
+      "type": "document",
+      "aliases": [],
+      "role": "模板",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "应急演练计划",
+      "type": "document",
+      "aliases": [],
+      "role": "计划",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "灭火器加巡计划表",
+      "type": "document",
+      "aliases": [],
+      "role": "计划",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "仓储管理系统应用",
+      "type": "document",
+      "aliases": [],
+      "role": "培训资料",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "新线介入管理程序",
+      "type": "document",
+      "aliases": [],
+      "role": "管理程序",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "此心安处",
+      "type": "document",
+      "aliases": [],
+      "role": "个人资料集",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "手艺人十一项原则",
+      "type": "document",
+      "aliases": [],
+      "role": "个人资料集",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "消防知识提炼",
+      "type": "document",
+      "aliases": [],
+      "role": "知识资料",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "物资管理",
+      "type": "department",
+      "aliases": [],
+      "role": "部门名称",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "物资调配室绩效考核细则",
+      "type": "regulation",
+      "aliases": [],
+      "role": "考核细则",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "物资管理部制度主要修订对照表",
+      "type": "document",
+      "aliases": [],
+      "role": "修订对照表",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "公文模板与规范",
+      "type": "document",
+      "aliases": [],
+      "role": "模板规范",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "书写文件模板",
+      "type": "document",
+      "aliases": [],
+      "role": "模板",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "公文制文范围流程通知",
+      "type": "document",
+      "aliases": [],
+      "role": "通知",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "公文格式培训试卷",
+      "type": "document",
+      "aliases": [],
+      "role": "培训资料",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "现场管理与6S",
+      "type": "document",
+      "aliases": [],
+      "role": "管理规范",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "卫生标准",
+      "type": "regulation",
+      "aliases": [],
+      "role": "管理规范",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "三菱备件专项",
+      "type": "project",
+      "aliases": [],
+      "role": "专项工作",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "三菱电梯赠送备件工作专题会纪要",
+      "type": "document",
+      "aliases": [],
+      "role": "会议纪要",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "三菱赠送备件清单",
+      "type": "document",
+      "aliases": [],
+      "role": "清单",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "评估表",
+      "type": "document",
+      "aliases": [],
+      "role": "评估表",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "建设移交接管作业实操评分表",
+      "type": "document",
+      "aliases": [],
+      "role": "评分表",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "盘点作业流程及问题分析评分表",
+      "type": "document",
+      "aliases": [],
+      "role": "评分表",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "系统账务核对及差异分析评分表",
+      "type": "document",
+      "aliases": [],
+      "role": "评分表",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "网盘台账规范化填写及库区标识评分表",
+      "type": "document",
+      "aliases": [],
+      "role": "评分表",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "GB2894-安全标志",
+      "type": "regulation",
+      "aliases": [],
+      "role": "法规标准",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "特种设备证书台账",
+      "type": "document",
+      "aliases": [],
+      "role": "台账",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "员工纠错反馈",
+      "type": "document",
+      "aliases": [],
+      "role": "反馈",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "此心安处是吾乡",
+      "type": "document",
+      "aliases": [],
+      "role": "个人资料集",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "见路不走，即见因果",
+      "type": "document",
+      "aliases": [],
+      "role": "个人资料集",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "核心张力",
+      "type": "document",
+      "aliases": [],
+      "role": "个人资料集",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "当前角色",
+      "type": "document",
+      "aliases": [],
+      "role": "个人资料集",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "创业方向：木工坊",
+      "type": "document",
+      "aliases": [],
+      "role": "个人资料集",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "苗笑天的因果",
+      "type": "document",
+      "aliases": [],
+      "role": "个人资料集",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "物资管理 · 工班资料",
+      "type": "document",
+      "aliases": [],
+      "role": "资料集",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "flood-prevention-supplies",
+      "type": "document",
+      "aliases": [],
+      "role": "台账",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "flood-prevention-plan",
+      "type": "document",
+      "aliases": [],
+      "role": "计划",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "cold-prevention-supplies",
+      "type": "document",
+      "aliases": [],
+      "role": "台账",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "Route B 输出模板",
+      "type": "project",
+      "aliases": [],
+      "role": "日常工作指引模板",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "2026-物资编码管理细则",
+      "type": "regulation",
+      "aliases": [
+        "Q/ZDYY-CG-XZ-02"
+      ],
+      "role": "物资编码管理细则",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "2026-危险废物回收处置工作指导手册",
+      "type": "regulation",
+      "aliases": [],
+      "role": "危险废物回收处置工作指导手册",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "2024-物资仓储管理办法",
+      "type": "regulation",
+      "aliases": [
+        "Q/ZDYY-CCH-BF-01"
+      ],
+      "role": "物资仓储管理办法",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "2024-物资验收入库管理规定",
+      "type": "regulation",
+      "aliases": [
+        "Q/ZDYY-CCH-GD—05"
+      ],
+      "role": "物资验收入库管理规定",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "修复件和周转件管理细则",
+      "type": "regulation",
+      "aliases": [
+        "Q/ZDYY-CG-XZ-01"
+      ],
+      "role": "修复件和周转件管理细则",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "2026-值班表模板",
+      "type": "tool",
+      "aliases": [],
+      "role": "值班表模板",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "2026-应急演练计划",
+      "type": "tool",
+      "aliases": [],
+      "role": "应急演练计划",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "2026-灭火器加巡计划表",
+      "type": "tool",
+      "aliases": [],
+      "role": "灭火器加巡计划表",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "WMS系统",
+      "type": "equipment",
+      "aliases": [
+        "仓储管理系统"
+      ],
+      "role": "仓储管理系统",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "CIMS系统",
+      "type": "equipment",
+      "aliases": [
+        "设备智能维修系统"
+      ],
+      "role": "设备智能维修系统",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "i物资",
+      "type": "equipment",
+      "aliases": [
+        "物资管理系统"
+      ],
+      "role": "物资管理系统",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "国家固废系统",
+      "type": "equipment",
+      "aliases": [],
+      "role": "国家固废系统",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "工班网盘",
+      "type": "equipment",
+      "aliases": [],
+      "role": "工班网盘",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "钉钉",
+      "type": "equipment",
+      "aliases": [],
+      "role": "钉钉",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "OA系统",
+      "type": "equipment",
+      "aliases": [],
+      "role": "OA系统",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "PDA",
+      "type": "equipment",
+      "aliases": [],
+      "role": "PDA",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "南环车辆段",
+      "type": "location",
+      "aliases": [],
+      "role": "南环车辆段",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "圃田车辆段",
+      "type": "location",
+      "aliases": [],
+      "role": "圃田车辆段",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "河西停车场",
+      "type": "location",
+      "aliases": [],
+      "role": "河西停车场",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "关陈车辆段",
+      "type": "location",
+      "aliases": [],
+      "role": "关陈车辆段",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "红石坡",
+      "type": "location",
+      "aliases": [],
+      "role": "红石坡",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "物资总库",
+      "type": "location",
+      "aliases": [],
+      "role": "物资总库",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "立体库区",
+      "type": "location",
+      "aliases": [],
+      "role": "立体库区",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "杂品库",
+      "type": "location",
+      "aliases": [],
+      "role": "",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "2026-07-26",
+      "type": "date",
+      "aliases": [],
+      "role": "特定日期",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "台风红霞",
+      "type": "event",
+      "aliases": [],
+      "role": "台风红霞防范应对保障方案",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "郑州轨道交通运营有限公司",
+      "type": "organization",
+      "aliases": [],
+      "role": "公司名称",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "郑州地铁集团有限公司",
+      "type": "organization",
+      "aliases": [],
+      "role": "上级公司名称",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "物资管理中心",
+      "type": "department",
+      "aliases": [],
+      "role": "物资管理部门",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "安全管理部",
+      "type": "department",
+      "aliases": [],
+      "role": "安全管理部门",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "财务管理部",
+      "type": "department",
+      "aliases": [],
+      "role": "财务管理部门",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "供建中心",
+      "type": "department",
+      "aliases": [],
+      "role": "建设管理部门",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "技术管理部",
+      "type": "department",
+      "aliases": [],
+      "role": "技术管理部门",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "生产中心",
+      "type": "department",
+      "aliases": [],
+      "role": "生产管理部门",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "安全监控中心",
+      "type": "department",
+      "aliases": [],
+      "role": "安全监控部门",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "郑州交通发展投资集团有限公司运营分公司",
+      "type": "organization",
+      "aliases": [],
+      "role": "公司全称",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "Q/ZDYY",
+      "type": "regulation",
+      "aliases": [],
+      "role": "公司内部标准编号前缀",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "Q/ZDYY-CG",
+      "type": "regulation",
+      "aliases": [],
+      "role": "公司内部标准编号部门前缀",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "Q/ZDYY-CCH",
+      "type": "regulation",
+      "aliases": [],
+      "role": "公司内部标准编号部门前缀",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "Q/ZDYY-CCH-BF",
+      "type": "regulation",
+      "aliases": [],
+      "role": "公司内部标准编号",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "Q/ZDYY-CCH-GD",
+      "type": "regulation",
+      "aliases": [],
+      "role": "公司内部标准编号",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "Q/ZDYY-CG-XZ",
+      "type": "regulation",
+      "aliases": [],
+      "role": "公司内部标准编号",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "Q/ZGYY",
+      "type": "regulation",
+      "aliases": [],
+      "role": "公司内部标准编号上级公司前缀",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "Q/ZGYY 00 G AJ 001—2016",
+      "type": "regulation",
+      "aliases": [],
+      "role": "安全生产责任制",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "GB2894-2008《安全标志及其使用导则》",
+      "type": "regulation",
+      "aliases": [],
+      "role": "安全标志及其使用导则",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "叉车司机",
+      "type": "equipment",
+      "aliases": [
+        "叉车"
+      ],
+      "role": "特种设备",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "起重机司机",
+      "type": "equipment",
+      "aliases": [
+        "起重机"
+      ],
+      "role": "特种设备",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "起重机指挥",
+      "type": "equipment",
+      "aliases": [
+        "起重机指挥证"
+      ],
+      "role": "特种设备",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "高处作业",
+      "type": "equipment",
+      "aliases": [
+        "高处作业证"
+      ],
+      "role": "特种设备",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "SCM系统",
+      "type": "equipment",
+      "aliases": [
+        "供应商到货预约管理系统"
+      ],
+      "role": "供应商到货预约管理系统",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "EAM系统",
+      "type": "equipment",
+      "aliases": [
+        "资产管理系统"
+      ],
+      "role": "资产管理系统",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "HAP系统",
+      "type": "equipment",
+      "aliases": [],
+      "role": "HAP系统",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "台账",
+      "type": "tool",
+      "aliases": [],
+      "role": "工作台账",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "巡库记录本",
+      "type": "tool",
+      "aliases": [],
+      "role": "工作记录本",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "卫生记录表",
+      "type": "tool",
+      "aliases": [],
+      "role": "卫生检查记录表",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "物资摆放距离参考",
+      "type": "tool",
+      "aliases": [],
+      "role": "物资摆放间距标准",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "各库区标识牌摘要",
+      "type": "tool",
+      "aliases": [],
+      "role": "标识牌信息表",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "货位设置标准",
+      "type": "tool",
+      "aliases": [],
+      "role": "货位设置标准",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "工班资料",
+      "type": "tool",
+      "aliases": [],
+      "role": "工班资料",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "物资管理部物资调配室绩效考核细则",
+      "type": "regulation",
+      "aliases": [],
+      "role": "物资调配室绩效考核细则",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    },
+    {
+      "name": "捐赠物资管理细则",
+      "type": "regulation",
+      "aliases": [
+        "Q/ZDYY-CG-XZ-03"
+      ],
+      "role": "捐赠物资管理细则",
+      "source": "bootstrap/knowledge_extraction",
+      "team": ""
+    }
+  ],
+  "pending_entities": []
+}

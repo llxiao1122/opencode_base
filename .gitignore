@@ -59,6 +59,7 @@ memory/events/index.json
 
 # Runtime data store
 state/
+!data/state/entity_index.json
 
 # Import history files (user data, large)
 files/*.rtf
