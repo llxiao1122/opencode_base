@@ -1,24 +1,10 @@
-"""
-skills/workflow/engine.py — Workflow 引擎。
-
-根据 definitions.py 定义的步骤列表，依次调用各 handler。
-单步无依赖时并行（暂未实现，目前顺序执行）。
-LLM 超时 / 失败时有降级兜底（fallback）。
-"""
-
-import json, logging
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as _TimeoutError
+import logging
+from contextlib import nullcontext
 
 from skills.workflow.definitions import get as _get_def
 from skills.agent.registry import execute as _exec_skill
 
 logger = logging.getLogger(__name__)
-_POOL = ThreadPoolExecutor(max_workers=4)
-
-
-def _nullctx():
-    from contextlib import nullcontext
-    return nullcontext()
 
 
 class WorkflowResult:
@@ -31,6 +17,9 @@ class WorkflowEngine:
     def __init__(self, tracer=None):
         self._tracer = tracer
 
+    def _span(self, name: str, **tags):
+        return self._tracer.span(name, **tags) if self._tracer else nullcontext()
+
     def run(self, workflow_id: str, user_input: str, ctx) -> WorkflowResult:
         wf = _get_def(workflow_id)
         if not wf:
@@ -39,27 +28,11 @@ class WorkflowEngine:
         steps = wf["steps"]
         results: dict[str, dict] = {}
 
-        span_mgr = (self._tracer.span("wf.parallel", steps=len(steps))
-                    if self._tracer else _nullctx())
-        with span_mgr:
-            futures = {}
+        with self._span("wf.parallel", steps=len(steps)):
             for step in steps:
                 sid = step["skill"]
-                fut = _POOL.submit(self._run_step, sid, step, user_input, ctx)
-                futures[sid] = fut
-
-            for step in steps:
-                sid = step["skill"]
-                timeout = step.get("timeout", 15)
-                try:
-                    step_result = futures[sid].result(timeout=timeout)
-                except _TimeoutError:
-                    logger.warning("workflow step '%s' timed out after %ss", sid, timeout)
-                    step_result = {"status": "timeout", "text": "", "raw": ""}
-                except Exception as e:
-                    logger.error("workflow step '%s' failed: %s", sid, e, exc_info=True)
-                    step_result = {"status": "error", "text": "", "raw": str(e)}
-                results[sid] = step_result
+                result = self._run_step(sid, step, user_input, ctx)
+                results[sid] = result
 
         audit_log = {}
         user_facing = []
@@ -72,19 +45,12 @@ class WorkflowEngine:
                 if text:
                     user_facing.append(text)
 
-        if wf.get("llm_summary") and user_facing:
-            summary = self._llm_summarize(user_input, user_facing,
-                                          timeout=wf.get("llm_timeout", 15))
-        else:
-            summary = self._fallback_text(user_facing)
-
+        summary = "\n\n".join(user_facing) if user_facing else "[Cipher:workflow]\n已处理完毕。"
         return WorkflowResult(text=summary, audit=audit_log)
 
     def _run_step(self, skill_id: str, step: dict, user_input: str, ctx) -> dict:
         params = self._build_params(step, user_input)
-        span_mgr = (self._tracer.span("wf.step", skill=skill_id)
-                    if self._tracer else _nullctx())
-        with span_mgr:
+        with self._span("wf.step", skill=skill_id):
             raw = _exec_skill(skill_id, params, ctx=ctx)
         text = str(raw).strip() if raw else ""
         return {"status": "ok", "text": text, "raw": text}
@@ -103,53 +69,3 @@ class WorkflowEngine:
             else:
                 out[key] = str(spec) if spec is not None else ""
         return out
-
-    def _llm_summarize(self, user_input: str, texts: list[str], timeout: int) -> str:
-        from skills.core.llm_client import call as llm_call
-        from skills.shared.context_pruner import ContextPruner
-        pruned = ContextPruner(token_budget=1500).prune(texts, query=user_input)
-        context = "\n\n".join(pruned)
-        prompt = (
-            f"用户消息：{user_input}\n\n"
-            f"系统执行结果：\n{context}\n\n"
-            f"请根据以上结果，生成一段简洁的自然语言回复。"
-        )
-        span_mgr = (self._tracer.span("wf.llm_summary", tokens=len(context)//4)
-                    if self._tracer else _nullctx())
-        with span_mgr:
-            fut = _POOL.submit(llm_call, prompt,
-                               system_prompt="你是 Cipher，一个企业智能助手。用自然语言回复用户。",
-                               temperature=0.3, max_tokens=300)
-        try:
-            result = fut.result(timeout=timeout)
-            if isinstance(result, dict) and "error" in result:
-                logger.warning("LLM summary returned error: %s", result["error"])
-                return self._fallback_text(texts)
-            return str(result).strip() if result else self._fallback_text(texts)
-        except _TimeoutError:
-            logger.warning("LLM summary timed out after %ss", timeout)
-            return self._fallback_text(texts)
-
-    def _fallback_text(self, texts: list[str]) -> str:
-        if not texts:
-            return "[Cipher:workflow]\n已处理完毕。"
-        lines = []
-        for t in texts:
-            cleaned = self._strip_cipher_tag(t)
-            if cleaned:
-                lines.append(f"- {cleaned}")
-        if not lines:
-            return "[Cipher:workflow]\n已处理完毕。"
-        return "[Cipher:workflow]\n" + "\n".join(lines)
-
-    @staticmethod
-    def _strip_cipher_tag(text: str) -> str:
-        for prefix in ("[Cipher:notification]", "[Cipher:record]",
-                       "[Cipher:correction]", "[Cipher:task]",
-                       "[Cipher:error]", "[Cipher:workflow]",
-                       "[Cipher:profile]"):
-            if text.startswith(prefix):
-                text = text[len(prefix):].strip()
-                text = text.lstrip("\n✅ ").lstrip("\n").strip()
-                return text
-        return text.strip()

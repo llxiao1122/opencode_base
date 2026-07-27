@@ -257,6 +257,7 @@ def handle_core(user_input: str) -> str:
         lambda m: f'[Cipher:{m.group(1)}@{conf_label:.2f}]',
         result
     )
+    result = result.replace("李林骁", "主人")
     return result
 
 
