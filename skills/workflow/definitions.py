@@ -1,13 +1,28 @@
-"""Workflow definitions — declarative step sequences."""
+"""Workflow definitions — declarative step sequences with param extraction rules."""
 from __future__ import annotations
 
 WORKFLOWS = {
     "correction": {
         "trigger": "correction_detected",
         "steps": [
-            {"skill": "correction_feedback", "user_facing": False, "timeout": 90},
-            {"skill": "event_record", "user_facing": False, "timeout": 30},
-            {"skill": "notification_push", "user_facing": True, "timeout": 30},
+            {
+                "skill": "correction_feedback",
+                "user_facing": False,
+                "timeout": 90,
+                "params": {"content": "input", "context": ""},
+            },
+            {
+                "skill": "event_record",
+                "user_facing": False,
+                "timeout": 30,
+                "params": {"summary": "input", "time": ""},
+            },
+            {
+                "skill": "notification_push",
+                "user_facing": True,
+                "timeout": 30,
+                "params": {"title": "Cipher 处理结果", "content": "input[:200]"},
+            },
         ],
         "llm_summary": True,
         "llm_timeout": 15,

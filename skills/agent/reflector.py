@@ -85,6 +85,12 @@ def reflect(tool_id: str, params: dict, result: str, user_input: str):
     detail_lines.append(f"LLM 分析: {analysis.strip()[:300]}")
     detail_text = "\n".join(detail_lines)
 
+    try:
+        from skills.agent.feedback_loop import apply as feedback_apply
+        feedback_apply()
+    except Exception as e:
+        logger.debug("feedback_loop apply failed: %s", e)
+
     obs_write(
         detail_text,
         source="agent.reflector",

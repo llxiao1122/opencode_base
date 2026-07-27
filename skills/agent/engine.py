@@ -147,6 +147,28 @@ def run(user_input: str, ctx: Optional[RequestContext] = None,
 
         with (tracer.span("agent.execute", tool=tool_id) if tracer else _nullctx()):
             result = execute(tool_id, params, ctx=ctx)
+
+        if str(result).startswith("[Cipher:error]"):
+            logger.warning("tool %s returned error, retrying once: %.120s", tool_id, result)
+            retry_raw = llm_call(
+                f"之前选择的工具 {tool_id} 执行失败：{result}\n\n"
+                f"用户原始消息：{user_input}\n\n"
+                f"请修正参数后重试。只输出 JSON 对象。",
+                system_prompt="你是 Cipher，修正参数后重新选择工具。",
+                max_tokens=800, temperature=0.3,
+            )
+            if not (isinstance(retry_raw, dict) and "error" in retry_raw):
+                retry_decision = _extract_json(str(retry_raw))
+                if retry_decision:
+                    retry_tool = retry_decision.get("tool", tool_id)
+                    retry_params = retry_decision.get("params", params)
+                    if retry_tool in {t["id"] for t in list_tools()}:
+                        ok, _ = validate_params(retry_tool, retry_params)
+                        if ok:
+                            with (tracer.span("agent.retry_execute", tool=retry_tool) if tracer else _nullctx()):
+                                result = execute(retry_tool, retry_params, ctx=ctx)
+                            tool_id = retry_tool
+
         ctx.route = tool_id
         ctx.confidence = 0.8
         return result

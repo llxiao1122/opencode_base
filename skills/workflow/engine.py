@@ -75,7 +75,7 @@ class WorkflowEngine:
         return WorkflowResult(text=summary, audit=audit_log)
 
     def _run_step(self, skill_id: str, step: dict, user_input: str, ctx) -> dict:
-        params = self._build_params(step, skill_id, user_input)
+        params = self._build_params(step, user_input)
         span_mgr = (self._tracer.span("wf.step", skill=skill_id)
                     if self._tracer else _nullctx())
         with span_mgr:
@@ -83,16 +83,20 @@ class WorkflowEngine:
         text = str(raw).strip() if raw else ""
         return {"status": "ok", "text": text, "raw": text}
 
-    def _build_params(self, step: dict, skill_id: str, user_input: str) -> dict:
-        if skill_id == "correction_feedback":
-            return {"content": user_input, "context": ""}
-        if skill_id == "event_record":
-            return {"summary": user_input, "time": ""}
-        if skill_id == "notification_push":
-            title = "Cipher 处理结果"
-            content = user_input[:200]
-            return {"title": title, "content": content}
-        return {}
+    @staticmethod
+    def _build_params(step: dict, user_input: str) -> dict:
+        rule = step.get("params", {})
+        out = {}
+        for key, spec in rule.items():
+            if spec == "input":
+                out[key] = user_input
+            elif isinstance(spec, str) and spec.endswith("[:200]"):
+                out[key] = user_input[:200]
+            elif isinstance(spec, str):
+                out[key] = spec
+            else:
+                out[key] = str(spec) if spec is not None else ""
+        return out
 
     def _llm_summarize(self, user_input: str, texts: list[str], timeout: int) -> str:
         from skills.core.llm_client import call as llm_call
