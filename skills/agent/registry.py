@@ -113,6 +113,17 @@ TOOL_REGISTRY = {
         "handler": "skills.agent.handlers.correction_feedback:handle",
         "param_map": {"content": "content", "context": "context"},
     },
+    "reminder_set": {
+        "description": "设置定时提醒，到期通过钉钉推送",
+        "params_schema": {
+            "message": {"type": "str", "required": True,
+                        "description": "提醒内容"},
+            "time": {"type": "str", "required": True,
+                     "description": "时间，支持 Y-m-d H:M 格式或相对时间如 '1分钟后'、'2小时后'"},
+        },
+        "handler": "skills.agent.handlers.reminder_set:handle",
+        "param_map": {"message": "message", "time": "time"},
+    },
 }
 
 
