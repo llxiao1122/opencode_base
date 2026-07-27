@@ -3,26 +3,26 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
-REMINDERS_PATH = ROOT_DIR / "data" / "state" / "reminders.json"
+QUEUE_PATH = ROOT_DIR / "data" / "state" / "push_queue.json"
 
 
 def handle(message: str, time: str = "") -> str:
-    reminders = _load()
+    queue = _load()
     now = datetime.now()
 
     dt = _parse_time(time, now)
     if not dt:
         return "[Cipher:error]\n无法解析时间，请用格式：Y-m-d H:M 或相对时间如 1分钟后"
 
-    reminder = {
+    queue.append({
         "id": uuid.uuid4().hex[:12],
-        "message": message,
-        "time_iso": dt.isoformat(),
+        "channel": "dingtalk",
+        "title": "⏰ 提醒",
+        "body": message,
+        "push_at": dt.isoformat(),
         "pushed": False,
-        "created_at": now.isoformat(),
-    }
-    reminders.append(reminder)
-    _save(reminders)
+    })
+    _save(queue)
 
     until = dt - now
     mins = int(until.total_seconds() // 60)
@@ -30,16 +30,16 @@ def handle(message: str, time: str = "") -> str:
 
 
 def _load() -> list[dict]:
-    if not REMINDERS_PATH.exists():
+    if not QUEUE_PATH.exists():
         return []
     try:
-        return json.loads(REMINDERS_PATH.read_text(encoding="utf-8"))
+        return json.loads(QUEUE_PATH.read_text(encoding="utf-8"))
     except Exception:
         return []
 
 
 def _save(data: list[dict]):
-    REMINDERS_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    QUEUE_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def _parse_time(text: str, now: datetime) -> datetime | None:
