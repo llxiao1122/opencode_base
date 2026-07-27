@@ -3,11 +3,17 @@ skills/entry.py — Cipher main entry.
 
 Usage:
   python3 -m skills.entry '<消息>'
-  python3 -m skills.entry --core '<消息>'
+  python3 -m skills.entry --listen [--port 9099]
 """
 
 import logging, os, sys, threading
 from pathlib import Path
+
+# Ensure skills/ is importable before anything else
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+for _p in [str(_PROJECT_ROOT), str(_PROJECT_ROOT / "skills")]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 from skills.shared.path import ensure_paths, root as _root
 
@@ -17,13 +23,7 @@ logger = logging.getLogger(__name__)
 
 ROOT_DIR = _root()
 
-_VENV_PYTHON = ROOT_DIR / ".venv" / "bin" / "python3"
-if _VENV_PYTHON.exists() and sys.executable != str(_VENV_PYTHON):
-    env = os.environ.copy()
-    expat_lib = "/opt/homebrew/opt/expat/lib"
-    if expat_lib not in env.get("DYLD_LIBRARY_PATH", ""):
-        env["DYLD_LIBRARY_PATH"] = f"{expat_lib}:{env.get('DYLD_LIBRARY_PATH', '')}"
-    os.execve(str(_VENV_PYTHON), [str(_VENV_PYTHON)] + sys.argv, env)
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
 
 _index_built = False
 _daemon_started = False
@@ -225,11 +225,63 @@ def handle_core(user_input):
     return result
 
 
+def _serve(host: str = "127.0.0.1", port: int = 9099):
+    import socketserver
+
+    _build_index_once()
+
+    class Handler(socketserver.StreamRequestHandler):
+        def handle(self):
+            raw = self.rfile.readline()
+            if not raw:
+                return
+            msg = raw.decode("utf-8").strip()
+            if msg:
+                try:
+                    result = handle_core(msg)
+                except Exception as e:
+                    logger.error("server handle failed: %s", e, exc_info=True)
+                    result = f"[Cipher:error]\n处理失败: {e}"
+                self.wfile.write((str(result or "") + "\n").encode("utf-8"))
+
+    server = socketserver.ThreadingTCPServer((host, port), Handler)
+    logger.info("Cipher server listening on %s:%s", host, port)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        server.shutdown()
+
+
 if __name__ == "__main__":
+    _VENV_PYTHON = ROOT_DIR / ".venv" / "bin" / "python3"
+    if _VENV_PYTHON.exists() and sys.executable != str(_VENV_PYTHON):
+        env = os.environ.copy()
+        expat_lib = "/opt/homebrew/opt/expat/lib"
+        env["DYLD_LIBRARY_PATH"] = f"{expat_lib}:{env.get('DYLD_LIBRARY_PATH', '')}"
+        os.execve(str(_VENV_PYTHON), [str(_VENV_PYTHON)] + sys.argv, env)
+
     args = sys.argv[1:]
+
     if args and args[0] == "--core":
         os.environ["CORE_MODE"] = "1"
         args.pop(0)
+
+    if args and args[0] == "--listen":
+        port = 9099
+        if "--port" in args:
+            idx = args.index("--port")
+            if idx + 1 < len(args):
+                try:
+                    port = int(args[idx + 1])
+                except ValueError:
+                    pass
+        _serve(port=port)
+        sys.exit(0)
+
+    if args and args[0] == "--warm":
+        _build_index_once()
+        logger.info("Warm done — all indices loaded.")
+        sys.exit(0)
 
     user_input = " ".join(args) if args else ""
     if not user_input and not sys.stdin.isatty():

@@ -6,7 +6,7 @@ shared/llm_cache.py — LLM 调用缓存。
 
 import hashlib
 import time
-from core.llm_client import call as _llm_raw
+from skills.core.llm_client import call as _llm_raw
 
 _cache = {}
 
