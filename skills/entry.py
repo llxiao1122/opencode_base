@@ -35,10 +35,6 @@ _daemon_started = False
 
 _CHANGE_KW = ["负责", "接手", "调整", "转交", "改管", "分管", "接管",
               "离职", "休假", "调走", "借调", "辞职", "退休"]
-_CORRECTION_KW = ["不对", "不是", "错了", "纠错", "应该", "改成",
-                  "不应该是", "你说错了", "你搞错了"]
-
-
 def _build_index_once():
     global _index_built
     if _index_built:
@@ -109,23 +105,6 @@ def _update_event_lifecycle(user_input):
         logger.warning("event lifecycle update failed: %s", e, exc_info=True)
 
 
-def _auto_handle_corrections(user_input: str) -> str | None:
-    if not any(kw in user_input for kw in _CORRECTION_KW):
-        return None
-    return "correction_detected"
-
-
-def _should_route_to_workflow(user_input: str) -> str | None:
-    from skills.workflow.definitions import list_triggers
-    triggers = list_triggers()
-    tag = _auto_handle_corrections(user_input)
-    if tag:
-        wf_id = triggers.get(tag)
-        if wf_id:
-            return wf_id
-    return None
-
-
 def _profile_handle(text, ctx):
     from skills.router.entity_resolver import resolve_entities
     resolved = resolve_entities(text)
@@ -190,30 +169,29 @@ def handle_core(user_input: str) -> str:
     confidence = 0.0
 
     with tracer.span("entry.route", input_len=len(user_input)):
-        workflow_id = _should_route_to_workflow(user_input)
-        if workflow_id:
-            with tracer.span("workflow", workflow_id=workflow_id):
-                from skills.workflow.engine import WorkflowEngine
-                wf_result = WorkflowEngine(tracer=tracer).run(workflow_id, user_input, rctx)
-                result = wf_result.text
-                tool_id = workflow_id
-                rctx.route = workflow_id
-                rctx.confidence = 0.9
-        else:
-            route, confidence = classify(user_input)
+        route, confidence = classify(user_input)
 
-            if confidence >= CT.HIGH and route != "event":
+        if confidence >= CT.HIGH and route != "event":
+            if route == "correction":
+                with tracer.span("workflow.correction"):
+                    from skills.workflow.engine import WorkflowEngine
+                    wf_result = WorkflowEngine(tracer=tracer).run("correction", user_input, rctx)
+                    result = wf_result.text
+                    tool_id = "correction"
+                    rctx.route = "correction"
+                    rctx.confidence = confidence
+            else:
                 with tracer.span("fast_dispatch", route=route):
                     result = _fast_dispatch(route, user_input, rctx)
                     tool_id = route
                     rctx.route = route
                     rctx.confidence = confidence
-            else:
-                with tracer.span("agent.run"):
-                    rctx.memory_context = _search_episodic(user_input)
-                    from agent.engine import run as agent_run
-                    result = agent_run(user_input, rctx, tracer=tracer)
-                    tool_id = rctx.route if rctx.route else route
+        else:
+            with tracer.span("agent.run"):
+                rctx.memory_context = _search_episodic(user_input)
+                from agent.engine import run as agent_run
+                result = agent_run(user_input, rctx, tracer=tracer)
+                tool_id = rctx.route if rctx.route else route
 
     with tracer.span("post_process"):
         _detect_entity_changes(user_input)
