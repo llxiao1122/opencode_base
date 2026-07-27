@@ -38,12 +38,14 @@ class ONNXEmbedder:
         if self._session is not None:
             return
         from onnxruntime import InferenceSession
-        from transformers import AutoTokenizer
+        from tokenizers import Tokenizer as _Tokenizer
 
         self._session = InferenceSession(
             self._model_path, providers=["CPUExecutionProvider"]
         )
-        self._tokenizer = AutoTokenizer.from_pretrained(self._tokenizer_path)
+        self._tokenizer = _Tokenizer.from_file(
+            str(Path(self._tokenizer_path) / "tokenizer.json")
+        )
 
     def encode(
         self,
@@ -62,17 +64,21 @@ class ONNXEmbedder:
         all_vecs = []
         for i in range(0, len(texts), batch_size):
             batch = texts[i : i + batch_size]
-            inputs = self._tokenizer(
-                batch,
-                return_tensors="np",
-                padding=True,
-                truncation=True,
-                max_length=128,
-            )
+            encodings = self._tokenizer.encode_batch(batch, add_special_tokens=True)
+            max_len = min(max(len(e.ids) for e in encodings), 128)
+            input_ids = np.zeros((len(batch), max_len), dtype=np.int64)
+            attention_mask = np.zeros((len(batch), max_len), dtype=np.int64)
+            token_type_ids = np.zeros((len(batch), max_len), dtype=np.int64)
+            for j, e in enumerate(encodings):
+                ids = e.ids[:max_len]
+                input_ids[j, :len(ids)] = ids
+                attention_mask[j, :len(ids)] = 1
+                if e.type_ids:
+                    token_type_ids[j, :len(ids)] = e.type_ids[:max_len]
             out = self._session.run(None, {
-                "input_ids": inputs["input_ids"],
-                "attention_mask": inputs["attention_mask"],
-                "token_type_ids": inputs.get("token_type_ids"),
+                "input_ids": input_ids,
+                "attention_mask": attention_mask,
+                "token_type_ids": token_type_ids,
             })
             last_hidden = out[0]
             # CLS pooling (token 0)
