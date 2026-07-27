@@ -45,7 +45,7 @@ TOOL_REGISTRY = {
                      "description": "人员姓名"},
         },
         "handler": "skills.agent.handlers.profile_query:handle",
-        "param_map": {"name": "name"},
+        "param_map": {"name": "name", "ctx": None},
     },
     "notification_push": {
         "description": "推送通知消息到钉钉群，用于安全宣贯、通知下达",

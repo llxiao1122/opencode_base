@@ -185,6 +185,7 @@ def handle_core(user_input: str) -> str:
     from skills.router.faiss_router import classify
 
     rctx = RequestContext(message=user_input, trace_id=tracer.trace_id)
+    rctx.user = {"name": "李林骁", "role": "工班长", "team": "铁炉西工班"}
     route = None
     confidence = 0.0
 
