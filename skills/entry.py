@@ -105,19 +105,10 @@ def _update_event_lifecycle(user_input):
         logger.warning("event lifecycle update failed: %s", e, exc_info=True)
 
 
-def _profile_handle(text, ctx):
-    from skills.router.entity_resolver import resolve_entities
-    resolved = resolve_entities(text)
-    entities = resolved.get("entities", [])
-    if not entities:
-        return "[Cipher:profile]\n暂无记录。"
-    e = entities[0]
-    return f"[Cipher:profile]\n{e.get('name', '?')}: {e.get('role', '未知')}（{e.get('team', '')}）"
-
 _FAST_HANDLERS = {
     "task_query":         ("skills.agent.handlers.task_query", "handle"),
     "knowledge_retrieve": ("skills.agent.handlers.knowledge_retrieve", "handle"),
-    "profile_query":      _profile_handle,
+    "profile_query":      ("skills.agent.handlers.profile_query", "handle"),
 }
 
 
