@@ -36,7 +36,7 @@ PROVIDERS = {
 
 
 def _resolve_config():
-    provider = os.environ.get("LLM_PROVIDER", "zhipu").lower()
+    provider = os.environ.get("LLM_PROVIDER", "deepseek").lower()
     prov_cfg = PROVIDERS.get(provider, PROVIDERS.get("zhipu", {}))
 
     url = os.environ.get("LLM_API_URL", "")
@@ -98,10 +98,7 @@ def call(prompt, system_prompt=None, temperature=0.0, timeout=120, max_tokens=10
         "temperature": temperature,
         "max_tokens": max_tokens,
     }
-    if model in ("deepseek-v4-flash", "deepseek-v4-pro"):
-        body_dict["thinking"] = {"type": "disabled"}
-    elif "glm" in model.lower() or "zhipu" in model.lower():
-        body_dict["thinking_mode"] = False
+    body_dict["thinking"] = {"type": "disabled"}
 
     body = json.dumps(body_dict).encode()
 
