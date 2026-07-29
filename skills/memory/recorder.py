@@ -43,6 +43,7 @@ def _append_to_episodic(text: str, importance: str = "medium"):
             _mc_instance = MemoryCore()
         mc = _mc_instance
     try:
+        mc._ensure_loaded()
         vec = mc._embed(text[:500])
         mc.epi_index.add(vec)
         eid = f"ep-{mc.epi_index.ntotal:04d}"

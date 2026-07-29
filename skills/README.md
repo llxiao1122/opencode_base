@@ -25,7 +25,7 @@
 | `curiosity_engine.py` | 矛盾检测 + 知识缺口 + 异常模式扫描 |
 | `user_model.py` | 6 域分类器 (safety/flood/quality/schedule/paperwork/personnel) |
 | `event_recorder.py` | 统一录制 (log + member + observation) |
-| `observation_writer/` | 观察日志追加到 `memory/observations/` |
+| `observation_writer/` | 观察日志追加到 `data/memory/observations/` |
 
 ## 推理层 (Reasoning)
 深度分析、模拟推演、价值判断。
