@@ -137,8 +137,14 @@ _SPECIAL_SCOPE_MAP = {
 
 def list_tools() -> list[dict]:
     return [
-        {"id": tid, "description": t["description"],
-         "params": {k: v for k, v in t["params_schema"].items()}}
+        {
+            "id": tid,
+            "description": t["description"],
+            "params": {
+                k: {sk: sv for sk, sv in v.items() if sk in ("type", "required", "description")}
+                for k, v in t["params_schema"].items()
+            },
+        }
         for tid, t in TOOL_REGISTRY.items()
     ]
 
@@ -206,7 +212,7 @@ def execute(tool_id: str, params: dict, ctx: Optional[RequestContext] = None) ->
         ctx = RequestContext(message="")
         ctx.user = resolve_user()
 
-    params = _clean_params(params)
+    params = _clean_params(dict(params))
     args = _apply_param_map(tool_id, params, ctx)
     result = handler(*args)
     return str(result).strip() if result else ""

@@ -4,5 +4,7 @@ def handle(name: str) -> str:
     entities = resolved.get("entities", [])
     if not entities:
         return f"[Cipher:profile]\n暂无 {name} 的记录。"
-    e = entities[0]
-    return f"[Cipher:profile]\n{name}: {e.get('role', '未知')}（{e.get('team', '')}）"
+    lines = []
+    for e in entities:
+        lines.append(f"{e['name']}: {e.get('role', '未知')}（{e.get('team', '')}）")
+    return f"[Cipher:profile]\n" + "\n".join(lines)

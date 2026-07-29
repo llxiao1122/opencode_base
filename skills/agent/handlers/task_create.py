@@ -1,4 +1,5 @@
-def handle(summary: str, deadline: str = "", assignee: str = "") -> str:
+def handle(summary: str, deadline: str = "", assignee: str = "",
+           ctx=None) -> str:
     from skills.organization.model import OrganizationModel
     from skills.task.manager import TaskManager
 
@@ -23,4 +24,6 @@ def handle(summary: str, deadline: str = "", assignee: str = "") -> str:
     }
     user = {"name": "李林骁", "role": "工班长", "team": "铁炉西工班"}
     task = tm.create(event, context, user)
+    if not task or not task.get("id"):
+        return f"[Cipher:error]\n任务创建失败"
     return f"[Cipher:task]\n✅ 任务已创建：{summary}"

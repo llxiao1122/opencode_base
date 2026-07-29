@@ -81,6 +81,8 @@ class RequestContext:
 
     memory_context: Optional[str] = None
 
+    last_params: Optional[dict] = None
+
     result: Optional[dict] = None
 
     reply: str = ""

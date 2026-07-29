@@ -8,7 +8,7 @@ Returns structured dict with value, reason, and rule source for auditability.
 HIGH = "high"
 NORMAL = "normal"
 
-_SAFETY_KW = ["安全", "消防", "防汛", "暴雨", "应急", "火灾", "严禁", "预警", "整改", "漏水"]
+_SAFETY_KW = ["安全", "消防", "防汛", "暴雨", "应急", "火灾", "严禁", "预警", "整改", "漏水", "隐患", "危险", "事故", "急救", "伤亡", "坍塌", "触电", "坠落", "爆炸"]
 
 THRESHOLD_MAP = {
     HIGH:   [24, 2],

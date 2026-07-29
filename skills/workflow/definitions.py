@@ -66,3 +66,7 @@ def get(workflow_id: str) -> dict | None:
 
 def list_triggers() -> dict[str, str]:
     return {v["trigger"]: k for k, v in WORKFLOWS.items()}
+
+
+def register(workflow_id: str, definition: dict) -> None:
+    WORKFLOWS[workflow_id] = definition

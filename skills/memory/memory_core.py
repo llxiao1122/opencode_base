@@ -43,22 +43,17 @@ class MemoryCore:
         self.obs_dir = self.root / "data" / "memory" / "observations"
         self.log_dir = self.root / "data" / "memory"
 
-        # Metadata
         self.meta = self._load_meta()
-        self.dim = 512  # bge-small-zh-v1.5 / FallbackEmbedder
+        self.dim = 512
 
-        # Embedding model (lazy load)
         self._embedder = None
 
-        # FAISS indices
-        self.sem_index = self._load_index("semantic")
-        self.epi_index = self._load_index("episodic")
+        self.sem_index = None
+        self.epi_index = None
 
-        # State
         self._pending_scores = []
         self._last_compress = self.meta.get("_last_compress", 0)
 
-        # LLM config — 优先 env var，fallback 到 DeepSeek
         self._llm_api_url = os.environ.get("LLM_API_URL", "") or "https://api.deepseek.com/v1/chat/completions"
 
         import re as _re
@@ -82,16 +77,24 @@ class MemoryCore:
         self._llm_api_key = _key
         self._llm_model = os.environ.get("LLM_MODEL", "deepseek-v4-flash")
 
-        # Auto-build if indices are missing (not empty—empty means never built)
+        self._loaded = False
+
+    def _ensure_loaded(self):
+        if self._loaded:
+            return
+        self._loaded = True
+
+        self.sem_index = self._load_index("semantic")
+        self.epi_index = self._load_index("episodic")
+
         if self.sem_index is None:
             self.sem_index = self._create_index()
         if self.epi_index is None:
             self.epi_index = self._create_index()
 
-        # Dimension guard: if existing index dim != self.dim, delete for rebuild
         for name, idx in [("semantic", self.sem_index), ("episodic", self.epi_index)]:
             if idx is not None and idx.d != self.dim:
-                logger.warning("%s.index dim=%d != self.dim=%d — force rebuild on next warmup", name, idx.d, self.dim)
+                logger.warning("%s.index dim=%d != self.dim=%d", name, idx.d, self.dim)
                 (self.vec_dir / f"{name}.index").unlink(missing_ok=True)
         if self.sem_index is not None and not (self.vec_dir / "semantic.index").exists():
             self.sem_index = self._create_index()
@@ -182,6 +185,7 @@ class MemoryCore:
 
     @lru_cache(maxsize=256)
     def _search_raw(self, query: str, types_tuple: tuple) -> str:
+        self._ensure_loaded()
         hits = []
         type_set = set(types_tuple)
         qvec = self._embed(query, is_query=True)
@@ -224,6 +228,7 @@ class MemoryCore:
         return json.dumps(hits, ensure_ascii=False)
 
     def search(self, query, types=None, top_k=5):
+        self._ensure_loaded()
         types = tuple(sorted(types or ["episodic", "semantic"]))
         raw = self._search_raw(query, types)
         hits = json.loads(raw)
@@ -234,6 +239,7 @@ class MemoryCore:
     # ══════════════════════════════════════════════════════════════
 
     def retrieve(self, topic, max_chars=2000):
+        self._ensure_loaded()
         hits = self.search(topic, types=["semantic"], top_k=3)
         result = ""
         for h in hits["hits"]:
@@ -251,19 +257,21 @@ class MemoryCore:
     # ══════════════════════════════════════════════════════════════
 
     def save(self, situation, action, outcome, importance="medium"):
+        self._ensure_loaded()
         importance = self._assess_importance(situation, action, outcome, importance)
         topic = self._extract_topic(situation)
 
         today = date.today().isoformat()
         text = f"情境:{situation} 行动:{action} 结果:{outcome}"
+        conf = {"high": 0.9, "medium": 0.7, "low": 0.5}.get(importance, 0.7)
 
-        # Write to ObservationStore (auto-routes by entity name)
         try:
-            from memory.observation_store import write as obs_write
-            obs_write(text, source="mcp_save", obs_type="event", layer="rule",
-                      confidence={"high": 0.9, "medium": 0.7, "low": 0.5}.get(importance, 0.7))
+            from skills.memory.recorder import record
+            record(text, source="mcp_save", obs_type="event", layer="rule",
+                   confidence=conf, _skip_faiss=True)
         except Exception as e:
-            logger.warning("obs_write failed in memory_save: %s", e, exc_info=True)
+            logger.warning("record failed in memory_save: %s", e, exc_info=True)
+
         vec = self._embed(text)
 
         index = self.epi_index or self._create_index()
@@ -294,6 +302,7 @@ class MemoryCore:
     # ══════════════════════════════════════════════════════════════
 
     def register_conflict(self, conflict):
+        self._ensure_loaded()
         """持久化一条冲突，去重：相同 items+nature 则只更新 last_seen"""
         registry = self.meta.setdefault("conflicts_registry", [])
         items = sorted(conflict.get("items") or [])
@@ -324,6 +333,7 @@ class MemoryCore:
         return {"status": "new", "id": cid}
 
     def get_unresolved_conflicts(self):
+        self._ensure_loaded()
         """返回所有未解决的冲突"""
         return [c for c in self.meta.get("conflicts_registry", [])
                 if c.get("status") == "unresolved"]
@@ -333,6 +343,7 @@ class MemoryCore:
     # ══════════════════════════════════════════════════════════════
 
     def reflect(self, since_days=7):
+        self._ensure_loaded()
         since_date = date.today() - timedelta(days=since_days)
         scanned = 0
         for f in sorted(self.obs_dir.glob("*.md")):
@@ -429,6 +440,7 @@ class MemoryCore:
             self._rebuild_full()
 
     def _rebuild_full(self):
+        self._ensure_loaded()
         id_map = {}
         for idx_type, src_dir in [("semantic", self.knowledge_dir), ("episodic", self.obs_dir)]:
             new_index = self._create_index()
@@ -557,6 +569,7 @@ class MemoryCore:
     # ══════════════════════════════════════════════════════════════
 
     def _cluster_by_topic(self, since_days=90):
+        self._ensure_loaded()
         since_date = date.today() - timedelta(days=since_days)
         entries = []
         vectors = []
@@ -669,8 +682,8 @@ class MemoryCore:
 
             # LLM output → write as pattern layer, not rule layer
             try:
-                from memory.observation_store import write as obs_write
-                obs_write(
+                from skills.memory.recorder import record
+                record(
                     f"【模式提炼】{rule}",
                     source="memory_core.reflect",
                     obs_type="pattern",
@@ -678,7 +691,7 @@ class MemoryCore:
                     confidence=0.7,
                 )
             except Exception as e:
-                logger.debug("compress obs_write skipped: %s", e)
+                logger.debug("compress record skipped: %s", e)
 
             compressed.append({"group": key, "rule": rule, "n": len(group)})
 

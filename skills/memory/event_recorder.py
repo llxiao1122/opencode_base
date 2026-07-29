@@ -28,7 +28,7 @@ def record(event: dict):
         "id": event.get("id", ""),
         "event_type": event.get("event_type", "unknown"),
         "actors": [
-            {"name": a["name"], "role": a.get("role", ""), "position": a.get("position", "")}
+            {"name": a.get("name", ""), "role": a.get("role", ""), "position": a.get("position", "")}
             for a in event.get("actors", [])
         ],
         "target": event.get("target", ""),

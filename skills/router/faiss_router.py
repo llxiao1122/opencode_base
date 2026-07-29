@@ -30,17 +30,15 @@ _idx_lock = threading.Lock()
 def _get_index():
     global _idx_mgr
     if _idx_mgr is not None:
-        if _STAMP_PATH.exists():
-            _STAMP_PATH.unlink(missing_ok=True)
-            from skills.router.route_index import RouteIndexManager
-            _idx_mgr = RouteIndexManager()
-            _idx_mgr.build(_SEEDS_PATH)
         return _idx_mgr
     with _idx_lock:
-        if _idx_mgr is None:
-            from skills.router.route_index import RouteIndexManager
-            _idx_mgr = RouteIndexManager()
-            _idx_mgr.build(_SEEDS_PATH)
+        if _idx_mgr is not None:
+            return _idx_mgr
+        if _STAMP_PATH.exists():
+            _STAMP_PATH.unlink(missing_ok=True)
+        from skills.router.route_index import RouteIndexManager
+        _idx_mgr = RouteIndexManager()
+        _idx_mgr.build(_SEEDS_PATH)
     return _idx_mgr
 
 

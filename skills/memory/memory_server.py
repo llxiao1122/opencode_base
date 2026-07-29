@@ -25,7 +25,7 @@ if str(_proj / "skills") not in sys.path:
 from skills.shared.path import ensure_paths
 ensure_paths()
 
-from memory.memory_core import MemoryCore
+from skills.memory.memory_core import MemoryCore
 from skills.shared.schema import RequestContext
 
 

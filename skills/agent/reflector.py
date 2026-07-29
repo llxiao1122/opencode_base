@@ -57,7 +57,7 @@ def reflect(tool_id: str, params: dict, result: str, user_input: str):
 
     try:
         from skills.core.llm_client import call as llm_call
-        from skills.memory.observation_store import write as obs_write
+        from skills.memory.recorder import record
     except Exception as e:
         logger.warning("reflect imports failed: %s", e, exc_info=True)
         return
@@ -91,11 +91,13 @@ def reflect(tool_id: str, params: dict, result: str, user_input: str):
     except Exception as e:
         logger.debug("feedback_loop apply failed: %s", e)
 
-    obs_write(
+    from skills.memory.recorder import record
+    record(
         detail_text,
         source="agent.reflector",
         obs_type="reflection",
         layer="pattern",
+        importance="medium",
         confidence=0.6,
     )
 

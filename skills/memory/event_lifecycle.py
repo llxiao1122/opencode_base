@@ -11,7 +11,7 @@ from pathlib import Path
 from skills.shared.path import ensure_paths
 ensure_paths()
 
-from memory.detect import change_status, load_index
+from skills.memory.detect.persistence import change_status, load_index
 
 COMPLETE_WORDS = ["完成", "结束了", "已处理", "已关闭", "已完成", "搞定了", "处理好了"]
 CANCEL_WORDS = ["取消", "暂停", "终止", "不做了", "撤销"]

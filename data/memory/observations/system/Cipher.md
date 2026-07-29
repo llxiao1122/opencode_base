@@ -29406,3 +29406,235 @@ layer: rule
 
 ### Details
 交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交
+
+---
+
+## 2026-07-29
+
+source: mcp_save
+type: event
+layer: rule
+
+### Summary
+情境:测试唯一标记-消防器材检查标准 行动:灭火器月检 结果:已完成
+
+### Details
+情境:测试唯一标记-消防器材检查标准 行动:灭火器月检 结果:已完成
+confidence: 0.9
+
+---
+
+## 2026-07-29
+
+source: test
+type: rule_change
+layer: rule
+
+### Summary
+交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交
+
+### Details
+交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交
+
+---
+
+## 2026-07-29
+
+source: mcp_save
+type: event
+layer: rule
+
+### Summary
+情境:测试唯一标记-消防器材检查标准 行动:灭火器月检 结果:已完成
+
+### Details
+情境:测试唯一标记-消防器材检查标准 行动:灭火器月检 结果:已完成
+confidence: 0.9
+
+---
+
+## 2026-07-29
+
+source: test
+type: rule_change
+layer: rule
+
+### Summary
+交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交
+
+### Details
+交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交
+
+---
+
+## 2026-07-29
+
+source: mcp_save
+type: event
+layer: rule
+
+### Summary
+情境:测试唯一标记-消防器材检查标准 行动:灭火器月检 结果:已完成
+
+### Details
+情境:测试唯一标记-消防器材检查标准 行动:灭火器月检 结果:已完成
+confidence: 0.9
+
+---
+
+## 2026-07-29
+
+source: test
+type: rule_change
+layer: rule
+
+### Summary
+交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交
+
+### Details
+交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交
+
+---
+
+## 2026-07-29
+
+source: mcp_save
+type: event
+layer: rule
+
+### Summary
+情境:测试唯一标记-消防器材检查标准 行动:灭火器月检 结果:已完成
+
+### Details
+情境:测试唯一标记-消防器材检查标准 行动:灭火器月检 结果:已完成
+confidence: 0.9
+
+---
+
+## 2026-07-29
+
+source: test
+type: rule_change
+layer: rule
+
+### Summary
+交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交
+
+### Details
+交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交
+
+---
+
+## 2026-07-29
+
+source: mcp_save
+type: event
+layer: rule
+
+### Summary
+情境:测试唯一标记-消防器材检查标准 行动:灭火器月检 结果:已完成
+
+### Details
+情境:测试唯一标记-消防器材检查标准 行动:灭火器月检 结果:已完成
+confidence: 0.9
+
+---
+
+## 2026-07-29
+
+source: test
+type: rule_change
+layer: rule
+
+### Summary
+交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交
+
+### Details
+交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交
+
+---
+
+## 2026-07-29
+
+source: mcp_save
+type: event
+layer: rule
+
+### Summary
+情境:测试唯一标记-消防器材检查标准 行动:灭火器月检 结果:已完成
+
+### Details
+情境:测试唯一标记-消防器材检查标准 行动:灭火器月检 结果:已完成
+confidence: 0.9
+
+---
+
+## 2026-07-29
+
+source: test
+type: rule_change
+layer: rule
+
+### Summary
+交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交
+
+### Details
+交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交
+
+---
+
+## 2026-07-29
+
+source: mcp_save
+type: event
+layer: rule
+
+### Summary
+情境:测试唯一标记-消防器材检查标准 行动:灭火器月检 结果:已完成
+
+### Details
+情境:测试唯一标记-消防器材检查标准 行动:灭火器月检 结果:已完成
+confidence: 0.9
+
+---
+
+## 2026-07-29
+
+source: test
+type: rule_change
+layer: rule
+
+### Summary
+交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交
+
+### Details
+交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交
+
+---
+
+## 2026-07-29
+
+source: mcp_save
+type: event
+layer: rule
+
+### Summary
+情境:测试唯一标记-消防器材检查标准 行动:灭火器月检 结果:已完成
+
+### Details
+情境:测试唯一标记-消防器材检查标准 行动:灭火器月检 结果:已完成
+confidence: 0.9
+
+---
+
+## 2026-07-29
+
+source: test
+type: rule_change
+layer: rule
+
+### Summary
+交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交
+
+### Details
+交接评审标准：物资盘点无误、卫生达标、钥匙齐全方可办理移交

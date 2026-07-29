@@ -32,7 +32,9 @@ def _save_index(data):
 
 
 def _persist(event):
-    return
+    index = _load_index()
+    index.append(event)
+    _save_index(index)
 
 
 def _next_id():

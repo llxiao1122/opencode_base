@@ -6,9 +6,12 @@ skills/shared/tracer.py — Agent 决策调用链追踪。
 """
 import logging, json, time, uuid
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Optional
 
 logger = logging.getLogger(__name__)
+
+_TRACE_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "traces"
 
 
 def _new_id() -> str:
@@ -52,3 +55,9 @@ class Tracer:
             "spans": self.spans,
         }
         logger.info("[TRACE] %s", json.dumps(payload, ensure_ascii=False))
+        _TRACE_DIR.mkdir(parents=True, exist_ok=True)
+        path = _TRACE_DIR / f"{self.trace_id}.json"
+        try:
+            path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        except Exception as e:
+            logger.warning("failed to persist trace %s: %s", self.trace_id, e)

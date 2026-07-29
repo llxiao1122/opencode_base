@@ -94,12 +94,35 @@ def _load_tasks():
         return []
 
 
+def _parse_chinese_date(deadline_str: str) -> date | None:
+    today = datetime.now().date()
+    if deadline_str == "今天":
+        return today
+    if deadline_str == "明天" or deadline_str == "明日":
+        return today + timedelta(days=1)
+    if deadline_str == "后天" or deadline_str == "後天":
+        return today + timedelta(days=2)
+    if deadline_str == "本周" or deadline_str == "这周":
+        days_ahead = 7 - today.weekday()
+        return today + timedelta(days=days_ahead - 1)
+    try:
+        return datetime.strptime(deadline_str, "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        pass
+    return None
+
+
 def _filter_tasks(tasks, date_range):
     start, end = date_range
     active = []
     for t in tasks:
         if t.get("status") == "completed":
             continue
+        deadline = t.get("deadline", "")
+        if deadline:
+            dl_date = _parse_chinese_date(deadline)
+            if dl_date and (dl_date < start or dl_date > end):
+                continue
         active.append(t)
     return active
 

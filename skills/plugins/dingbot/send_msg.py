@@ -9,11 +9,12 @@
   python3 skills/plugins/dingbot/send_msg.py --task <YYYY-MM-DD> <任务描述>
 """
 
-import requests
-import json
-import sys
-import os
-import argparse
+import json, sys, os, argparse
+try:
+    import httpx
+    _HTTP_CLIENT = httpx.Client(timeout=10)
+except ImportError:
+    _HTTP_CLIENT = None
 
 TOKEN = os.environ.get("DINGTALK_BOT_TOKEN", "")
 WEBHOOK_URL = f"https://oapi.dingtalk.com/robot/send?access_token={TOKEN}" if TOKEN else ""
@@ -45,9 +46,17 @@ def send_markdown(title: str, text: str, at_mobiles: list = None, at_all: bool =
 def _post(payload: dict) -> dict:
     if not WEBHOOK_URL:
         return {"errcode": -1, "errmsg": "webhook 未配置"}
-    resp = requests.post(WEBHOOK_URL, json=payload, timeout=10)
-    resp.raise_for_status()
-    return resp.json()
+    try:
+        if _HTTP_CLIENT is not None:
+            resp = _HTTP_CLIENT.post(WEBHOOK_URL, json=payload)
+            resp.raise_for_status()
+            return resp.json()
+        import requests
+        resp = requests.post(WEBHOOK_URL, json=payload, timeout=10)
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:
+        return {"errcode": -1, "errmsg": str(e)}
 
 
 if __name__ == "__main__":
