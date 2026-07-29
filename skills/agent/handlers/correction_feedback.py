@@ -36,14 +36,6 @@ def _rebuild_indexes():
         build_route()
     except Exception:
         pass
-    try:
-        from skills.memory.memory_core import MemoryCore
-        mc = MemoryCore()
-        mc._rebuild_full()
-    except Exception as e:
-        logger.warning("memory rebuild failed: %s", e)
-
-
 def handle(content: str, context: str = ""):
     _append_knowledge(content, context)
     _rebuild_indexes()

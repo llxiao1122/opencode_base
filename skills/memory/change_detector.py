@@ -112,7 +112,9 @@ def _extract_context(text, entity_name, keyword):
     return text
 
 
+# 停用：2026-07-30 — 人事变更由 record() → worldview_update() 接管
 def detect(user_input: str) -> list[dict]:
+    return []  # 停用
     entities = _load_entities()
     matched_entities = _find_entities(user_input, entities)
     if not matched_entities:

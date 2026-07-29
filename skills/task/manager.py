@@ -136,6 +136,13 @@ class TaskManager:
                 return existing
 
         save(task)
+        try:
+            from skills.memory.recorder import record
+            assignee_name = executors[0]["name"] if executors else ""
+            record(f"【任务分配】{assignee_name} 接收新任务：{formatted_title}，截止 {deadline}",
+                   source="task.manager", obs_type="task", layer="rule", confidence=0.9)
+        except Exception:
+            pass
         return task
 
     def list_active(self, owner_name: str) -> list:
@@ -246,6 +253,12 @@ class TaskManager:
         all_done = self._check_complete(matched["id"])
         if all_done:
             store_close(matched["id"])
+            try:
+                from skills.memory.recorder import record
+                record(f"【任务完成】{executor_name} 完成任务：{matched.get('title', '')[:60]}",
+                       source="task.manager", obs_type="task", layer="rule", confidence=0.95)
+            except Exception:
+                pass
 
         return {
             "matched": True,

@@ -16,43 +16,60 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 LOG_PATH = ROOT / "data" / "memory" / "events" / "log.jsonl"
 
 
-def record(event: dict):
+def record(event_or_text, source="", obs_type="", layer="", confidence=0.0):
     """Write a confirmed Event to the event log.
 
     Args:
-        event: Event dict from core/event.py (post-extract, not raw message)
+        event_or_text: Event dict (legacy from detect pipeline) or plain text (from recorder.py proxy)
     """
     LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
 
-    entry = {
-        "id": event.get("id", ""),
-        "event_type": event.get("event_type", "unknown"),
-        "actors": [
-            {"name": a.get("name", ""), "role": a.get("role", ""), "position": a.get("position", "")}
-            for a in event.get("actors", [])
-        ],
-        "target": event.get("target", ""),
-        "deadline": event.get("time", {}).get("deadline", ""),
-        "confidence": event.get("confidence", 0),
-        "action_summary": event.get("action_summary", ""),
-        "source": event.get("source", ""),
-        "raw_preview": (event.get("raw", "") or "")[:200],
-        "event_time": event.get("detected_at") or event.get("time", {}).get("start", ""),
-        "import_time": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
-        "recorded_at": event.get("processed_at") or datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
-    }
-    if event.get("source_type"):
-        entry["source_type"] = event["source_type"]
-    if event.get("source_file"):
-        entry["source_file"] = event["source_file"]
-    if event.get("mode"):
-        entry["mode"] = event["mode"]
-    if event.get("source_quality"):
-        entry["source_quality"] = event["source_quality"]
-    if event.get("related_task"):
-        entry["related_task"] = event["related_task"]
-    if event.get("response_hours") is not None:
-        entry["response_hours"] = event["response_hours"]
+    if isinstance(event_or_text, str):
+        entry = {
+            "id": "",
+            "event_type": obs_type or "event",
+            "actors": [],
+            "target": "",
+            "deadline": "",
+            "confidence": confidence,
+            "action_summary": "",
+            "source": source,
+            "raw_preview": event_or_text[:200],
+            "event_time": datetime.now().isoformat(),
+            "import_time": datetime.now().isoformat(),
+            "recorded_at": datetime.now().isoformat(),
+        }
+    else:
+        event = event_or_text
+        entry = {
+            "id": event.get("id", ""),
+            "event_type": event.get("event_type", "unknown"),
+            "actors": [
+                {"name": a.get("name", ""), "role": a.get("role", ""), "position": a.get("position", "")}
+                for a in event.get("actors", [])
+            ],
+            "target": event.get("target", ""),
+            "deadline": event.get("time", {}).get("deadline", ""),
+            "confidence": event.get("confidence", 0),
+            "action_summary": event.get("action_summary", ""),
+            "source": event.get("source", ""),
+            "raw_preview": (event.get("raw", "") or "")[:200],
+            "event_time": event.get("detected_at") or event.get("time", {}).get("start", ""),
+            "import_time": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+            "recorded_at": event.get("processed_at") or datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+        }
+        if event.get("source_type"):
+            entry["source_type"] = event["source_type"]
+        if event.get("source_file"):
+            entry["source_file"] = event["source_file"]
+        if event.get("mode"):
+            entry["mode"] = event["mode"]
+        if event.get("source_quality"):
+            entry["source_quality"] = event["source_quality"]
+        if event.get("related_task"):
+            entry["related_task"] = event["related_task"]
+        if event.get("response_hours") is not None:
+            entry["response_hours"] = event["response_hours"]
 
     with open(LOG_PATH, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")

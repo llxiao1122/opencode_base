@@ -18,20 +18,15 @@ CANCEL_WORDS = ["取消", "暂停", "终止", "不做了", "撤销"]
 CONFIRM_WORDS = ["确认", "开始", "启动", "执行", "安排"]
 
 
+# 停用：2026-07-30 — events/log.jsonl 已删除，任务生命周期由 task/manager 接管
 def complete(event_id):
-    return change_status(event_id, "completed")
-
-
+    return {"status": "stopped", "reason": "事件生命周期已停用"}
 def cancel(event_id):
-    return change_status(event_id, "cancelled")
-
-
+    return {"status": "stopped", "reason": "事件生命周期已停用"}
 def confirm(event_id):
-    return change_status(event_id, "active")
-
-
+    return {"status": "stopped", "reason": "事件生命周期已停用"}
 def expire(event_id):
-    return change_status(event_id, "expired")
+    return {"status": "stopped", "reason": "事件生命周期已停用"}
 
 
 def _extract_entities_from_text(text):

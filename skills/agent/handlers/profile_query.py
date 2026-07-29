@@ -4,13 +4,27 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent.parent
 OBS_DIR = ROOT / "data" / "memory" / "observations" / "people"
+WORLDVIEW_DIR = ROOT / "data" / "state" / "worldview" / "entities"
 
 
 def handle(name: str, ctx=None) -> str:
+    entity_name = name
+
+    # 先尝试从世界观档案读
+    worldview_path = WORLDVIEW_DIR / f"{name}.md"
+    if worldview_path.exists():
+        content = worldview_path.read_text(encoding="utf-8")
+        # 提取基本信息 + 行为模式
+        sections = _extract_sections(content, ["基本信息", "行为模式", "近期事件"])
+        lines = [f"📋 {name} 档案"]
+        for sec in sections:
+            lines.append("")
+            lines.extend(sec)
+        return "[Cipher:profile]\n" + "\n".join(lines)
+
+    # 无世界观档案，fallback 到 observations
     lines = []
     role = "未知"
-
-    entity_name = name
     try:
         from skills.router.entity_resolver import resolve_entities
         resolved = resolve_entities(name)
@@ -21,7 +35,7 @@ def handle(name: str, ctx=None) -> str:
             lines.append(f"{entity_name}: {role}")
     except Exception as e:
         import logging
-        logging.getLogger(__name__).warning("profile_query resolve failed: %s", e, exc_info=True)
+        logging.getLogger(__name__).warning("profile_query resolve failed: %s", e)
 
     if not lines:
         if ctx and ctx.user:
@@ -39,6 +53,23 @@ def handle(name: str, ctx=None) -> str:
         lines.extend(recent)
 
     return "[Cipher:profile]\n" + "\n".join(lines)
+
+
+def _extract_sections(content: str, wanted: list[str]) -> list[list[str]]:
+    result = []
+    current_section = ""
+    current_lines = []
+    for line in content.splitlines():
+        if line.startswith("## "):
+            if current_section in wanted:
+                result.append(current_lines)
+            current_section = line.strip("## #").strip()
+            current_lines = [line]
+        elif current_section in wanted:
+            current_lines.append(line)
+    if current_section in wanted:
+        result.append(current_lines)
+    return result
 
 
 def _recent_obs_files(name: str) -> list[dict]:

@@ -42,12 +42,12 @@ def _build_prompt(tool_id: str, params: dict, result: str, user_input: str) -> s
 
 
 def _check_corrections(user_input: str) -> str:
+    """从 Knowledge 中搜索相关纠正记录"""
     try:
-        from skills.memory.memory_core import MemoryCore
-        mc = MemoryCore()
-        return mc.retrieve("纠正 反馈 " + user_input[:60], max_chars=300).get("result", "")
+        from skills.memory.observation_store import search as _obs_search
+        return _obs_search("纠正 反馈 " + user_input[:60], top_k=2)
     except Exception as e:
-        logger.debug("correction check failed: %s", e, exc_info=True)
+        logger.debug("correction check failed: %s", e)
         return ""
 
 
@@ -84,12 +84,6 @@ def reflect(tool_id: str, params: dict, result: str, user_input: str):
         detail_lines.append(f"关联纠正: {corrections[:100]}")
     detail_lines.append(f"LLM 分析: {analysis.strip()[:300]}")
     detail_text = "\n".join(detail_lines)
-
-    try:
-        from skills.agent.feedback_loop import apply as feedback_apply
-        feedback_apply()
-    except Exception as e:
-        logger.debug("feedback_loop apply failed: %s", e)
 
     from skills.memory.recorder import record
     record(

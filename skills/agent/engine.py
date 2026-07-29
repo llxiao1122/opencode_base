@@ -123,6 +123,13 @@ def _fallback_search(query: str) -> str:
 
 def run(user_input: str, ctx: Optional[RequestContext] = None,
         tracer=None) -> str:
+    # 世界观自动更新：pending ≥ 50 时先 batch_update 再处理 query
+    try:
+        from skills.memory.worldview import check_and_update
+        check_and_update()
+    except Exception:
+        pass
+
     if ctx is None:
         ctx = RequestContext(message=user_input)
         ctx.user = resolve_user()
@@ -146,6 +153,18 @@ def run(user_input: str, ctx: Optional[RequestContext] = None,
     memory_text = (ctx.memory_context or "").strip()
     if memory_text and not memory_text.endswith("\n"):
         memory_text += "\n"
+
+    # 世界观检索：将匹配的实体档案注入 context
+    try:
+        from skills.memory.worldview import search as worldview_search
+        wv_hits = worldview_search(user_input, top_k=2)
+        if wv_hits:
+            memory_text += "\n\n## 世界观档案\n"
+            for h in wv_hits:
+                memory_text += f"---\n{h['content'][:1500]}\n"
+    except Exception:
+        pass
+
     sys_prompt = AGENT_SYSTEM_PROMPT.format(
         user_name=user_name,
         tools_desc=tools_desc,

@@ -11,10 +11,8 @@ def handle(user_input, ctx):
         "基于提供的制度文档，回答合规性问题。引用具体条目。"
     )
 
-    from skills.memory.memory_core import MemoryCore
-    mc = MemoryCore()
-    result = mc.retrieve(user_input, max_chars=2000)
-    knowledge_text = result.get("result", "")
+    from skills.memory.observation_store import search as _obs_search
+    knowledge_text = _obs_search(user_input, obs_type="knowledge", top_k=3)
 
     if not knowledge_text or knowledge_text == "未找到相关内容":
         return "[Cipher] 制度库中暂无匹配条目。"

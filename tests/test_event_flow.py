@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-test_event_flow.py — 事件流水线测试 (Phase 1.7.8)
+test_event_flow.py — 事件流水线测试。
 
-验证: detect → enrich → persist 全链路，schema 完整性
-覆盖: Case 009, 010, 011
+注：detect 管道已于 2026-07-30 停用（世界观体系替代），
+    这些测试仅验证停用后接口返回空列表不报错。
 """
 
-import sys, json, time
+import sys, time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -14,81 +14,27 @@ sys.path.insert(0, str(ROOT / "skills"))
 
 
 CURRENT_USER = {"name": "李林骁", "role": "工班长", "team": "铁炉西工班"}
-SCHEMA_REQUIRED = ["id", "type", "requester", "executor", "target", "time"]
-SCHEMA_FORBIDDEN = ["_ai_error", "debug", "trace"]
 
 
 def test_event_schema():
-    """Case 010: event 必须字段检查"""
+    """验证 detect 停用后返回空列表"""
     from memory.detect import detect
-
-    events = detect("王亮在钉钉群各班组督促一下郑轨学苑内未完成人员，于14日下班前完成。", current_user=CURRENT_USER)
-
-    assert events, "no event detected"
-    evt = events[0]
-
-    for field in SCHEMA_REQUIRED:
-        assert field in evt, f"missing required field: {field}"
-    print(f"  ✓ all {len(SCHEMA_REQUIRED)} required fields present")
-
-    for field in SCHEMA_FORBIDDEN:
-        assert field not in evt, f"forbidden field found: {field}"
-    print(f"  ✓ no forbidden fields in event")
+    events = detect("王亮在钉钉群各班组督促一下", current_user=CURRENT_USER)
+    assert events == [], "detect 应返回空列表（已停用）"
 
 
 def test_event_persist():
-    """验证 event 写入后可从 log.jsonl 读取"""
-    import json
-    from pathlib import Path
+    """验证停用后不写任何数据"""
     from memory.detect import detect
-
     events = detect("王亮通知铁炉西工班做好危废处置", current_user=CURRENT_USER)
-
-    assert events, "no event detected"
-    evt = events[0]
-
-    # Verify event has required fields (new storage: event_recorder → log.jsonl)
-    assert evt.get("id"), "event missing id"
-    assert evt.get("type"), "event missing type"
-    print(f"  ✓ event {evt['id']} detected with valid structure")
-
+    assert events == [], "detect 已停用"
 
 
 def test_detect_timing():
-    """Case 011: detect 单消息耗时 < 3秒"""
+    """验证停用后瞬时返回（不执行任何逻辑）"""
     from memory.detect import detect
-
     t0 = time.time()
     events = detect("王亮通知铁炉西工班做好危废处置", current_user=CURRENT_USER)
     elapsed = (time.time() - t0) * 1000
-
-    assert events, "no event"
-    assert elapsed < 3000, f"detect too slow: {elapsed}ms"
-    print(f"  ✓ detect timing: {elapsed:.0f}ms < 3000ms")
-
-
-if __name__ == "__main__":
-    print("=" * 60)
-    print("EVENT FLOW TESTS")
-    print("=" * 60)
-
-    passed = 0
-    tests = [
-        ("Case 010: event schema", test_event_schema),
-        ("Case 010: event persist", test_event_persist),
-        ("Case 009: enrich pipeline", test_event_enrich_flow),
-        ("Case 009: LLM fallback", test_llm_fallback_no_api),
-        ("Case 011: detect timing", test_detect_timing),
-    ]
-
-    for name, fn in tests:
-        try:
-            fn()
-            passed += 1
-        except AssertionError as e:
-            print(f"  ✗ {e}")
-        except Exception as e:
-            print(f"  ✗ {type(e).__name__}: {e}")
-
-    print(f"\nResults: {passed}/{len(tests)} passed")
-    sys.exit(0 if passed == len(tests) else 1)
+    assert events == [], "detect 已停用"
+    assert elapsed < 100, f"停用后 detect 应瞬时返回: {elapsed}ms"

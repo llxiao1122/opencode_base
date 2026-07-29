@@ -247,7 +247,15 @@ def _get_duty_person(target: date, md=None) -> str:
 
 
 def _get_zone_chiefs(md: str) -> list[dict]:
-    return _parse_table_section(md, "## 库区负责人")
+    rows = _parse_table_section(md, "## 工班成员信息总表")
+    # 从总表中提取 库区责任 → 姓名 映射
+    result = []
+    for row in rows:
+        zone = (row.get("库区责任") or "").strip()
+        name = (row.get("姓名") or "").strip()
+        if zone and name and zone != "—" and zone != "全局管理":
+            result.append({"库区": zone, "负责人": name})
+    return result
 
 
 def _get_material_shed(md: str, target: date) -> str:

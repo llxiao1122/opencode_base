@@ -1,0 +1,23 @@
+{
+  "trace_id": "cip-20260730-041945-1b4776ab",
+  "total_ms": 12,
+  "spans": [
+    {
+      "name": "fast_dispatch",
+      "parent": "entry.route",
+      "elapsed_ms": 5,
+      "route": "task_query"
+    },
+    {
+      "name": "entry.route",
+      "parent": null,
+      "elapsed_ms": 5,
+      "input_len": 8
+    },
+    {
+      "name": "post_process",
+      "parent": null,
+      "elapsed_ms": 2
+    }
+  ]
+}
