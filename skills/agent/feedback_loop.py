@@ -17,6 +17,10 @@ INDEX_PATH = ROOT / "data" / "state" / "entity_index.json"
 _ENTITY_CACHE: list[dict] | None = None
 
 
+# 停用：2026-07-30 — 实体权重管理由 worldview_update() 接管
+def apply(*args, **kwargs):
+    return None
+
 def _load_entities() -> list[dict]:
     global _ENTITY_CACHE
     if _ENTITY_CACHE is not None:

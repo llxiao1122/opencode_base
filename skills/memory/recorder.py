@@ -11,14 +11,19 @@ import logging
 import threading
 import time
 from datetime import date
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 _DEDUP_WINDOW = 10
 _dedup_cache = {}
 _dedup_lock = threading.Lock()
-_mc_lock = threading.Lock()
-_mc_instance = None
+
+# 世界观待处理环形缓冲区：保留最近 100 条记录文本
+_RING_BUF = []
+_RING_BUF_MAX = 100
+_RING_LOCK = threading.Lock()
+_RING_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "state" / "worldview" / "_ringbuf.json"
 
 
 def _check_dedup(key: str) -> bool:
@@ -35,40 +40,43 @@ def _check_dedup(key: str) -> bool:
     return False
 
 
-def _append_to_episodic(text: str, importance: str = "medium"):
-    global _mc_instance
-    with _mc_lock:
-        if _mc_instance is None:
-            from skills.memory.memory_core import MemoryCore
-            _mc_instance = MemoryCore()
-        mc = _mc_instance
-    try:
-        mc._ensure_loaded()
-        vec = mc._embed(text[:500])
-        mc.epi_index.add(vec)
-        eid = f"ep-{mc.epi_index.ntotal:04d}"
-        today = date.today().isoformat()
-        mc.meta["id_map"][eid] = {"chunk": text, "date": today, "importance": importance}
-        mc._save_index("episodic", mc.epi_index)
-        mc._save_meta()
-        mc._search_raw.cache_clear()
-    except Exception as e:
-        logger.warning("FAISS episodic append failed: %s", e)
-
-
 def record(text: str, source: str = "", obs_type: str = "",
            layer: str = "rule", importance: str = "medium",
-           confidence: float = 0.0, _skip_faiss: bool = False):
+           confidence: float = 0.5):
     key = text[:80]
     if _check_dedup(key):
         logger.debug("dedup skip: same text within %ds", _DEDUP_WINDOW)
         return
 
-    try:
-        from skills.memory.observation_store import write as _obs_write
-        _obs_write(text, source=source, obs_type=obs_type, layer=layer, confidence=confidence)
-    except Exception as e:
-        logger.warning("obs_write failed: %s", e)
+    if len(text.strip()) < 5:
+        return
 
-    if not _skip_faiss:
-        _append_to_episodic(text, importance)
+    _ring_append(f"[{source}] {text[:120]}")
+    _increment_pending()
+
+
+def _ring_append(text: str):
+    global _RING_BUF
+    with _RING_LOCK:
+        _RING_BUF.append(text)
+        if len(_RING_BUF) > _RING_BUF_MAX:
+            _RING_BUF = _RING_BUF[-_RING_BUF_MAX:]
+        try:
+            _RING_PATH.parent.mkdir(parents=True, exist_ok=True)
+            _RING_PATH.write_text(
+                "\n".join(_RING_BUF[-_RING_BUF_MAX:]),
+                encoding="utf-8",
+            )
+        except Exception:
+            pass
+
+
+def _increment_pending():
+    """世界观待处理计数器 +1"""
+    try:
+        from skills.memory.worldview import _load_index, _save_index
+        idx = _load_index()
+        idx["pending_records"] = idx.get("pending_records", 0) + 1
+        _save_index(idx)
+    except Exception as e:
+        logger.debug("pending increment failed: %s", e)

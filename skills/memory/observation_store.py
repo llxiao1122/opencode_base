@@ -106,7 +106,7 @@ def _update_index(subj_type: str, subj_name: str, section_date: str,
 # ── public API ─────────────────────────────────────────────────────────
 
 
-def write(text: str, source: str = "", obs_type: str = "",
+def _write(text: str, source: str = "", obs_type: str = "",
           layer: str = "rule", confidence: float = 0.0):
     _ot = ObservationType
     _ol = ObservationLayer
@@ -271,20 +271,7 @@ def _append_knowledge(filename, text, confidence):
         logger.warning("append knowledge file failed: %s", e, exc_info=True)
         return
 
-    # Incrementally update FAISS semantic index so new entry is immediately searchable
-    with _faiss_lock:
-        try:
-            from skills.memory.memory_core import MemoryCore
-            mc = MemoryCore()
-            vec = mc._embed(text[:500])
-            mc.sem_index.add(vec)
-            eid = f"sem-{mc.sem_index.ntotal:04d}"
-            mc.meta["id_map"][eid] = {"chunk": text[:500], "source": filename}
-            mc._save_index("semantic", mc.sem_index)
-            mc._save_meta()
-            mc._search_raw.cache_clear()
-        except Exception as e:
-            logger.warning("FAISS incremental update failed: %s", e, exc_info=True)
+    # FAISS incremental update removed: semantic.index deleted in 2026-07-30 cleanup
 
 
 def _run_classify(text, source=""):

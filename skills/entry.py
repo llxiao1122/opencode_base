@@ -97,14 +97,6 @@ def _apply_changes_direct(changes):
     tmp.replace(path)
 
 
-def _update_event_lifecycle(user_input):
-    try:
-        from memory.event_lifecycle import update_from_message
-        update_from_message(user_input)
-    except Exception as e:
-        logger.warning("event lifecycle update failed: %s", e, exc_info=True)
-
-
 _FAST_HANDLERS = {
     "task_query":         ("skills.agent.handlers.task_query", "handle"),
     "knowledge_retrieve": ("skills.agent.handlers.knowledge_retrieve", "handle"),
@@ -126,21 +118,19 @@ def _fast_dispatch(route: str, user_input: str, ctx) -> str:
 
 
 def _search_episodic(user_input: str) -> str:
-    """搜索 epi_index，返回格式化情景记忆。仅 Agent 路径调用。"""
+    """搜索 worldview 档案，返回格式化情景记忆。仅 Agent 路径调用。"""
     try:
-        from skills.memory.memory_core import MemoryCore
-        mc = MemoryCore()
-        raw = mc.search(user_input, types=["episodic"], top_k=5)
-        hits = raw.get("hits", [])
-        filtered = [h for h in hits if h.get("r", 0) >= 0.6][:2]
-        if not filtered:
+        from skills.memory.worldview import search as wv_search
+        hits = wv_search(user_input, top_k=2)
+        if not hits:
             return ""
-        lines = ["[历史情景记忆]:"]
-        for h in filtered:
-            lines.append(f"  • {h.get('d', '?')} [{h.get('i', 'medium')}] {h['c'][:200]}")
+        lines = ["[世界观档案]:"]
+        for h in hits:
+            snippet = h.get("content", "")[:300].replace("\n", " ").strip()
+            lines.append(f"  • {h['entity_id']} ({h['type']}) {snippet}")
         return "\n".join(lines)
     except Exception as e:
-        logger.warning("episodic memory search failed: %s", e)
+        logger.warning("worldview search failed: %s", e)
         return ""
 
 
@@ -149,7 +139,6 @@ def handle_core(user_input: str) -> str:
     tracer = Tracer()
 
     _build_index_once()
-    _update_event_lifecycle(user_input)
 
     from skills.shared.schema import RequestContext, CT
     from skills.router.faiss_router import classify

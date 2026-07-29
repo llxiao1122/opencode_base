@@ -47,36 +47,4 @@ def test_org_ssot_team_name():
     assert org.get_team_name("李林骁") == "铁炉西工班"
 
 
-# ── 2. MCP Server ──
-
-
-def test_mcp_initialize():
-    """MCP initialize 握手返回正确协议版本"""
-    from memory.memory_server import handle
-    req = {"jsonrpc": "2.0", "id": 1, "method": "initialize"}
-    resp = handle(req)
-    assert resp["result"]["protocolVersion"] == "2024-11-05"
-    assert resp["result"]["serverInfo"]["name"] == "memory"
-
-
-def test_mcp_tools_list():
-    """MCP tools/list 返回 4 个工具"""
-    from memory.memory_server import handle
-    req = {"jsonrpc": "2.0", "id": 2, "method": "tools/list"}
-    resp = handle(req)
-    tools = resp["result"]["tools"]
-    names = [t["name"] for t in tools]
-    assert "memory_search" in names
-    assert "memory_save" in names
-    assert "knowledge_retrieve" in names
-    assert "memory_reflect" in names
-    assert len(tools) == 4
-
-
-def test_mcp_unknown_method():
-    """未知方法返回 error"""
-    from memory.memory_server import handle
-    req = {"jsonrpc": "2.0", "id": 3, "method": "unknown_method"}
-    resp = handle(req)
-    assert "error" in resp
-    assert resp["error"]["code"] == -32601
+# MCP 测试已移除：memory_server.py 于 2026-07-30 架构清理中删除
