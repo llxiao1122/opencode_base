@@ -39,15 +39,16 @@ def _load_log() -> list[dict]:
 
 
 def _sem_score(a: str, b: str) -> float:
-    """Compute smoothed semantic similarity score 0~1."""
     global _SIMILARITY_M
     if not a or not b:
         return 0.0
     try:
         if _SIMILARITY_M is None:
-            from skills.shared.semantic import _get_matcher
-            _SIMILARITY_M = _get_matcher()
-        return float(_SIMILARITY_M.score(a, [b]))
+            from skills.shared.embedder import create_embedder
+            _SIMILARITY_M = create_embedder()
+        avec = _SIMILARITY_M.encode(a, normalize_embeddings=True, is_query=True)
+        bvec = _SIMILARITY_M.encode(b, normalize_embeddings=True, is_query=True)
+        return float(np.dot(avec, bvec))
     except Exception:
         a_set = set(a.lower())
         b_set = set(b.lower())

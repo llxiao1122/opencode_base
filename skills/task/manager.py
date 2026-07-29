@@ -12,6 +12,10 @@ from pathlib import Path
 from skills.shared.path import ensure_paths
 ensure_paths()
 
+from skills.task.store import save, load, list_all as _list_all, list_by_owner, update_executor_status, get_active_tasks, close as store_close
+from skills.task.status import IN_PROGRESS, EXECUTOR_PENDING, EXECUTOR_DONE
+from skills.task.priority import infer_priority
+
 TOOLS_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -23,17 +27,6 @@ class TaskManager:
         self._counter = 0
 
     def create(self, event: dict, context: dict, user: dict) -> dict:
-        """Create a task from event + context.
-
-        Returns Task dict:
-            id, source_event_id, responsibility_type,
-            owner {name, role}, action, executors[{name,status}],
-            subtasks[{action,assignee,done}], deadline, status, created_at
-        """
-        from task.store import save
-        from task.status import IN_PROGRESS, EXECUTOR_PENDING
-        from task.priority import infer_priority
-
         pos = context.get("my_position", {})
         req = context.get("required_action", {})
         pos_type = pos.get("type", "observer")
@@ -131,8 +124,6 @@ class TaskManager:
             "created_source": "event_time" if event_time else "import_time",
         }
 
-        # Dedup: skip if same action + source_event_id already exists and not terminal
-        from task.store import list_all as _list_all
         for existing in _list_all():
             if existing.get("status") in ("completed", "cancelled", "archived"):
                 continue
@@ -148,12 +139,9 @@ class TaskManager:
         return task
 
     def list_active(self, owner_name: str) -> list:
-        from task.store import list_by_owner
-        from task.status import IN_PROGRESS
         return list_by_owner(owner_name, status=IN_PROGRESS)
 
     def get(self, task_id: str):
-        from task.store import load
         return load(task_id)
 
     def _next_id(self, event_id: str) -> str:
@@ -192,10 +180,6 @@ class TaskManager:
         Returns dict:
             {matched: bool, task_id, executor, all_done, status}
         """
-        import sys
-        from task.store import update_executor_status, get_active_tasks, close as store_close
-        from task.status import EXECUTOR_DONE
-
         actors = event.get("actors", [])
         entities = event.get("entities", []) or event.get("raw", "")
 
@@ -256,8 +240,6 @@ class TaskManager:
                 }
             return {"matched": False, "match_type": "unmatched", "reason": f"{executor_name} 不在活跃任务中"}
 
-        # Update status (direct match)
-        from task.status import EXECUTOR_DONE
         updated = update_executor_status(matched["id"], executor_name, EXECUTOR_DONE)
 
         # Check completion
@@ -275,9 +257,6 @@ class TaskManager:
         }
 
     def _check_complete(self, task_id: str) -> bool:
-        """Check if all executors are done (owner subtask auto-closes with team)."""
-        from task.store import load, update_executor_status
-
         task = load(task_id)
         if not task:
             return False

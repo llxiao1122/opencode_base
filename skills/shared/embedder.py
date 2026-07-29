@@ -11,6 +11,7 @@ Usage:
 """
 
 import logging
+import threading
 from pathlib import Path
 from typing import Optional, List, Union
 
@@ -34,18 +35,23 @@ class ONNXEmbedder:
         self._session = None
         self._tokenizer = None
 
+    _init_lock = threading.Lock()
+
     def _lazy_init(self):
         if self._session is not None:
             return
-        from onnxruntime import InferenceSession
-        from tokenizers import Tokenizer as _Tokenizer
+        with self._init_lock:
+            if self._session is not None:
+                return
+            from onnxruntime import InferenceSession
+            from tokenizers import Tokenizer as _Tokenizer
 
-        self._session = InferenceSession(
-            self._model_path, providers=["CPUExecutionProvider"]
-        )
-        self._tokenizer = _Tokenizer.from_file(
-            str(Path(self._tokenizer_path) / "tokenizer.json")
-        )
+            self._session = InferenceSession(
+                self._model_path, providers=["CPUExecutionProvider"]
+            )
+            self._tokenizer = _Tokenizer.from_file(
+                str(Path(self._tokenizer_path) / "tokenizer.json")
+            )
 
     def encode(
         self,
@@ -117,21 +123,25 @@ class FallbackEmbedder:
 
 
 _EMBEDDER_CACHE: Optional[Union[ONNXEmbedder, FallbackEmbedder]] = None
+_EMBEDDER_LOCK = threading.Lock()
 
 
 def create_embedder() -> Union[ONNXEmbedder, FallbackEmbedder]:
     global _EMBEDDER_CACHE
     if _EMBEDDER_CACHE is not None:
         return _EMBEDDER_CACHE
-    if _MODEL_DIR.exists() and (_MODEL_DIR / "model.onnx").exists():
-        try:
-            emb = ONNXEmbedder()
-            emb._lazy_init()
-            _EMBEDDER_CACHE = emb
-            logger.info("ONNXEmbedder ready (dim=%d)", emb.dim)
-            return emb
-        except Exception as e:
-            logger.warning("ONNXEmbedder init failed: %s", e)
-    _EMBEDDER_CACHE = FallbackEmbedder()
-    logger.warning("Using FallbackEmbedder (dim=%d)", _EMBEDDER_CACHE.dim)
-    return _EMBEDDER_CACHE
+    with _EMBEDDER_LOCK:
+        if _EMBEDDER_CACHE is not None:
+            return _EMBEDDER_CACHE
+        if _MODEL_DIR.exists() and (_MODEL_DIR / "model.onnx").exists():
+            try:
+                emb = ONNXEmbedder()
+                emb._lazy_init()
+                _EMBEDDER_CACHE = emb
+                logger.info("ONNXEmbedder ready (dim=%d)", emb.dim)
+                return emb
+            except Exception as e:
+                logger.warning("ONNXEmbedder init failed: %s", e)
+        _EMBEDDER_CACHE = FallbackEmbedder()
+        logger.warning("Using FallbackEmbedder (dim=%d)", _EMBEDDER_CACHE.dim)
+        return _EMBEDDER_CACHE

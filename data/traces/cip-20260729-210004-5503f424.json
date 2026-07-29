@@ -1,0 +1,27 @@
+{
+  "trace_id": "cip-20260729-210004-5503f424",
+  "total_ms": 83,
+  "spans": [
+    {
+      "name": "agent.llm_think",
+      "parent": "agent.run",
+      "elapsed_ms": 1
+    },
+    {
+      "name": "agent.run",
+      "parent": "entry.route",
+      "elapsed_ms": 41
+    },
+    {
+      "name": "entry.route",
+      "parent": null,
+      "elapsed_ms": 41,
+      "input_len": 0
+    },
+    {
+      "name": "post_process",
+      "parent": null,
+      "elapsed_ms": 0
+    }
+  ]
+}

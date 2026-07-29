@@ -50,8 +50,19 @@ class WorkflowEngine:
 
     def _run_step(self, skill_id: str, step: dict, user_input: str, ctx) -> dict:
         params = self._build_params(step, user_input)
+        timeout = step.get("timeout", 30)
         with self._span("wf.step", skill=skill_id):
-            raw = _exec_skill(skill_id, params, ctx=ctx)
+            import signal
+            def _handler(signum, frame):
+                raise TimeoutError(f"step {skill_id} timed out after {timeout}s")
+            if hasattr(signal, "SIGALRM"):
+                signal.signal(signal.SIGALRM, _handler)
+                signal.alarm(timeout)
+            try:
+                raw = _exec_skill(skill_id, params, ctx=ctx)
+            finally:
+                if hasattr(signal, "SIGALRM"):
+                    signal.alarm(0)
         text = str(raw).strip() if raw else ""
         return {"status": "ok", "text": text, "raw": text}
 
@@ -64,6 +75,8 @@ class WorkflowEngine:
                 out[key] = user_input
             elif isinstance(spec, str) and spec.endswith("[:200]"):
                 out[key] = user_input[:200]
+            elif isinstance(spec, str) and spec == "None":
+                out[key] = None
             elif isinstance(spec, str):
                 out[key] = spec
             else:

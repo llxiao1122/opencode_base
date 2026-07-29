@@ -51,28 +51,28 @@ def _extract_json(raw: str) -> Optional[dict]:
             clean = clean[len(prefix):].strip()
     if clean.endswith("```"):
         clean = clean[:-3].strip()
+    # Try full parse
     try:
         return json.loads(clean)
     except json.JSONDecodeError:
         pass
+    # Try regex approach: assume single JSON object
+    m = re.search(r'\{\s*"thought"\s*:.*?"params"\s*:\s*\{.*?\}\s*\}', raw, re.DOTALL)
+    if m:
+        try:
+            return json.loads(m.group(0))
+        except json.JSONDecodeError:
+            pass
+    # Last resort: extract tool name and assume empty params
     m = re.search(r'"tool"\s*:\s*"([^"]+)"', raw)
     if m:
         return {"thought": "", "intent": "", "tool": m.group(1), "params": {}}
-    lines = raw.strip().split("\n", 1)
-    if len(lines) == 2:
-        tool_candidate = lines[0].strip()
-        known_tools = {t["id"] for t in list_tools()}
-        if tool_candidate in known_tools:
-            try:
-                params = json.loads(lines[1])
-            except json.JSONDecodeError:
-                params = {}
-            return {"thought": "", "intent": "", "tool": tool_candidate, "params": params}
     return None
 
 
 def _parse_decisions(raw: str) -> list[dict]:
     decisions = []
+    # First try: brace-matching to extract JSON objects
     i = 0
     while i < len(raw):
         start = raw.find("{", i)
@@ -93,6 +93,19 @@ def _parse_decisions(raw: str) -> list[dict]:
                     break
         else:
             break
+    if decisions:
+        return decisions
+    # Second try: line-split format (tool on line 1, JSON on line 2)
+    lines = raw.strip().split("\n", 1)
+    if len(lines) == 2:
+        tool_candidate = lines[0].strip()
+        known_tools = {t["id"] for t in list_tools()}
+        if tool_candidate in known_tools:
+            try:
+                params = json.loads(lines[1])
+            except json.JSONDecodeError:
+                params = {}
+            return [{"thought": "", "intent": "", "tool": tool_candidate, "params": params}]
     return decisions
 
 
@@ -176,6 +189,7 @@ def run(user_input: str, ctx: Optional[RequestContext] = None,
                     continue
                 return f"[Cipher:agent]\n{err}，请补充后重试。"
 
+            ctx.last_params = params
             with (tracer.span("agent.execute", tool=tool_id) if tracer else _nullctx()):
                 result = execute(tool_id, params, ctx=ctx)
 

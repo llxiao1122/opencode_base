@@ -98,9 +98,11 @@ def call(prompt, system_prompt=None, temperature=0.0, timeout=120, max_tokens=10
         "temperature": temperature,
         "max_tokens": max_tokens,
     }
-    body_dict["thinking"] = {"type": "disabled"}
+    provider = os.environ.get("LLM_PROVIDER", "deepseek").lower()
+    if provider == "deepseek":
+        body_dict["thinking"] = {"type": "disabled"}
 
-    body = json.dumps(body_dict).encode()
+    body_bytes = json.dumps(body_dict).encode()
 
     headers = {"Content-Type": "application/json"}
     if key:
@@ -108,7 +110,7 @@ def call(prompt, system_prompt=None, temperature=0.0, timeout=120, max_tokens=10
 
     for attempt in range(3):
         try:
-            req = urllib.request.Request(url, data=body, headers=headers)
+            req = urllib.request.Request(url, data=body_bytes, headers=headers)
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 data = json.loads(resp.read())
         except urllib.error.HTTPError as e:
@@ -116,12 +118,12 @@ def call(prompt, system_prompt=None, temperature=0.0, timeout=120, max_tokens=10
                 time.sleep(2 ** attempt)
                 continue
             try:
-                body = e.read()
-                err = json.loads(body)
+                err_body = e.read()
+                err = json.loads(err_body)
                 if err.get("error", {}).get("code") == "1305":
                     continue
             except Exception:
-                logger.warning("DeepSeek API error parse failed: code=%s body=%s", e.code, body if 'body' in locals() else 'N/A')
+                logger.warning("DeepSeek API error parse failed: code=%s body=%s", e.code, err_body if 'err_body' in locals() else 'N/A')
             return {"error": f"HTTP {e.code}"}
         except Exception as e:
             if attempt < 2:

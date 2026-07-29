@@ -1,10 +1,13 @@
-import json
+import json, logging
 from datetime import datetime
 from pathlib import Path
+import portalocker
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 KNOWLEDGE_DIR = ROOT_DIR / "Knowledge"
 CORRECTIONS_FILE = KNOWLEDGE_DIR / "05-行政综合" / "15-员工纠错反馈.md"
+
+logger = logging.getLogger(__name__)
 
 
 def _append_knowledge(content: str, context: str):
@@ -18,6 +21,7 @@ def _append_knowledge(content: str, context: str):
     )
     CORRECTIONS_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(CORRECTIONS_FILE, "a", encoding="utf-8") as f:
+        portalocker.lock(f, portalocker.LOCK_EX)
         f.write(entry)
 
 
@@ -33,11 +37,11 @@ def _rebuild_indexes():
     except Exception:
         pass
     try:
-        from memory.memory_core import MemoryCore
+        from skills.memory.memory_core import MemoryCore
         mc = MemoryCore()
         mc._rebuild_full()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("memory rebuild failed: %s", e)
 
 
 def handle(content: str, context: str = ""):

@@ -274,7 +274,7 @@ def _append_knowledge(filename, text, confidence):
     # Incrementally update FAISS semantic index so new entry is immediately searchable
     with _faiss_lock:
         try:
-            from memory.memory_core import MemoryCore
+            from skills.memory.memory_core import MemoryCore
             mc = MemoryCore()
             vec = mc._embed(text[:500])
             mc.sem_index.add(vec)
@@ -303,7 +303,8 @@ def _run_classify(text, source=""):
             if cat == "personal":
                 content = r.get("content", "")
                 if content:
-                    write(content, source="llm_classify",
+                    from skills.memory.recorder import record
+                    record(content, source="llm_classify",
                           obs_type="event", layer="rule", confidence=conf)
             elif cat == "knowledge":
                 target = r.get("target", "")

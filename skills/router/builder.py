@@ -18,6 +18,7 @@ INDEX_FILE = ROOT / "data" / "state" / "entity_index.json"
 
 
 def _load_team_work() -> dict:
+    """Load team_work.json from state directory."""
     if not TEAM_WORK_FILE.exists():
         return {}
     try:
@@ -128,6 +129,7 @@ def _load_existing_entities() -> dict:
 
 
 def build() -> dict:
+    """Build entity index from team_work.json, merging with existing index data."""
     existing = _load_existing_entities()
 
     # Build fresh from team_work.json

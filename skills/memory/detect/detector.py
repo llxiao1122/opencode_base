@@ -67,7 +67,7 @@ def detect(text: str, current_user=None) -> list:
 
     event = {
         "id": _next_id(),
-        "type": "work_event",
+        "type": "event",
         "title": title,
         "requester": requester,
         "executor": executor,
