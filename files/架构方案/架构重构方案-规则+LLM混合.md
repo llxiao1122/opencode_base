@@ -84,7 +84,7 @@
 
 ```
 def handle(user_input, event, user):
-    1. _log_raw(user_input)              → memory/events/log.jsonl
+    1. _log_raw(user_input)              → data/memory/events/log.jsonl
     2. decision = ReasoningEngine.think() → 结构化 JSON
     3. _execute(decision)                → 写 tasks.json
     4. return _compose(decision)         → LLM 合成回复 → 返回用户
@@ -140,9 +140,9 @@ LLM prompt 设计：
 
 ```
 def reflect(since_days=7):
-    1. 扫描 memory/events/log.jsonl (近 N 天)
+    1. 扫描 data/memory/events/log.jsonl (近 N 天)
     2. 加载 data/tasks.json (状态变更)
-    3. 加载 memory/observations/
+    3. 加载 data/memory/observations/
     4. LLM 提炼
     
     LLM prompt:
@@ -152,9 +152,9 @@ def reflect(since_days=7):
      3. 值得记录的通用经验规则
      4. 人员能力/特质观察
     
-    输出 JSON: {patterns, team_dynamics, rules, profiles}"
+     输出 JSON: {patterns, team_dynamics, rules, profiles}"
     
-    → 写入 memory/observations/people/{name}.md
+    → 写入 data/memory/observations/people/{name}.md
     → 写入 Knowledge/经验提炼.md
 ```
 
