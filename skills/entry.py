@@ -33,8 +33,6 @@ os.environ.setdefault("HF_HUB_OFFLINE", "1")
 _index_built = False
 _daemon_started = False
 
-_CHANGE_KW = ["负责", "接手", "调整", "转交", "改管", "分管", "接管",
-              "离职", "休假", "调走", "借调", "辞职", "退休"]
 def _build_index_once():
     global _index_built
     if _index_built:
@@ -52,49 +50,8 @@ def _build_index_once():
     _index_built = True
 
 
-def _detect_entity_changes(user_input):
-    if not any(kw in user_input for kw in _CHANGE_KW):
-        return
-    try:
-        from memory.change_detector import detect as cd_detect
-        changes = cd_detect(user_input)
-        if not changes:
-            return
-        _apply_changes_direct(changes)
-    except Exception as e:
-        logger.warning("entity change detection failed: %s", e, exc_info=True)
 
 
-def _apply_changes_direct(changes):
-    import json
-    path = ROOT_DIR / "data" / "state" / "entity_index.json"
-    data = json.loads(path.read_text(encoding="utf-8"))
-    entities = data.get("confirmed_entities", [])
-    for c in changes:
-        if c.get("confidence", 0) < 0.80:
-            continue
-        name = c["entity"]
-        new_role = c["new_value"]
-        found = False
-        for e in entities:
-            if e["name"] == name:
-                e["role"] = new_role
-                found = True
-                break
-        if not found:
-            entities.append({
-                "name": name,
-                "aliases": [],
-                "route_hint": ["G"],
-                "weight": 1.0,
-                "role": new_role,
-                "source": "change_detector",
-            })
-    data["_meta"]["updated"] = __import__("datetime").datetime.now().strftime("%Y-%m-%d")
-    tmp = Path(str(path) + ".tmp")
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    tmp.replace(path)
 
 
 _FAST_HANDLERS = {
@@ -173,8 +130,6 @@ def handle_core(user_input: str) -> str:
                 tool_id = rctx.route if rctx.route else route
 
     with tracer.span("post_process"):
-        _detect_entity_changes(user_input)
-
         try:
             from correction.logger import append
             append(rctx, result, tool_id=tool_id or "")
