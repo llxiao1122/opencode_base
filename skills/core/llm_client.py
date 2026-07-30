@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 llm_client.py - 统一 LLM 调用封装
-供 simulator、memory_core 等模块共享 DeepSeek API 调用。
+支持 deepseek / zhipu / gemini 多 provider 切换。
 """
 
 import logging, os, json, re, time, urllib.request
@@ -85,7 +85,7 @@ def call(prompt, system_prompt=None, temperature=0.0, timeout=120, max_tokens=10
     url, key, model = _resolve_config()
 
     if not url or not key:
-        return json.dumps({"error": "LLM API 未配置"})
+        return {"error": "LLM API 未配置"}
 
     messages = []
     if system_prompt:
@@ -123,7 +123,7 @@ def call(prompt, system_prompt=None, temperature=0.0, timeout=120, max_tokens=10
                 if err.get("error", {}).get("code") == "1305":
                     continue
             except Exception:
-                logger.warning("DeepSeek API error parse failed: code=%s body=%s", e.code, err_body if 'err_body' in locals() else 'N/A')
+                logger.warning("%s API error parse failed: code=%s body=%s", provider.capitalize(), e.code, err_body if 'err_body' in locals() else 'N/A')
             return {"error": f"HTTP {e.code}"}
         except Exception as e:
             if attempt < 2:

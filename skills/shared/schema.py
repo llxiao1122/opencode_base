@@ -81,7 +81,7 @@ class RequestContext:
 
     memory_context: Optional[str] = None
 
-    last_params: Optional[dict] = None
+    slots: dict = field(default_factory=dict)
 
     result: Optional[dict] = None
 

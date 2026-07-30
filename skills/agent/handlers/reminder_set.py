@@ -34,7 +34,9 @@ def _load() -> list[dict]:
     if not QUEUE_PATH.exists():
         return []
     try:
-        return json.loads(QUEUE_PATH.read_text(encoding="utf-8"))
+        with open(QUEUE_PATH, "r", encoding="utf-8") as f:
+            portalocker.lock(f, portalocker.LOCK_SH)
+            return json.load(f)
     except Exception:
         return []
 

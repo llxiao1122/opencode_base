@@ -29,14 +29,19 @@ def _rebuild_indexes():
     try:
         from skills.router.builder import build as build_entities
         build_entities()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("entity index rebuild failed: %s", e, exc_info=True)
     try:
         from skills.router.faiss_router import _get_index as build_route
         build_route()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("route index rebuild failed: %s", e, exc_info=True)
 def handle(content: str, context: str = ""):
     _append_knowledge(content, context)
     _rebuild_indexes()
+    try:
+        from skills.correction.learner import run_learner
+        run_learner(min_count=1)
+    except Exception as e:
+        logger.debug("learner run failed: %s", e)
     return f"[Cipher:correction]\n✅ 纠正已记录至知识库并重建索引"

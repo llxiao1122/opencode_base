@@ -34,7 +34,7 @@ def handle(user_input, ctx):
 
     tasks = _load_tasks()
     matched = _filter_tasks(tasks, date_range)
-    daily_work = _get_daily_work(user_input, target_date)
+    daily_work = _get_daily_work(target_date)
 
     if not daily_work and not matched:
         week_day = WEEKDAY_ZH[target_date.weekday()]
@@ -127,15 +127,6 @@ def _filter_tasks(tasks, date_range):
     return active
 
 
-def _format_fallback(label, target_date, week_day="", tasks=None):
-    lines = []
-    if week_day:
-        lines.append(week_day)
-    if tasks:
-        lines.append(f"\n{label} 进行中的任务 ({len(tasks)} 项)")
-    return "\n".join(lines) if lines else f"{label} {target_date} 暂未找到进行中的任务。"
-
-
 def _extract_contacts(matched_tasks, daily_work_text):
     from skills.shared.entity import load_entities
     entities = load_entities()
@@ -171,14 +162,6 @@ def _extract_contacts(matched_tasks, daily_work_text):
                 seen.add(name)
 
     return "\n".join(lines) if lines else ""
-
-
-def _name_matches(full_name, text):
-    if full_name in text:
-        return True
-    if len(full_name) >= 3 and full_name[:2] in text:
-        return True
-    return False
 
 
 def _contact_context(name, action_text):
@@ -279,7 +262,7 @@ def _get_flood_season(md: str, target: date) -> str:
     return "\n".join(lines)
 
 
-def _get_daily_work(user_input, target_date):
+def _get_daily_work(target_date):
     md_path = ROOT_DIR / "Knowledge" / "01-仓储业务" / "00-日常工作指引.md"
     if not md_path.exists():
         return ""

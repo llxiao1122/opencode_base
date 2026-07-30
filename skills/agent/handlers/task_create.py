@@ -6,6 +6,10 @@ def handle(summary: str, deadline: str = "", assignee: str = "",
     org = OrganizationModel()
     tm = TaskManager(org)
 
+    owner_name = (ctx.user or {}).get("name", "李林骁")
+    owner_role = (ctx.user or {}).get("role", "工班长")
+    owner_team = (ctx.user or {}).get("team", "铁炉西工班")
+
     event = {
         "id": "",
         "event_type": "instruction",
@@ -18,11 +22,11 @@ def handle(summary: str, deadline: str = "", assignee: str = "",
         "raw": summary,
     }
     context = {
-        "my_position": {"type": "executor", "owner": "李林骁"},
+        "my_position": {"type": "executor", "owner": owner_name},
         "required_action": {"verb": "完成", "scope": summary},
         "reason": "Agent 创建任务",
     }
-    user = {"name": "李林骁", "role": "工班长", "team": "铁炉西工班"}
+    user = {"name": owner_name, "role": owner_role, "team": owner_team}
     task = tm.create(event, context, user)
     if not task or not task.get("id"):
         return f"[Cipher:error]\n任务创建失败"

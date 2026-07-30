@@ -23,7 +23,7 @@ ROOT = _root()
 
 AGENT_SYSTEM_PROMPT = """\
 你是 Cipher，{user_name}的企业智能助手。基于用户消息，选择最合适的工具。
-{memory_context}可选工具：
+{context_line}{memory_context}可选工具：
 {tools_desc}
 
 输出格式（严格 JSON，只输出 JSON 对象，不要 markdown 代码块）：
@@ -154,7 +154,19 @@ def run(user_input: str, ctx: Optional[RequestContext] = None,
     if memory_text and not memory_text.endswith("\n"):
         memory_text += "\n"
 
-    # 世界观检索：将匹配的实体档案注入 context
+    context_parts = []
+    slots = ctx.slots or {}
+    if slots.get("has_time"):
+        context_parts.append("时间指示")
+    if slots.get("person_names"):
+        context_parts.append("涉及人员 " + "、".join(slots["person_names"]))
+    if slots.get("has_correction"):
+        context_parts.append("纠错")
+    if slots.get("has_knowledge"):
+        context_parts.append("知识查询")
+    context_line = "当前语境：" + "，".join(context_parts) + "\n" if context_parts else ""
+
+    # 世界观检索：语义匹配最相关的实体档案
     try:
         from skills.memory.worldview import search as worldview_search
         wv_hits = worldview_search(user_input, top_k=2)
@@ -169,6 +181,7 @@ def run(user_input: str, ctx: Optional[RequestContext] = None,
         user_name=user_name,
         tools_desc=tools_desc,
         memory_context=memory_text,
+        context_line=context_line,
     )
 
     from skills.core.llm_client import call as llm_call
@@ -208,7 +221,6 @@ def run(user_input: str, ctx: Optional[RequestContext] = None,
                     continue
                 return f"[Cipher:agent]\n{err}，请补充后重试。"
 
-            ctx.last_params = params
             with (tracer.span("agent.execute", tool=tool_id) if tracer else _nullctx()):
                 result = execute(tool_id, params, ctx=ctx)
 

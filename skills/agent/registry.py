@@ -78,7 +78,7 @@ TOOL_REGISTRY = {
                          "description": "执行人"},
         },
         "handler": "skills.agent.handlers.task_create:handle",
-        "param_map": {"summary": "summary", "deadline": "deadline", "assignee": "assignee"},
+        "param_map": {"summary": "summary", "deadline": "deadline", "assignee": "assignee", "ctx": None},
     },
     "task_feedback": {
         "description": "反馈任务完成状态，标记完成/取消",

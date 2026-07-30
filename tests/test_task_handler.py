@@ -27,13 +27,13 @@ def test_detect_scope_week():
 
 
 def test_get_daily_work_output_not_empty():
-    result = _get_daily_work("明天", date(2026, 7, 25))
+    result = _get_daily_work( date(2026, 7, 25))
     assert result
     assert isinstance(result, str)
 
 
 def test_get_daily_work_contains_sections():
-    result = _get_daily_work("明天", date(2026, 7, 25))
+    result = _get_daily_work( date(2026, 7, 25))
     assert "【值班】" in result
     assert "【库区负责人】" in result
     assert "【每日固定工作】" in result
@@ -41,12 +41,12 @@ def test_get_daily_work_contains_sections():
 
 
 def test_get_daily_work_duty_person():
-    result = _get_daily_work("明天", date(2026, 7, 25))
+    result = _get_daily_work( date(2026, 7, 25))
     assert "当日值班人员:" in result
 
 
 def test_get_daily_work_zone_chiefs():
-    result = _get_daily_work("明天", date(2026, 7, 25))
+    result = _get_daily_work( date(2026, 7, 25))
     # Extract zone lines
     lines = result.split("\n")
     zone_lines = [l for l in lines if "—" in l and l.strip().startswith("立体")]
@@ -55,5 +55,5 @@ def test_get_daily_work_zone_chiefs():
 
 def test_material_shed_merged_no_separate_section():
     """材料棚轮值信息不应作为独立章节出现"""
-    result = _get_daily_work("明天", date(2026, 7, 25))
+    result = _get_daily_work( date(2026, 7, 25))
     assert "【材料棚轮换】" not in result, "材料棚轮换应与库区负责人合并"

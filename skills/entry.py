@@ -98,10 +98,11 @@ def handle_core(user_input: str) -> str:
     _build_index_once()
 
     from skills.shared.schema import RequestContext, CT
-    from skills.router.faiss_router import classify
+    from skills.router.faiss_router import classify, extract_slots
 
     rctx = RequestContext(message=user_input, trace_id=tracer.trace_id)
     rctx.user = {"name": "李林骁", "role": "工班长", "team": "铁炉西工班"}
+    rctx.slots = extract_slots(user_input)
     route = None
     confidence = 0.0
 
