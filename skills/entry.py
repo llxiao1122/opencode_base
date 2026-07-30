@@ -79,6 +79,7 @@ def _search_episodic(user_input: str) -> str:
     try:
         from skills.memory.worldview import search as wv_search
         hits = wv_search(user_input, top_k=2)
+        hits = [h for h in hits if h.get("score", 0) >= 0.6]
         if not hits:
             return ""
         lines = ["[世界观档案]:"]
