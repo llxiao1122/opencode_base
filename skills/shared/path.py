@@ -27,15 +27,3 @@ def ensure_paths():
 
 def root() -> Path:
     return _ROOT
-
-
-def skills_dir() -> Path:
-    return _SKILLS
-
-
-def state_dir() -> Path:
-    return _ROOT / "data" / "state"
-
-
-def memory_dir() -> Path:
-    return _ROOT / "data" / "memory"

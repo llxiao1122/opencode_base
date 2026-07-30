@@ -11,7 +11,7 @@ skills/entry.py — Cipher 主入口。
   后处理 → 实体变更检测 + 决策日志 + 异步反射 + 守护线程
 """
 
-import logging, os, re, sys, threading
+import logging, os, re, sys, threading, uuid
 from pathlib import Path
 
 # Ensure skills/ is importable before anything else
@@ -30,24 +30,14 @@ ROOT_DIR = _root()
 
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
 
-_index_built = False
 _daemon_started = False
 
 def _build_index_once():
-    global _index_built
-    if _index_built:
-        return
-    try:
-        from skills.router.builder import build
-        build()
-    except Exception as e:
-        logger.warning("entity index build() failed: %s", e, exc_info=True)
     try:
         from skills.router.faiss_router import _get_index
         _get_index()
     except Exception as e:
         logger.warning("FAISS index _get_index() failed: %s", e, exc_info=True)
-    _index_built = True
 
 
 
@@ -78,7 +68,7 @@ def _search_episodic(user_input: str) -> str:
     """搜索 worldview 档案，返回格式化情景记忆。仅 Agent 路径调用。"""
     try:
         from skills.memory.worldview import search as wv_search
-        hits = wv_search(user_input, top_k=2)
+        hits = wv_search(user_input, top_k=2, type_filter="person")
         hits = [h for h in hits if h.get("score", 0) >= 0.6]
         if not hits:
             return ""
@@ -92,78 +82,65 @@ def _search_episodic(user_input: str) -> str:
         return ""
 
 
-def handle_core(user_input: str) -> str:
-    from skills.shared.tracer import Tracer
-    tracer = Tracer()
 
+def handle_core(user_input: str) -> str:
     _build_index_once()
 
     from skills.shared.schema import RequestContext, CT
     from skills.router.faiss_router import classify, extract_slots
 
-    rctx = RequestContext(message=user_input, trace_id=tracer.trace_id)
+    rctx = RequestContext(message=user_input, trace_id=str(uuid.uuid4())[:8])
     rctx.user = {"name": "李林骁", "role": "工班长", "team": "铁炉西工班"}
     rctx.slots = extract_slots(user_input)
     route = None
     confidence = 0.0
 
-    with tracer.span("entry.route", input_len=len(user_input)):
-        route, confidence = classify(user_input)
+    route, confidence = classify(user_input)
 
-        if route == "correction" and confidence >= 0.5:
-            with tracer.span("workflow.correction"):
-                from skills.workflow.engine import WorkflowEngine
-                wf_result = WorkflowEngine(tracer=tracer).run("correction", user_input, rctx)
-                result = wf_result.text
-                tool_id = "correction"
-                rctx.route = "correction"
-                rctx.confidence = confidence
-        elif confidence >= CT.HIGH and route != "event":
-            with tracer.span("fast_dispatch", route=route):
-                result = _fast_dispatch(route, user_input, rctx)
-                tool_id = route
-                rctx.route = route
-                rctx.confidence = confidence
-        else:
-            with tracer.span("agent.run"):
-                rctx.memory_context = _search_episodic(user_input)
-                from agent.engine import run as agent_run
-                result = agent_run(user_input, rctx, tracer=tracer)
-                tool_id = rctx.route if rctx.route else route
+    if round(confidence, 2) >= CT.HIGH and route != "event":
+        result = _fast_dispatch(route, user_input, rctx)
+        tool_id = route
+        rctx.route = route
+        rctx.confidence = confidence
+    else:
+        rctx.original_route = route
+        rctx.original_confidence = confidence
+        rctx.memory_context = _search_episodic(user_input)
+        from agent.engine import run as agent_run
+        result = agent_run(user_input, rctx)
+        tool_id = rctx.route if rctx.route else route
 
-    with tracer.span("post_process"):
+    try:
+        from agent.reflector import reflect
+        t = threading.Thread(
+            target=reflect,
+            args=(tool_id or "", {}, str(result or ""), user_input),
+            daemon=True,
+        )
+        t.start()
+    except Exception as e:
+        logger.debug("reflect async start failed: %s", e)
+
+    global _daemon_started
+    if not _daemon_started:
+        _daemon_started = True
         try:
-            from correction.logger import append
-            append(rctx, result, tool_id=tool_id or "")
-        except Exception as e:
-            logger.warning("decision log append failed: %s", e, exc_info=True)
-
-        try:
-            from agent.reflector import reflect
+            from skills.trigger.daemon import ProactiveDaemon
             t = threading.Thread(
-                target=reflect,
-                args=(tool_id or "", {}, str(result or ""), user_input),
+                target=ProactiveDaemon(check_interval_sec=300).start_loop,
                 daemon=True,
             )
             t.start()
+            logger.info("ProactiveDaemon thread started")
         except Exception as e:
-            logger.debug("reflect async start failed: %s", e)
+            logger.warning("daemon start failed: %s", e)
 
-        global _daemon_started
-        if not _daemon_started:
-            _daemon_started = True
-            try:
-                from skills.trigger.daemon import ProactiveDaemon
-                t = threading.Thread(
-                    target=ProactiveDaemon(check_interval_sec=300).start_loop,
-                    daemon=True,
-                )
-                t.start()
-                logger.info("ProactiveDaemon thread started")
-            except Exception as e:
-                logger.warning("daemon start failed: %s", e)
-
-    tracer.dump()
+    try:
+        from skills.memory.recorder import record as _record
+        _record(user_input, source="entry", obs_type="interaction",
+                layer="rule", confidence=round(confidence or 0.5, 2))
+    except Exception:
+        pass
 
     conf_label = rctx.confidence or confidence or 0.0
     result = re.sub(

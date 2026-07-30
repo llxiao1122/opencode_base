@@ -26,9 +26,9 @@ NOISE_QUERIES = ["啊啊啊吧吧吧", "。。。", "123456", "x"]
 
 
 @pytest.mark.parametrize("msg", EMPTY_CASES)
-def test_faiss_empty_returns_event_zero(msg):
+def test_faiss_empty_returns_unknown_zero(msg):
     route, conf = classify(msg)
-    assert route == "event" and conf == 0.0
+    assert route == "unknown" and conf == 0.0
 
 
 @pytest.mark.parametrize("msg,expected_route", SEED_QUERIES)

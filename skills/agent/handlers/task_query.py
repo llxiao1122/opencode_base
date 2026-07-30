@@ -96,13 +96,13 @@ def _load_tasks():
 
 def _parse_chinese_date(deadline_str: str) -> date | None:
     today = datetime.now().date()
-    if deadline_str == "今天":
+    if deadline_str.startswith("今天"):
         return today
-    if deadline_str == "明天" or deadline_str == "明日":
+    if deadline_str.startswith("明天") or deadline_str.startswith("明日"):
         return today + timedelta(days=1)
-    if deadline_str == "后天" or deadline_str == "後天":
+    if deadline_str.startswith("后天") or deadline_str.startswith("後天"):
         return today + timedelta(days=2)
-    if deadline_str == "本周" or deadline_str == "这周":
+    if deadline_str in ("本周", "这周"):
         days_ahead = 7 - today.weekday()
         return today + timedelta(days=days_ahead - 1)
     try:

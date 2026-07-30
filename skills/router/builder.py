@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """
-routing/builder.py — Entity index builder.
-Reads state/team_work.json for org structure + leaders,
-preserves existing member extra fields in entity_index.json.
+routing/builder.py — Entity index builder (LEGACY, replaced by worldview).
+
+Previously built entity_index.json from team_work.json.
+Worldview (worldview.py) is now the SSOT; this module is kept as
+a legacy tool for one-time data import.
 
 Usage: python3 skills/routing/builder.py
-  Called automatically by entry.py on startup.
+  No longer called automatically.
 """
 
 import json

@@ -1,47 +1,38 @@
 """
-organization/model.py — Organization model (Phase 1.8)
+organization/model.py — Organization model (V4.2+ worldview SSOT)
 
 Provides team member queries.
-Loads from state/entity_index.json and state/team_work.json.
+Loads from worldview entities/*.md (工班成员 flag).
 """
 
-import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-ENTITY_INDEX_PATH = ROOT / "data" / "state" / "entity_index.json"
-TEAM_WORK_PATH = ROOT / "data" / "state" / "team_work.json"
+ENTITIES_DIR = ROOT / "data" / "state" / "worldview" / "entities"
+
+
+def _load_team_members() -> set[str]:
+    """Scan worldview entities/*.md for persons flagged as team members."""
+    members = set()
+    if not ENTITIES_DIR.exists():
+        return members
+    for f in sorted(ENTITIES_DIR.glob("*.md")):
+        content = f.read_text(encoding="utf-8")
+        if "**工班成员**: true" in content or "**工班成员**: true" in content:
+            members.add(f.stem)
+    return members
 
 
 def _build_teams():
-    """Read entity_index.json to build team structure.
+    """Build team structure from worldview entity files.
 
-    SSOT: entity_index.json _meta.team_members defines the core team.
-    Falls back to all entity_index names minus the leader.
+    SSOT: entities/*.md — person files with `工班成员: true` flag.
 
     Returns: {team_name: {"leader": str, "members": list[str]}}
     """
-    teams = {}
-    data = {}
-
-    try:
-        data = json.loads(ENTITY_INDEX_PATH.read_text(encoding="utf-8"))
-    except Exception:
-        pass
-
-    # SSOT: team_members list from entity_index _meta
-    known_team = set(data.get("_meta", {}).get("team_members", []))
-
-    # Fallback: all confirmed_entities except the leader
-    if not known_team:
-        for e in data.get("confirmed_entities", []):
-            known_team.add(e["name"])
-
-    # Remove leader from members list
+    known_team = _load_team_members()
     members = sorted(n for n in known_team if n != "李林骁")
-
-    teams["铁炉西工班"] = {"leader": "李林骁", "members": members}
-    return teams
+    return {"铁炉西工班": {"leader": "李林骁", "members": members}}
 
 
 class OrganizationModel:

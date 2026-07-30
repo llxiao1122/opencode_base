@@ -82,21 +82,6 @@ def _static_info(name: str) -> str:
     return ""
 
 
-# ── LLM 调用 ─────────────────────────────────────────────────────
-
-def _llm(prompt: str, system: str = "") -> str:
-    from skills.core.llm_client import call
-    return call(prompt, system_prompt=system, temperature=0.3, max_tokens=4096)
-
-
-BOOTSTRAP_SYSTEM = (
-    "你是工班管理分析专家。根据提供的原始数据，按要求输出结构化档案。"
-    "事实与推断严格分离。每条推断必须附具体证据。"
-    "只输出 Markdown 正文，不要任何前缀解释（如'好的''根据原始数据'等）。"
-    "近期事件如有大量重复内容，合并为一条并标注次数。"
-)
-
-
 def _dedup_lines(text: str) -> str:
     """去重连续重复的行，合并为一条标注次数"""
     lines = text.splitlines()
@@ -127,80 +112,115 @@ def _smart_sample(text: str, max_chars: int = 8000) -> str:
 
 
 def _bootstrap_person(name: str, obs_text: str, events: list, static_row: str) -> str:
-    obs_text = _dedup_lines(obs_text)
-    sampled = _smart_sample(obs_text, max_chars=8000)
-    events_text = "\n".join(
-        f"[{e.get('event_type','?')}] {e.get('raw_preview','')[:120]}"
-        for e in events[-30:]
-    )
-    prompt = f"""实体：{name}
+    # 基本信息
+    info_parts = [f"- **姓名**: {name}"]
+    if static_row:
+        cols = [c.strip() for c in static_row.strip("|").split("|")]
+        labels = ["工号", "岗位", "电话", "五大员", "库区责任", "值班位"]
+        for label, col in zip(labels, cols[1:] if len(cols) > 1 else cols):
+            if col and col != "—":
+                info_parts.append(f"- **{label}**: {col}")
+    info_parts.append("- **静态源**: Knowledge/01-仓储业务/00-日常工作指引.md")
 
-## 静态信息
-{static_row or '（未在总表中找到）'}
+    # 近期事件
+    event_lines = ["## 近期事件（上限 30 条）"]
+    for e in events[-30:]:
+        dt = e.get("date", e.get("event_date", ""))[:10]
+        preview = e.get("raw_preview", e.get("summary", ""))[:120]
+        if dt and preview:
+            event_lines.append(f"[{dt}] {preview}")
+    if len(event_lines) == 1:
+        event_lines.append("（无事件记录）")
 
-## 观察记录
-{sampled if obs_text else '（无）'}
+    # 协作关系：从观察记录中提取共同出现的其他人员
+    from skills.shared.embedder import create_embedder
+    import numpy as np
+    e = create_embedder()
+    collaborators = []
+    for person in PERSON_ENTITIES:
+        if person == name:
+            continue
+        v_name = e.encode(name)
+        v_person = e.encode(person)
+        if float(np.dot(v_name, v_person)) > 0.30:
+            collaborators.append(person)
 
-## 相关事件摘要
-{events_text or '（无）'}
+    lines = [
+        "## 基本信息",
+        "\n".join(info_parts),
+        "",
+        "## 行为模式",
+        "### 核心特质",
+        f"（{name} 的行为模式特征可通过日常观察积累，当前暂无自动分析）",
+        "",
+        "### 协作关系",
+        f"潜在关联人员：{'、'.join(collaborators) if collaborators else '暂无识别'}" if collaborators else "（暂无识别）",
+        "",
+        "## 关联制度",
+        "（关联制度待补充）",
+        "",
+        event_lines,
+        "",
+        "## 证据锚点",
+        "| 模式 | 证据位置 | 时间 |",
+        "| --- | --- | --- |",
+    ]
 
-请生成以下格式的 Markdown 档案。不要添加任何前缀/后缀/解释文字。必须覆盖以下内容：
-
-## 基本信息
-- **姓名**: {name}
-（根据静态信息填工号/岗位/电话/五大员/库区责任/值班位）
-- **静态源**: Knowledge/01-仓储业务/00-日常工作指引.md
-
-## 行为模式
-### 核心特质
-分析此人行为中的**关键重复模式**，包括但不限于：
-- 工作执行风格（主动还是被动？细致还是粗放？）
-- 诚信与可靠性（有无编理由/推诿/诚信风险事件）
-- 卫生/安全标准意识
-- 主动改进还是被动执行
-每条附一个具体证据引用。
-
-### 协作关系
-（常配合谁、常被指派什么类型任务、信息流向）
-
-## 近期事件（上限 30 条）
-按时间倒序，每条一行 [YYYY-MM-DD] 事件简述。完全相同的事件合并为一条并标注次数。
-
-## 关联制度
-（此人工作涉及 Knowledge 中哪些制度，列出文件名）
-
-## 证据锚点
-| 模式 | 证据位置 | 时间 |
-"""
-    return _llm(prompt, BOOTSTRAP_SYSTEM)
+    return "\n".join(["".join(l) if isinstance(l, str) else "\n".join(l) for l in lines])
 
 
 def _bootstrap_process(name: str) -> str:
-    """流程类实体的 Bootstrap"""
-    guide = ROOT / "Knowledge" / "01-仓储业务" / "00-日常工作指引.md"
-    guide_text = guide.read_text(encoding="utf-8") if guide.exists() else ""
-    prompt = f"""实体（流程规则）：{name}
+    """流程类实体的 Bootstrap — 语义匹配知识库内容"""
+    guide_path = ROOT / "Knowledge" / "01-仓储业务" / "00-日常工作指引.md"
+    guide_text = guide_path.read_text(encoding="utf-8") if guide_path.exists() else ""
 
-## 知识库相关片段
-{guide_text[:2000]}
+    from skills.shared.embedder import create_embedder
+    import numpy as np
+    e = create_embedder()
+    v_name = e.encode(name)
 
-生成以下格式的 Markdown 档案：
+    table_rows = []
+    for line in guide_text.split("\n"):
+        if line.startswith("|") and line.count("|") >= 4:
+            cells = [c.strip() for c in line.strip("|").split("|")]
+            if not all(c == "—" or c.startswith(":") for c in cells):
+                table_rows.append(line)
 
-## 基本信息
-- **实体类型**: process
-- **关联制度**: （如涉及，写出 Knowledge 文件名）
-- **静态源**: Knowledge/01-仓储业务/00-日常工作指引.md
+    matched_rows = []
+    for row in table_rows[:100]:
+        v_row = e.encode(row)
+        sim = float(np.dot(v_name, v_row))
+        if sim > 0.40:
+            matched_rows.append((sim, row))
+    matched_rows.sort(key=lambda x: -x[0])
+    matched_rows = matched_rows[:5]
 
-## 规则定义
-（清晰列出该流程的关键规则）
+    related_people = []
+    for person in PERSON_ENTITIES:
+        v_person = e.encode(person)
+        sim = float(np.dot(v_name, v_person))
+        if sim > 0.45:
+            related_people.append(person)
 
-## 执行观测
-（基于知识库信息提炼的执行要点）
+    lines = [
+        f"## 基本信息",
+        f"- **实体名称**: {name}",
+        f"- **实体类型**: process",
+        f"- **静态源**: Knowledge/01-仓储业务/00-日常工作指引.md",
+        f"",
+        f"## 规则定义",
+    ]
+    if matched_rows:
+        for _, row in matched_rows:
+            lines.append(f"- {row}")
+    else:
+        lines.append(f"（{name} 规则信息待补充）")
 
-## 关联实体
-（涉及哪些人）
-"""
-    return _llm(prompt, BOOTSTRAP_SYSTEM)
+    lines.extend(["", "## 执行观测", "（执行观测可通过日常记录积累）", "", "## 关联实体"])
+    for p in related_people:
+        lines.append(f"- {p}")
+
+    return "\n".join(lines)
 
 
 # ── Bootstrap ──────────────────────────────────────────────────────
@@ -243,8 +263,30 @@ def bootstrap():
 
 # ── FAISS 索引管理 ────────────────────────────────────────────────
 
+def _split_sections(text: str) -> list[tuple[str, str]]:
+    """Split entity markdown into (section_name, content) pairs by ## headers."""
+    sections = []
+    current_name = "__header__"
+    current_lines = []
+    for line in text.splitlines():
+        if line.startswith("## ") and not line.startswith("### "):
+            if current_lines:
+                content = "\n".join(current_lines).strip()
+                if content:
+                    sections.append((current_name, content))
+            current_name = line.strip("# ").strip()
+            current_lines = [line]
+        else:
+            current_lines.append(line)
+    if current_lines:
+        content = "\n".join(current_lines).strip()
+        if content:
+            sections.append((current_name, content))
+    return sections
+
+
 def _rebuild_faiss():
-    """对所有实体档案重新建索引"""
+    """对所有实体档案按节（## 段落）重建索引"""
     import numpy as np
     try:
         import faiss
@@ -262,29 +304,38 @@ def _rebuild_faiss():
 
     index = faiss.IndexFlatIP(dim)
     chunk_map = {}
+    vector_idx = 0
 
-    for i, name in enumerate(names):
+    for name in names:
         path = ENTITIES_DIR / f"{name}.md"
         if not path.exists():
             continue
         text = path.read_text(encoding="utf-8")
-        vec = embedder.encode(text[:500])
-        vec = vec.reshape(1, -1).astype(np.float32)
-        norm = np.linalg.norm(vec)
-        if norm > 0:
-            vec /= norm
-        index.add(vec)
-        chunk_map[str(i)] = {
-            "entity_id": name,
-            "updated": idx["entities"][name]["updated"],
-            "type": idx["entities"][name]["type"],
-        }
+        sections = _split_sections(text)
+        for section_name, section_text in sections:
+            embed_text = f"{name} - {section_name}\n{section_text[:500]}"
+            vec = embedder.encode(embed_text)
+            vec = vec.reshape(1, -1).astype(np.float32)
+            norm = np.linalg.norm(vec)
+            if norm > 0:
+                vec /= norm
+            index.add(vec)
+            chunk_map[str(vector_idx)] = {
+                "entity_id": name,
+                "section": section_name,
+                "updated": idx["entities"][name]["updated"],
+                "type": idx["entities"][name]["type"],
+            }
+            vector_idx += 1
 
-    faiss_path = VECTOR_DIR / "worldview.index"
-    faiss.write_index(index, str(faiss_path))
+    tmp_faiss = VECTOR_DIR / "worldview.index.tmp"
+    faiss.write_index(index, str(tmp_faiss))
+    tmp_faiss.replace(VECTOR_DIR / "worldview.index")
     cm_path = VECTOR_DIR / "chunk_map.json"
-    cm_path.write_text(json.dumps(chunk_map, ensure_ascii=False, indent=2), encoding="utf-8")
-    logger.info("FAISS worldview index rebuilt: %d vectors", index.ntotal)
+    tmp_cm = VECTOR_DIR / "chunk_map.json.tmp"
+    tmp_cm.write_text(json.dumps(chunk_map, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp_cm.replace(cm_path)
+    logger.info("FAISS worldview index rebuilt: %d vectors (%d entities)", index.ntotal, len(names))
 
 
 # ── 增量更新 ──────────────────────────────────────────────────────
@@ -294,22 +345,40 @@ def update_entity(name: str, new_records: list[str]):
     old_path = ENTITIES_DIR / f"{name}.md"
     old_content = old_path.read_text(encoding="utf-8") if old_path.exists() else ""
 
-    records_text = "\n".join(new_records)
-    prompt = f"""实体：{name}
+    if old_content:
+        _backup_dir = ROOT / "data" / "state" / "worldview" / "_backlog" / name
+        _backup_dir.mkdir(parents=True, exist_ok=True)
+        (_backup_dir / f"{datetime.now().strftime('%Y%m%dT%H%M%S')}.md").write_text(old_content)
 
-## 现有档案
-{old_content[:2000] if old_content else '（新实体，无旧档案）'}
+    sections = _split_sections(old_content) if old_content else []
+    section_map = {s[0]: s[1] for s in sections}
 
-## 新增记录
-{records_text}
+    today = date.today().isoformat()
+    new_events = [f"[{today}] {r[:120]}" for r in new_records]
+    existing_events = section_map.get("近期事件（上限 30 条）", "")
+    event_lines = []
+    if existing_events:
+        event_lines = [l for l in existing_events.split("\n") if l.strip() and not l.startswith("#")]
+        event_lines = [l for l in event_lines if not l.startswith("[") or len(event_lines) < 60]
+    all_events = new_events + event_lines
+    section_map["近期事件（上限 30 条）"] = "\n".join(
+        ["## 近期事件（上限 30 条）"] + all_events[:30]
+    )
 
-请输出更新后的完整 Markdown 档案。注意：
-1. 行为模式节：整合新旧信息，修正过时内容
-2. 近期事件节：追加新记录，保留最近 30 条，淘汰最旧的
-3. 证据锚点节：保留仍有效的，追加新证据
-4. 不要删除仍有价值的旧信息，用 update 语义替代 rewrite
-"""
-    new_content = _llm(prompt, BOOTSTRAP_SYSTEM)
+    lines = []
+    header_order = ["基本信息", "行为模式", "协作关系", "近期事件（上限 30 条）",
+                    "关联制度", "规则定义", "执行观测", "关联实体", "证据锚点"]
+    seen = set()
+    for h in header_order:
+        if h in section_map and h not in seen:
+            seen.add(h)
+            lines.append(f"\n{section_map[h]}\n")
+    for h, content in sections:
+        if h not in seen:
+            seen.add(h)
+            lines.append(f"\n{content}\n")
+
+    new_content = "\n".join(lines).strip()
     old_path.write_text(new_content.strip() + "\n", encoding="utf-8")
     idx["entities"][name]["updated"] = datetime.now().isoformat()
     _save_index(idx)
@@ -327,29 +396,114 @@ def batch_update(entity_groups: dict[str, list[str]]):
 
 # ── 疑似新实体发现 ─────────────────────────────────────────────────
 
+_CHAR_NGRAM_MIN = 2
+_CHAR_NGRAM_MAX = 4
+
+
+_STOP_INITIALS = frozenset("的了着过把被在对于因为是就都也很还有个与或但")
+
+
+def _extract_candidates(text: str) -> set[str]:
+    """Extract meaningful Chinese n-grams, filtering those starting with stop chars."""
+    chars = [c for c in text if '\u4e00' <= c <= '\u9fff']
+    ngrams = set()
+    for n in range(_CHAR_NGRAM_MIN, _CHAR_NGRAM_MAX + 1):
+        for i in range(len(chars) - n + 1):
+            cand = ''.join(chars[i:i + n])
+            if cand[0] not in _STOP_INITIALS and cand[-1] not in _STOP_INITIALS:
+                ngrams.add(cand)
+    return ngrams
+
+
+def _merge_overlapping(candidates: list[dict]) -> list[dict]:
+    """Merge shorter candidates that are substrings of longer ones at same evidence."""
+    candidates.sort(key=lambda x: -x["count"])
+    merged = []
+    used = set()
+    for i, a in enumerate(candidates):
+        if i in used:
+            continue
+        best = a
+        for j, b in enumerate(candidates):
+            if j <= i or j in used:
+                continue
+            if best["name"] in b["name"] or b["name"] in best["name"]:
+                overlap = set(best["evidence"]) & set(b["evidence"])
+                if overlap:
+                    winner = best if len(best["name"]) >= len(b["name"]) else b
+                    loser = b if winner is best else best
+                    used.add(j)
+                    for e in loser["evidence"]:
+                        if e not in winner["evidence"]:
+                            winner["evidence"].append(e)
+                    best = winner
+        merged.append(best)
+        used.add(i)
+    return merged
+
+
 def detect_novel_entities(records: list[str], known: list[str] | None = None) -> list[dict]:
     if known is None:
         known = list(_load_index().get("entities", {}).keys())
-    prompt = f"""以下是 50 条行为记录。已知实体列表：{known}
-请找出重复出现的**新主题/新实体**不在列表中。
-要求：出现 ≥ 3 次，有明确主题一致性。
-输出 JSON 数组：[{{"name": "...", "type": "topic", "count": 3, "evidence": ["..."]}}]
-"""
-    text = "\n".join(records)
-    raw = _llm(f"{prompt}\n\n{text[:3000]}")
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError:
-        return []
+
+    freq: dict[str, int] = {}
+    evidence: dict[str, list[str]] = {}
+    for rec in records:
+        for cand in _extract_candidates(rec):
+            freq[cand] = freq.get(cand, 0) + 1
+            if cand not in evidence:
+                evidence[cand] = []
+            if len(evidence[cand]) < 3:
+                evidence[cand].append(rec[:80])
+
+    from skills.shared.embedder import create_embedder
+    import numpy as np
+    e = create_embedder()
+    known_vecs = {kn: e.encode(kn) for kn in known if kn}
+
+    candidates = []
+    for cand, count in freq.items():
+        if count < 3:
+            continue
+        v_cand = e.encode(cand)
+        is_novel = True
+        for kn, v_kn in known_vecs.items():
+            sim = float(np.dot(v_cand, v_kn))
+            if sim >= 0.55:
+                is_novel = False
+                break
+        if is_novel:
+            candidates.append({
+                "name": cand,
+                "type": "topic",
+                "count": count,
+                "evidence": evidence.get(cand, []),
+            })
+
+    candidates = _merge_overlapping(candidates)
+    candidates.sort(key=lambda x: -x["count"])
+    return candidates[:5]
 
 
 # ── 查询 ──────────────────────────────────────────────────────────
 
-def search(query: str, top_k: int = 3) -> list[dict]:
-    """混合检索：FAISS 向量 + BM25 实体名兜底"""
+def _get_section_text(entity_id: str, section: str) -> str:
+    """Extract a specific ## section from an entity file."""
+    path = ENTITIES_DIR / f"{entity_id}.md"
+    if not path.exists():
+        return ""
+    sections = _split_sections(path.read_text(encoding="utf-8"))
+    for sec_name, sec_text in sections:
+        if sec_name == section:
+            return sec_text
+    return ""
+
+
+def search(query: str, top_k: int = 3, type_filter: str | None = None) -> list[dict]:
+    """混合检索：FAISS 向量（分节级）+ BM25 实体名兜底"""
     results = []
 
-    # ① FAISS 向量检索
+    # ① FAISS 向量检索（按节命中）
     try:
         import numpy as np
         import faiss
@@ -370,12 +524,15 @@ def search(query: str, top_k: int = 3) -> list[dict]:
             for score, idx in zip(scores[0], indices[0]):
                 info = chunk_map.get(str(idx))
                 if info and score > 0.3:
-                    path = ENTITIES_DIR / f"{info['entity_id']}.md"
+                    content = _get_section_text(info["entity_id"], info.get("section", ""))
+                    if not content:
+                        content = _get_section_text(info["entity_id"], "__header__")
                     results.append({
                         "entity_id": info["entity_id"],
                         "type": info["type"],
+                        "section": info.get("section", ""),
                         "score": round(float(score), 3),
-                        "content": path.read_text(encoding="utf-8") if path.exists() else "",
+                        "content": content,
                     })
     except Exception as e:
         logger.debug("FAISS search failed: %s", e)
@@ -391,10 +548,14 @@ def search(query: str, top_k: int = 3) -> list[dict]:
                     results.append({
                         "entity_id": name,
                         "type": idx["entities"][name]["type"],
+                        "section": "",
                         "score": 1.0,
                         "content": path.read_text(encoding="utf-8"),
                     })
                 break
+
+    if type_filter:
+        results = [r for r in results if r.get("type") == type_filter]
 
     return results
 

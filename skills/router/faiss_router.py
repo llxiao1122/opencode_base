@@ -1,13 +1,14 @@
 """
-skills/router/faiss_router.py — 三层路由：Signal → FAISS → LLM。
+skills/router/faiss_router.py — 两层路由：Worldview → FAISS。
 
-  1. Signal Layer: 结构化信号提取（时间/人名/知识域/纠错标记）
-     命中且置信 ≥ 0.8 → 直接返回，不走 FAISS
-  2. FAISS Layer: 语义向量检索（原逻辑）
-  3. LLM Layer: 由 entry.py 在低置信时调用（外部）
+  1. Worldview Layer: 对 197 个实体分节做语义匹配，从命中类型/节名推路由
+  2. FAISS Layer: route_index 种子兜底（worldview 匹配 < 0.55 时使用）
+
+Slot 提取 (extract_slots) 保留轻量正则供 agent 语境使用，不参与路由判断。
+纠错检测移入 entry.py handle_core() 做预检。
 """
 
-import os, threading, faiss, numpy as np, re
+import json, os, re, threading, faiss, numpy as np
 from functools import lru_cache
 from pathlib import Path
 from typing import Tuple, Optional
@@ -22,29 +23,26 @@ _STAMP_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "state" /
 _idx_mgr = None
 _idx_lock = threading.Lock()
 
-# ── Signal Layer 信号定义 ────────────────────────────────────────
-_TIME_PAT = re.compile(r"(今|明|昨|后)天|本周|下周|周[一二三四五六日]|\d+月\d+日|\d+号")
-_CORRECTION_PAT = re.compile(r"不对|错了|纠正|更正|修改|说错了|不是的|错了")
-_KNOWLEDGE_SEEDS = [
-    "制度", "规定", "流程", "标准", "规范", "要求", "怎么办", "如何",
-    "什么", "怎么", "多少", "哪里",
-]
-_EVENT_SEEDS = ["通知", "提醒", "记录", "发生", "出现", "收到", "注意"]
+# ── Slot 提取（仅 agent 语境用，不参与路由）─────────────────────
+_SLOT_TIME = re.compile(r"(今|明|昨|后)天|这周|本周|下周|周[一二三四五六日]|\d+月\d+日|\d+号")
+_SLOT_CORRECTION = re.compile(r"不对|错了|纠正|更正|修改|说错了|不是的|错了")
+_SLOT_KNOWLEDGE = ["制度", "规定", "流程", "标准", "规范", "要求", "怎么办", "如何", "什么", "怎么", "多少", "哪里"]
+_SLOT_EVENT = ["通知", "提醒", "记录", "发生", "出现", "收到", "注意"]
 
 
 def extract_slots(text: str) -> dict:
     """提取结构化信号槽位，供下游 context 使用。"""
-    has_time = bool(_TIME_PAT.search(text))
-    has_correction = bool(_CORRECTION_PAT.search(text))
-    has_knowledge = any(kw in text for kw in _KNOWLEDGE_SEEDS)
-    has_event = any(kw in text for kw in _EVENT_SEEDS)
+    has_time = bool(_SLOT_TIME.search(text))
+    has_correction = bool(_SLOT_CORRECTION.search(text))
+    has_knowledge = any(kw in text for kw in _SLOT_KNOWLEDGE)
+    has_event = any(kw in text for kw in _SLOT_EVENT)
     has_person = False
     person_names = []
     try:
         from skills.router.entity_resolver import resolve_entities
         resolved = resolve_entities(text)
-        has_person = bool(resolved.get("entities"))
-        person_names = [e["name"] for e in resolved.get("entities", [])]
+        person_names = [e["name"] for e in resolved.get("entities", []) if _is_person_entity(e["name"])]
+        has_person = bool(person_names)
     except Exception:
         pass
     return {
@@ -57,46 +55,17 @@ def extract_slots(text: str) -> dict:
     }
 
 
-def _signal_extract(text: str) -> Optional[Tuple[str, float]]:
-    """结构化信号提取。在 FAISS 之前执行，高置信时直接返回路由。"""
-    has_time = bool(_TIME_PAT.search(text))
-    has_person = False
+def _is_person_entity(name: str) -> bool:
+    """检查实体名是否对应 worldview 中的 person 类型"""
     try:
-        from skills.router.entity_resolver import resolve_entities
-        resolved = resolve_entities(text)
-        has_person = bool(resolved.get("entities"))
+        idx_path = Path(__file__).resolve().parent.parent.parent / "data" / "state" / "worldview" / "index.json"
+        if idx_path.exists():
+            idx = json.loads(idx_path.read_text(encoding="utf-8"))
+            ent = idx.get("entities", {}).get(name, {})
+            return ent.get("type") == "person"
     except Exception:
         pass
-
-    has_correction = bool(_CORRECTION_PAT.search(text))
-    has_knowledge = any(kw in text for kw in _KNOWLEDGE_SEEDS)
-    has_event = any(kw in text for kw in _EVENT_SEEDS)
-
-    # 事件通知：含事件信号 且 有时间 → event（通知在先，时间是事件内容）
-    if has_event and has_time:
-        return ("event", 0.80)
-
-    # 排期查询（任务/值班）：有时间指示 且 无人名 → task_query
-    if has_time and not has_person:
-        return ("task_query", 0.90)
-
-    # 人员查询：有人名 且 无时间指示 → profile_query
-    if has_person and not has_time:
-        return ("profile_query", 0.85)
-
-    # 纠错：含纠错标记 → correction
-    if has_correction:
-        return ("correction", 0.80)
-
-    # 知识查询：含知识域信号 且 无人名 → knowledge_retrieve
-    if has_knowledge and not has_person:
-        return ("knowledge_retrieve", 0.75)
-
-    # 事件：含事件信号 且 无时间 → event（有时间已在上方拦截）
-    if has_event:
-        return ("event", 0.70)
-
-    return None  # 无明确信号，走 FAISS
+    return False
 
 
 def _get_index():
@@ -114,18 +83,88 @@ def _get_index():
     return _idx_mgr
 
 
+_CONFIG_PATH = Path(__file__).parent / "route_config.json"
+_CONFIG = json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
+_WV_TYPE_ROUTE = _CONFIG["_WV_TYPE_ROUTE"]
+_WV_CONF_DEFAULT = _CONFIG.get("_WV_CONF_DEFAULT", {})
+
+
+def _worldview_classify(text: str) -> Optional[Tuple[str, float]]:
+    """Worldview Layer: 对实体分节做语义匹配，从命中类型推路由。
+
+    Returns (route, confidence) 或 None（匹配 < 0.55）。
+    """
+    try:
+        from skills.memory.worldview import search as wv_search
+        hits = wv_search(text, top_k=1)
+        if not hits:
+            return None
+        h = hits[0]
+        score = h.get("score", 0.0)
+        if score < 0.60:
+            return None
+
+        entity_type = h.get("type", "")
+        route = _WV_TYPE_ROUTE.get(entity_type, "knowledge_retrieve")
+        base_conf = _WV_CONF_DEFAULT.get(entity_type, 0.70)
+
+        if entity_type == "person":
+            return (route, round(min(score, base_conf), 2))
+
+        return (route, round(min(score + 0.05, base_conf), 2))
+    except Exception:
+        return None
+
+
+_PERSON_NAMES_CACHE = None
+
+
+def _load_person_names() -> list[str]:
+    global _PERSON_NAMES_CACHE
+    if _PERSON_NAMES_CACHE is not None:
+        return _PERSON_NAMES_CACHE
+    try:
+        idx_path = Path(__file__).resolve().parent.parent.parent / "data" / "state" / "worldview" / "index.json"
+        if idx_path.exists():
+            idx = json.loads(idx_path.read_text(encoding="utf-8"))
+            _PERSON_NAMES_CACHE = [n for n, v in idx.get("entities", {}).items() if v.get("type") == "person"]
+            return _PERSON_NAMES_CACHE
+    except Exception:
+        pass
+    return []
+
+
 @lru_cache(maxsize=1024)
 def classify(user_input: str) -> Tuple[str, float]:
     text = user_input.strip()
     if not text:
-        return ("event", 0.0)
+        return ("unknown", 0.0)
 
-    # 1. Signal Layer：结构化信号优先
-    sig = _signal_extract(text)
-    if sig is not None:
-        return sig
+    # 0. 人名预检：worldview index 中已知 person 实体名精确匹配
+    for name in _load_person_names():
+        if name in text:
+            return ("profile_query", 0.88)
 
-    # 2. FAISS Layer：语义向量兜底（原逻辑）
+    # 1+2 并行：Worldview + FAISS 种子，选最优
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        f_wv = ex.submit(_worldview_classify, text)
+        f_faiss = ex.submit(_faiss_classify, text)
+
+        # worldview 优先
+        wv = f_wv.result()
+        if wv is not None:
+            return wv
+
+        faiss_result = f_faiss.result()
+        if faiss_result is not None:
+            return faiss_result
+
+    return ("unknown", 0.0)
+
+
+def _faiss_classify(text: str) -> Optional[Tuple[str, float]]:
+    """FAISS seeds layer: route_index 种子兜底。"""
     try:
         idx_mgr = _get_index()
         raw = idx_mgr.embed(text)
@@ -134,7 +173,7 @@ def classify(user_input: str) -> Tuple[str, float]:
             raw = raw.reshape(1, -1)
 
         if np.linalg.norm(raw) < 1e-8:
-            return ("event", 0.0)
+            return None
 
         faiss.normalize_L2(raw)
 
@@ -142,13 +181,13 @@ def classify(user_input: str) -> Tuple[str, float]:
         top_dist = float(distances[0][0])
         top_idx = int(indices[0][0])
 
-        confidence = max(0.0, min(1.0, top_dist))
+        confidence = round(max(0.0, min(1.0, top_dist)), 2)
 
         if confidence < 0.5:
-            return ("event", confidence)
+            return None
 
         return (idx_mgr.route_labels[top_idx], confidence)
     except Exception as e:
         import logging
         logging.getLogger(__name__).warning("FAISS classify failed: %s", e, exc_info=True)
-        return ("event", 0.0)
+        return None

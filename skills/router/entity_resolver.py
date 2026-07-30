@@ -2,7 +2,7 @@
 entity_resolver.py — 实体-路由信号桥接层
 解析用户输入中的人名，返回路由信号。
 
-数据源: state/entity_index.json
+数据源: worldview entities/*.md
   模块加载时一次性读入内存，不每次请求读盘。
 
 返回结构:
@@ -15,29 +15,62 @@ entity_resolver.py — 实体-路由信号桥接层
 """
 
 import json
+import re
 from pathlib import Path
 from typing import Optional
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-INDEX_FILE = ROOT / "data" / "state" / "entity_index.json"
+ENTITIES_DIR = ROOT / "data" / "state" / "worldview" / "entities"
+_WORLDVIEW_INDEX = ROOT / "data" / "state" / "worldview" / "index.json"
 
-_CONFIRMED: Optional[list] = None
-_PENDING: Optional[list] = None
+_CONFIG_PATH = Path(__file__).parent / "route_config.json"
+_WV_TYPE_ROUTE = json.loads(_CONFIG_PATH.read_text(encoding="utf-8")).get("_WV_TYPE_ROUTE", {})
+
 _ALL: Optional[list] = None
+
+_RE_WEIGHT = re.compile(r"-\s+\*\*权重\*\*:\s*(\d+(?:\.\d+)?)")
+_RE_ROUTE_HINT = re.compile(r"-\s+\*\*路由提示\*\*:\s*(.*)")
+_RE_ALIAS = re.compile(r"-\s+\*\*别名\*\*:\s*(.*)")
 
 
 def _load():
-    global _CONFIRMED, _PENDING, _ALL
+    global _ALL
     if _ALL is not None:
         return
-    if not INDEX_FILE.exists():
-        _CONFIRMED, _PENDING, _ALL = [], [], []
+    if not ENTITIES_DIR.exists():
+        _ALL = []
         return
-    with open(INDEX_FILE, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    _CONFIRMED = data.get("confirmed_entities", [])
-    _PENDING = data.get("pending_entities", [])
-    _ALL = sorted(_CONFIRMED + _PENDING, key=lambda e: len(e.get("name", "")), reverse=True)
+    items = []
+    for f in sorted(ENTITIES_DIR.glob("*.md")):
+        try:
+            content = f.read_text(encoding="utf-8")
+        except Exception:
+            continue
+        name = f.stem
+        weight = 1.0
+        route_hint = []
+        aliases = []
+        for line in content.splitlines():
+            m = _RE_WEIGHT.match(line)
+            if m:
+                weight = float(m.group(1))
+            m = _RE_ROUTE_HINT.match(line)
+            if m:
+                try:
+                    route_hint = json.loads(m.group(1))
+                except (json.JSONDecodeError, TypeError):
+                    route_hint = []
+            m = _RE_ALIAS.match(line)
+            if m:
+                raw = m.group(1).strip()
+                aliases = [a.strip() for a in raw.split("、") if a.strip()]
+        items.append({
+            "name": name,
+            "weight": weight,
+            "route_hint": route_hint,
+            "aliases": aliases,
+        })
+    _ALL = sorted(items, key=lambda e: len(e.get("name", "")), reverse=True)
 
 
 def resolve_entities(text: str) -> dict:
@@ -95,6 +128,27 @@ def _resolve(text: str, min_weight: float) -> dict:
                 "confidence": item.get("confidence"),
             })
             break
+
+    # 子串匹配为空时，用 worldview 语义搜索兜底
+    if not matched:
+        try:
+            from skills.memory.worldview import search as wv_search
+            hits = wv_search(text, top_k=1)
+            if hits and hits[0].get("score", 0) >= 0.6:
+                h = hits[0]
+                etype = h.get("type", "")
+                matched.append({
+                    "name": h["entity_id"],
+                    "weight": 0.5,
+                    "route_hint": [_WV_TYPE_ROUTE.get(etype, "knowledge_retrieve")] if etype else [],
+                    "role": "",
+                    "source": "worldview_semantic",
+                    "confidence": h["score"],
+                })
+                if etype:
+                    routes.append(_WV_TYPE_ROUTE.get(etype, "knowledge_retrieve"))
+        except Exception:
+            pass
 
     return {
         "routes": list(dict.fromkeys(routes)),

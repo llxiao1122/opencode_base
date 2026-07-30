@@ -7,16 +7,24 @@ OBS_DIR = ROOT / "data" / "memory" / "observations" / "people"
 WORLDVIEW_DIR = ROOT / "data" / "state" / "worldview" / "entities"
 
 
-def handle(name: str, ctx=None) -> str:
-    entity_name = name
+def handle(text: str, ctx=None) -> str:
+    # 解析输入中提到的实体名
+    entity_name = text
+    try:
+        from skills.router.entity_resolver import resolve_entities
+        resolved = resolve_entities(text)
+        if resolved.get("entities"):
+            entity_name = resolved["entities"][0].get("name", text)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("profile_query resolve failed: %s", e)
 
     # 先尝试从世界观档案读
-    worldview_path = WORLDVIEW_DIR / f"{name}.md"
+    worldview_path = WORLDVIEW_DIR / f"{entity_name}.md"
     if worldview_path.exists():
         content = worldview_path.read_text(encoding="utf-8")
-        # 提取基本信息 + 行为模式
         sections = _extract_sections(content, ["基本信息", "行为模式", "近期事件"])
-        lines = [f"📋 {name} 档案"]
+        lines = [f"📋 {entity_name} 档案"]
         for sec in sections:
             lines.append("")
             lines.extend(sec)
@@ -26,25 +34,23 @@ def handle(name: str, ctx=None) -> str:
     lines = []
     role = "未知"
     try:
-        from skills.router.entity_resolver import resolve_entities
-        resolved = resolve_entities(name)
+        resolved = resolve_entities(text)
         if resolved.get("entities"):
             info = resolved["entities"][0]
-            entity_name = info.get("name", name)
+            entity_name = info.get("name", text)
             role = info.get("role", "未知")
             lines.append(f"{entity_name}: {role}")
     except Exception as e:
-        import logging
         logging.getLogger(__name__).warning("profile_query resolve failed: %s", e)
 
     if not lines:
         if ctx and ctx.user:
             user = ctx.user
-            entity_name = user.get("name", name)
+            entity_name = user.get("name", text)
             role = user.get("role", "工班长")
             lines.append(f"{entity_name}：{role}")
         else:
-            return f"[Cipher:profile]\n暂无 {name} 的相关记录。"
+            return f"[Cipher:profile]\n暂无 {text} 的相关记录。"
 
     recent = _recent_observations(entity_name)
     if recent:

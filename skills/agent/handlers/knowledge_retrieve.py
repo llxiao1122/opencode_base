@@ -33,6 +33,10 @@ def handle(user_input, ctx):
 
     knowledge_text = _search_knowledge(user_input, top_k=3)
     if not knowledge_text:
+        origin = getattr(ctx, "original_route", "") or ""
+        orig_conf = getattr(ctx, "original_confidence", 0.0) or 0.0
+        if origin in ("event", "unknown") and orig_conf < 0.5:
+            return "[Cipher] 已记录。"
         return "[Cipher] 制度库中暂无匹配条目。"
 
     sys_prompt = (

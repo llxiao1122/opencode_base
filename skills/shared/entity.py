@@ -1,41 +1,80 @@
 """
-shared/entity.py — Unified entity + team resolution.
+shared/entity.py — Unified entity + team resolution (worldview SSOT).
 
-Single source of truth for:
-  - Loading entity_index.json (cached)
+Single source of truth:
+  - Loading worldview entities/*.md (cached)
   - Role lookup by person name
   - Team membership mapping (delegates to organization/model.py)
   - Broadcast/assign word lists
 """
 
 import json
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-ENTITY_INDEX_PATH = ROOT / "data" / "state" / "entity_index.json"
-
-BROADCAST_WORDS = [
-    "各班组", "各工班", "各工班长", "全体人员", "所有工班", "各部门",
-    "全员", "运营公司全员", "相关人员", "责任人", "负责人",
-]
-
-ASSIGN_WORDS = ["通知", "安排", "要求", "指定", "负责", "完成"]
+ENTITIES_DIR = ROOT / "data" / "state" / "worldview" / "entities"
 
 _entities_cache: list = None
 
 
-def _load_raw():
+_RE_ROLE = re.compile(r"-\s+\*\*角色\*\*:\s*(.*)")
+_RE_ALIAS = re.compile(r"-\s+\*\*别名\*\*:\s*(.*)")
+_RE_NAME = re.compile(r"-\s+\*\*姓名\*\*:\s*(.*)")
+_RE_WEIGHT = re.compile(r"-\s+\*\*权重\*\*:\s*(\d+(?:\.\d+)?)")
+_RE_ROUTE_HINT = re.compile(r"-\s+\*\*路由提示\*\*:\s*(.*)")
+
+
+def _parse_md(filepath: Path) -> dict | None:
+    """Parse a worldview entity .md file into a structured dict."""
+    content = filepath.read_text(encoding="utf-8")
+    name = filepath.stem
+    role = ""
+    aliases = []
+    weight = 1.0
+    route_hint = []
+
+    for line in content.splitlines():
+        m = _RE_ROLE.match(line)
+        if m:
+            role = m.group(1).strip()
+        m = _RE_ALIAS.match(line)
+        if m:
+            raw = m.group(1).strip()
+            aliases = [a.strip() for a in raw.split("、") if a.strip()]
+        m = _RE_WEIGHT.match(line)
+        if m:
+            weight = float(m.group(1))
+        m = _RE_ROUTE_HINT.match(line)
+        if m:
+            try:
+                route_hint = json.loads(m.group(1))
+            except (json.JSONDecodeError, TypeError):
+                route_hint = []
+
+    return {
+        "name": name,
+        "role": role,
+        "aliases": aliases,
+        "weight": weight,
+        "route_hint": route_hint,
+    }
+
+
+def _load_raw() -> list:
     global _entities_cache
     if _entities_cache is not None:
         return _entities_cache
-    try:
-        data = json.loads(ENTITY_INDEX_PATH.read_text(encoding="utf-8"))
-        _entities_cache = (
-            data.get("confirmed_entities", []) +
-            data.get("pending_entities", [])
-        )
-    except Exception:
-        _entities_cache = []
+    results = []
+    if ENTITIES_DIR.exists():
+        for f in sorted(ENTITIES_DIR.glob("*.md")):
+            try:
+                parsed = _parse_md(f)
+                if parsed:
+                    results.append(parsed)
+            except Exception:
+                pass
+    _entities_cache = results
     return _entities_cache
 
 
@@ -53,72 +92,15 @@ def get_role(name: str) -> str:
 
 
 def resolve_user() -> dict:
-    """从 entity_index 解析当前用户（李林骁）的姓名/角色/班组。"""
-    try:
-        data = json.loads(ENTITY_INDEX_PATH.read_text(encoding="utf-8"))
-        for e in data.get("confirmed_entities", []):
-            if e["name"] == "李林骁":
-                return {"name": "李林骁", "role": e.get("role", "工班长"),
-                        "team": e.get("team", "铁炉西工班")}
-    except Exception:
-        pass
+    """从 worldview 解析当前用户（李林骁）的姓名/角色/班组。"""
+    """从 worldview 解析当前用户（李林骁）的姓名/角色/班组。"""
+    from skills.organization.model import OrganizationModel
+    org = OrganizationModel()
+    for e in _load_raw():
+        if e["name"] == "李林骁":
+            return {
+                "name": "李林骁",
+                "role": e.get("role", "工班长"),
+                "team": org.get_team_name("李林骁") or "铁炉西工班",
+            }
     return {"name": "李林骁", "role": "工班长", "team": "铁炉西工班"}
-
-
-def has_known_entity(text: str) -> bool:
-    """Check if text contains any known entity name."""
-    for e in _load_raw():
-        if e["name"] in text:
-            return True
-        for alias in e.get("aliases", []):
-            if alias in text:
-                return True
-        surname = e["name"][0] if e["name"] else ""
-        for suffix in _ROLE_SUFFIXES:
-            if suffix in e.get("role", "") and f"{surname}{suffix}" in text:
-                return True
-    return False
-
-
-_ROLE_SUFFIXES = ["经理", "主任", "部长", "副总", "总", "书记",
-                   "组长", "班长", "科长", "处长", "院长", "校长", "所长"]
-
-def find_entities_in_text(text: str) -> list:
-    """Return [{name, role}] for entities mentioned in text.
-
-    Matches by:
-      1. Full name substring (existing)
-      2. Alias match
-      3. Surname + role-title match (e.g. "张经理" → 张新宇)
-    """
-    seen = set()
-    results = []
-    for e in _load_raw():
-        name = e["name"]
-        role = e.get("role", "")
-        # 1. Exact name match
-        if name in text:
-            if name not in seen:
-                seen.add(name)
-                results.append({"name": name, "role": role})
-            continue
-        # 2. Alias match
-        matched = False
-        for alias in e.get("aliases", []):
-            if alias in text:
-                if name not in seen:
-                    seen.add(name)
-                    results.append({"name": name, "role": role})
-                matched = True
-                break
-        if matched:
-            continue
-        # 3. Surname+role-title match
-        surname = name[0] if name else ""
-        for suffix in _ROLE_SUFFIXES:
-            if suffix in role and f"{surname}{suffix}" in text:
-                if name not in seen:
-                    seen.add(name)
-                    results.append({"name": name, "role": role})
-                break
-    return results

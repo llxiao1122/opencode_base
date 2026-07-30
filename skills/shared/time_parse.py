@@ -63,25 +63,3 @@ def parse_deadline_dt(deadline_str: str, ref: datetime = None) -> datetime | Non
             return datetime(target.year, target.month, target.day, hour, 0)
 
     return None
-
-
-def calc_working_hours(start: datetime, end: datetime) -> float:
-    """Count working hours between two datetimes (8-18 Mon-Fri, excl weekends)."""
-    if end <= start:
-        return 0.0
-
-    total = 0.0
-    cur = start.date()
-    end_date = end.date()
-
-    while cur <= end_date:
-        if cur.weekday() < 5:
-            day_start = datetime(cur.year, cur.month, cur.day, WORK_START, 0)
-            day_end = datetime(cur.year, cur.month, cur.day, WORK_END, 0)
-            seg_start = max(start, day_start)
-            seg_end = min(end, day_end)
-            if seg_start < seg_end:
-                total += (seg_end - seg_start).total_seconds() / 3600
-        cur += timedelta(days=1)
-
-    return round(total, 1)

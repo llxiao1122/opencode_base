@@ -10,7 +10,6 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "skills"))
 
 from skills.shared.path import ensure_paths; ensure_paths()
-from skills.router.builder import build as build_entity_index; build_entity_index()
 from skills.router.faiss_router import _get_index; _get_index()
 from skills.shared.schema import RequestContext
 from skills.agent.handlers.task_query import handle as task_query_handle

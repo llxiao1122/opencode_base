@@ -20,7 +20,7 @@ from datetime import datetime
 from skills.shared.path import ensure_paths
 ensure_paths()
 
-from skills.shared import load_entities
+from skills.shared.entity import load_entities
 
 TOOLS_DIR = Path(__file__).resolve().parent.parent
 ROOT = TOOLS_DIR.parent
@@ -31,7 +31,7 @@ OUTPUT_PATH = ROOT / "data" / "state" / "org_memory.json"
 
 
 def _load_entity_roles() -> dict:
-    """Load {name: role} from entity_index.json."""
+    """Load {name: role} from worldview entities."""
     roles = {}
     for e in load_entities():
         roles[e["name"]] = e.get("role", "")

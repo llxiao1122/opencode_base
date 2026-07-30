@@ -44,12 +44,6 @@ class ProactiveDaemon:
                 dl = task.get("deadline", "")
                 dl_dt = parse_deadline_dt(dl)
                 dl_str = dl_dt.strftime("%m-%d %H:%M") if dl_dt else dl
-                summary_parts = {
-                    "action": action[:60],
-                    "deadline": dl_str,
-                    "threshold": f"{threshold}h",
-                    "task_id": task["id"],
-                }
                 title = f"⏰ 任务临期提醒（提前{threshold}小时）"
                 content = (
                     f"### {title}\n\n"

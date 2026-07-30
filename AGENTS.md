@@ -23,5 +23,8 @@ handle_core(): classify() → 高置信非 event/correction 走 _fast_dispatch /
 禁止：为一个规则建 engine / 为一个字段建 manager / 用 LLM 替代 Context / 用 prompt 修架构。
 优先扩展已有模块 → 其次新增稳定边界模块 → 不做临时规则文件。
 
+## 沟通风格
+详实、解释充分，不刻意省略上下文。回答时说明做了什么、为什么、结果如何。
+
 ## 测试
 `pytest tests/` — 全通过。

@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 ROOT = _root()
 OBS_DIR = ROOT / "data" / "memory" / "observations"
 INDEX_PATH = OBS_DIR / ".index.json"
-ENTITY_PATH = ROOT / "data" / "state" / "entity_index.json"
+ENTITIES_DIR = ROOT / "data" / "state" / "worldview" / "entities"
 
 
 TYPE_MAP = {
@@ -47,12 +47,10 @@ def _load_entity_names() -> list:
     if _entity_names is not None:
         return _entity_names
     _entity_names = []
-    if ENTITY_PATH.exists():
+    if ENTITIES_DIR.exists():
         try:
-            data = json.loads(ENTITY_PATH.read_text(encoding="utf-8"))
-            as_list = data if isinstance(data, list) else data.get("confirmed_entities", [])
-            _entity_names = [e["name"] for e in as_list if isinstance(e, dict)]
-        except (json.JSONDecodeError, KeyError) as e:
+            _entity_names = [f.stem for f in sorted(ENTITIES_DIR.glob("*.md"))]
+        except Exception as e:
             logger.debug("load entity names failed: %s", e)
     return _entity_names
 
@@ -192,65 +190,89 @@ def _knowledge_tail(filename, lines=20):
         return ""
 
 
-def _llm_classify(text, filenames):
-    prompt = (
-        "分析以下信息属于什么类型，应该归档到什么位置。\n\n"
-        f"信息：{text[:500]}\n\n"
-        "可选 Knowledge 文档：\n" + "\n".join(f"- {f}" for f in filenames) + "\n\n"
-        "分类定义：\n"
-        "- personal：某人的行为、事件、表现、评价 → observations/people\n"
-        "- knowledge：制度、规则、流程、决定 → Knowledge/对应文档\n"
-        "- analysis：分析、评论、思想、评价 → observations/system\n"
-        "- policy：政策、方针、领导指示 → observations/system\n\n"
-        "返回 JSON 数组（可多选），每项格式：\n"
-        "{\n"
-        '  "category": "personal|knowledge|analysis|policy",\n'
-        '  "target": "knowledge 时为文档名，其他为空",\n'
-        '  "content": "10字摘要",\n'
-        '  "confidence": 0.0-1.0\n'
-        "}\n只返回 JSON 数组。"
-    )
-    try:
-        from skills.core.llm_client import call as llm_call
-        raw = llm_call(prompt, system_prompt="你是一个信息分类助手，只输出 JSON。",
-                       max_tokens=500, temperature=0.1)
-        raw = str(raw).strip() if raw else ""
-        raw = raw.strip()
-        if not raw:
-            return []
-        import json as _j
-        result = _j.loads(raw)
-        return result if isinstance(result, list) else []
-    except Exception as e:
-        logger.debug("LLM classify failed: %s", e)
-        return []
+_knowledge_prototype_cache: dict | None = None
+
+
+def _get_knowledge_prototypes(filenames):
+    global _knowledge_prototype_cache
+    if _knowledge_prototype_cache is not None:
+        return _knowledge_prototype_cache
+    from skills.shared.embedder import create_embedder
+    import numpy as np
+    e = create_embedder()
+    prototypes = {}
+    for fname in filenames:
+        path = ROOT / "Knowledge" / fname
+        if not path.exists():
+            continue
+        try:
+            head = path.read_text(encoding="utf-8")[:500]
+            if head.strip():
+                prototypes[fname] = e.encode(head)
+        except Exception:
+            continue
+    _knowledge_prototype_cache = prototypes
+    return prototypes
+
+
+def reset_knowledge_prototypes():
+    global _knowledge_prototype_cache
+    _knowledge_prototype_cache = None
+
+
+def _classify_semantic(text, filenames):
+    from skills.shared.embedder import create_embedder
+    import numpy as np
+    e = create_embedder()
+    results = []
+
+    all_names = _load_entity_names()
+    all_names.sort(key=len, reverse=True)
+    for name in all_names:
+        if name in text:
+            results.append({
+                "category": "personal",
+                "target": "",
+                "content": text[:60],
+                "confidence": 0.8,
+            })
+            break
+
+    v_text = e.encode(text[:300])
+    prototypes = _get_knowledge_prototypes(filenames)
+    best_file = None
+    best_sim = 0.0
+    for fname, v_file in prototypes.items():
+        sim = float(np.dot(v_text, v_file))
+        if sim > best_sim:
+            best_sim = sim
+            best_file = fname
+
+    if best_file and best_sim >= 0.50:
+        results.append({
+            "category": "knowledge",
+            "target": best_file,
+            "content": text[:60],
+            "confidence": round(best_sim, 2),
+        })
+
+    return results
+
+
+
 
 
 def _dedup_check(filename, text):
     tail = _knowledge_tail(filename, lines=15)
     if not tail:
         return "append"
-    prompt = (
-        f"目标文件：{filename}\n"
-        f"文件末尾内容：\n{tail}\n\n"
-        f"新内容：{text[:300]}\n\n"
-        "判断新内容是否已存在于文件末尾中。"
-        "返回 JSON：{\"action\": \"skip|append\", \"reason\": \"10字理由\"}"
-    )
-    try:
-        from skills.core.llm_client import call as llm_call
-        raw = llm_call(prompt, system_prompt="只返回 JSON。",
-                       max_tokens=100, temperature=0.1)
-        raw = str(raw).strip() if raw else ""
-        raw = raw.strip()
-        if not raw:
-            return "append"
-        import json as _j
-        d = _j.loads(raw)
-        return d.get("action", "append")
-    except Exception as e:
-        logger.warning("dedup check failed: %s", e)
-        return "append"
+    from skills.shared.embedder import create_embedder
+    import numpy as np
+    e = create_embedder()
+    v_text = e.encode(text[:300])
+    v_tail = e.encode(tail)
+    sim = float(np.dot(v_text, v_tail))
+    return "skip" if sim > 0.85 else "append"
 
 
 def _append_knowledge(filename, text, confidence):
@@ -278,7 +300,7 @@ def _run_classify(text, source=""):
     if source == "llm_classify":
         return
     try:
-        results = _llm_classify(text, _KNOWLEDGE_FILES)
+        results = _classify_semantic(text, _KNOWLEDGE_FILES)
         if not results:
             return
         all_targets = set()

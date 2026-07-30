@@ -7,6 +7,8 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from skills.task.status import IN_PROGRESS
+
 ROOT = Path(__file__).resolve().parent.parent.parent
 STORE_PATH = ROOT / "data" / "state" / "tasks.json"
 RETENTION_DAYS = 30
@@ -64,6 +66,13 @@ def _parse_dt(s):
         return dt.replace(hour=18, minute=0)
     except ValueError:
         pass
+    s = s.strip()
+    if s.startswith("今天"):
+        return datetime.now().replace(hour=18, minute=0, second=0, microsecond=0)
+    if s.startswith("明天") or s.startswith("明日"):
+        return (datetime.now() + timedelta(days=1)).replace(hour=9, minute=0, second=0, microsecond=0)
+    if s.startswith("后天") or s.startswith("後天"):
+        return (datetime.now() + timedelta(days=2)).replace(hour=9, minute=0, second=0, microsecond=0)
     return datetime.min
 
 
@@ -139,7 +148,6 @@ def update_executor_status(task_id: str, executor_name: str, new_status: str) ->
 
 
 def get_active_tasks(owner_name: str) -> list:
-    from task.status import IN_PROGRESS
     return list_by_owner(owner_name, status=IN_PROGRESS)
 
 

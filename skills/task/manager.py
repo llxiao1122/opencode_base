@@ -145,12 +145,6 @@ class TaskManager:
             pass
         return task
 
-    def list_active(self, owner_name: str) -> list:
-        return list_by_owner(owner_name, status=IN_PROGRESS)
-
-    def get(self, task_id: str):
-        return load(task_id)
-
     def _next_id(self, event_id: str) -> str:
         self._counter += 1
         short = event_id.replace("evt_", "") if event_id.startswith("evt_") else event_id
@@ -206,7 +200,6 @@ class TaskManager:
             if _is_known_person(executor_name):
                 import json
                 tasks = json.loads((TOOLS_DIR.parent / "data" / "state" / "tasks.json").read_text(encoding="utf-8"))
-                from task.status import IN_PROGRESS
                 for t in tasks:
                     if t.get("status") != IN_PROGRESS:
                         continue
@@ -291,5 +284,5 @@ class TaskManager:
 
 
 def _is_known_person(name: str) -> bool:
-    from skills.shared import get_role
+    from skills.shared.entity import get_role
     return bool(get_role(name))

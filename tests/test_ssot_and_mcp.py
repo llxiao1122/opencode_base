@@ -1,4 +1,4 @@
-"""test_ssot_and_triggers.py — SSOT 一致性 + CognitiveLoop 触发 + MCP 握手"""
+"""test_ssot_and_triggers.py — SSOT 一致性 (worldview)"""
 
 import sys
 from pathlib import Path
@@ -6,11 +6,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "skills"))
 
-# ── 1. SSOT: Organization team members ──
+# ── 1. SSOT: Organization team members (worldview entities/*.md) ──
 
 
 def test_org_ssot_correct_members():
-    """entity_index.json 是 SSOT，OrganizationModel 读出的成员必须匹配 _meta.team_members"""
+    """worldview entities/*.md 是 SSOT，工班成员标记为 true 的成员必须匹配"""
     from organization.model import OrganizationModel
     org = OrganizationModel()
     members = org.get_members("李林骁")

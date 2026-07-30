@@ -1,12 +1,3 @@
-"""
-memory/recorder.py — 统一记录入口 (Plan D).
-
-所有写入统一经此入口：
-  ① obs_write → .md + .index.json
-  ② FAISS episodic append → 立即可搜
-  ③ 去重（同一 text[:80] 10s 内跳过）
-"""
-
 import logging
 import threading
 import time
@@ -19,7 +10,6 @@ _DEDUP_WINDOW = 10
 _dedup_cache = {}
 _dedup_lock = threading.Lock()
 
-# 世界观待处理环形缓冲区：保留最近 100 条记录文本
 _RING_BUF = []
 _RING_BUF_MAX = 100
 _RING_LOCK = threading.Lock()
@@ -54,6 +44,12 @@ def record(text: str, source: str = "", obs_type: str = "",
     _ring_append(f"[{source}] {text[:120]}")
     _increment_pending()
 
+    try:
+        from skills.memory.observation_store import _write as _obs_write
+        _obs_write(text, source=source, obs_type=obs_type, layer=layer, confidence=confidence)
+    except Exception as e:
+        logger.debug("obs write failed: %s", e)
+
 
 def _ring_append(text: str):
     global _RING_BUF
@@ -72,7 +68,6 @@ def _ring_append(text: str):
 
 
 def _increment_pending():
-    """世界观待处理计数器 +1"""
     try:
         from skills.memory.worldview import _load_index, _save_index
         idx = _load_index()

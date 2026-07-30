@@ -42,24 +42,6 @@ class ObservationLayer(str, Enum):
     CONCLUSION = "conclusion"
 
 
-class ValueDimension(Enum):
-    SAFETY = "safety"
-    EFFICIENCY = "efficiency"
-    COMPLIANCE = "compliance"
-    COLLABORATION = "collaboration"
-    GROWTH = "growth"
-
-
-@dataclass
-class ValuedHypothesis:
-    hypothesis_id: str
-    statement: str
-    dimension_scores: dict[str, float]
-    alignment: str
-    recommendation: str
-    tags: list[str] = field(default_factory=list)
-
-
 @dataclass
 class RequestContext:
     message: str
@@ -72,6 +54,9 @@ class RequestContext:
 
     route: Optional[str] = None
     confidence: float = 0.0
+
+    original_route: Optional[str] = None
+    original_confidence: float = 0.0
 
     event: Optional[dict] = None
     subject_context: Optional[dict] = None

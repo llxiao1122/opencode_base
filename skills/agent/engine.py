@@ -12,7 +12,6 @@ from pathlib import Path
 from skills.shared.path import ensure_paths, root as _root
 from skills.shared.schema import RequestContext, CT
 from skills.shared.entity import resolve_user
-from skills.correction.logger import append as log_append
 from skills.agent.registry import list_tools, validate_params, execute
 
 ensure_paths()
@@ -121,8 +120,7 @@ def _fallback_search(query: str) -> str:
         return f"[Cipher]\n已记录：{query}"
 
 
-def run(user_input: str, ctx: Optional[RequestContext] = None,
-        tracer=None) -> str:
+def run(user_input: str, ctx: Optional[RequestContext] = None) -> str:
     # 世界观自动更新：pending ≥ 50 时先 batch_update 再处理 query
     try:
         from skills.memory.worldview import check_and_update
@@ -187,8 +185,7 @@ def run(user_input: str, ctx: Optional[RequestContext] = None,
     from skills.core.llm_client import call as llm_call
 
     try:
-        with (tracer.span("agent.llm_think") if tracer else _nullctx()):
-            raw = llm_call(user_input, system_prompt=sys_prompt, max_tokens=800, temperature=0.0)
+        raw = llm_call(user_input, system_prompt=sys_prompt, max_tokens=800, temperature=0.0)
         if isinstance(raw, dict) and "error" in raw:
             logger.warning("LLM call returned error: %s", raw.get("error"))
             return _fallback_search(user_input)
@@ -221,33 +218,15 @@ def run(user_input: str, ctx: Optional[RequestContext] = None,
                     continue
                 return f"[Cipher:agent]\n{err}，请补充后重试。"
 
-            with (tracer.span("agent.execute", tool=tool_id) if tracer else _nullctx()):
-                result = execute(tool_id, params, ctx=ctx)
+            result = execute(tool_id, params, ctx=ctx)
 
             if is_multi and str(result).startswith("[Cipher:error]"):
                 results.append(f"[Cipher]\n第{i+1}条命令失败：{result}")
                 continue
 
             if not is_multi and str(result).startswith("[Cipher:error]"):
-                logger.warning("tool %s returned error, retrying once: %.120s", tool_id, result)
-                retry_raw = llm_call(
-                    f"之前选择的工具 {tool_id} 执行失败：{result}\n\n"
-                    f"用户原始消息：{user_input}\n\n"
-                    f"请修正参数后重试。只输出 JSON 对象。",
-                    system_prompt="你是 Cipher，修正参数后重新选择工具。",
-                    max_tokens=800, temperature=0.3,
-                )
-                if not (isinstance(retry_raw, dict) and "error" in retry_raw):
-                    retry_decision = _extract_json(str(retry_raw))
-                    if retry_decision:
-                        retry_tool = retry_decision.get("tool", tool_id)
-                        retry_params = retry_decision.get("params", params)
-                        if retry_tool in available:
-                            ok, _ = validate_params(retry_tool, retry_params)
-                            if ok:
-                                with (tracer.span("agent.retry_execute", tool=retry_tool) if tracer else _nullctx()):
-                                    result = execute(retry_tool, retry_params, ctx=ctx)
-                                tool_id = retry_tool
+                logger.warning("tool %s returned error: %.120s", tool_id, result)
+                result = f"[Cipher:agent]\n执行出错（{tool_id}）：{result}\n请重新描述需求。"
 
             results.append(result)
             last_tool = tool_id
@@ -267,6 +246,4 @@ def run(user_input: str, ctx: Optional[RequestContext] = None,
         return f"[Cipher:error]\n处理失败: {e}"
 
 
-def _nullctx():
-    from contextlib import nullcontext
-    return nullcontext()
+
