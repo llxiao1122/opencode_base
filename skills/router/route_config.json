@@ -1,0 +1,10 @@
+{
+  "_WV_TYPE_ROUTE": {
+    "person": "profile_query",
+    "process": "knowledge_retrieve"
+  },
+  "_WV_CONF_DEFAULT": {
+    "person": 0.85,
+    "process": 0.80
+  }
+}
