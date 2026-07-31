@@ -10,12 +10,12 @@
 
 ## 入口
 ```
-python3 -m skills.entry '<消息>'
+.venv/bin/python -m skills.entry '<消息>'
 ```
 
-handle_core(): classify() → 高置信非 event/correction 走 _fast_dispatch / correction 走 WorkflowEngine / 其他走 agent/engine.py → LLM 选工具 + registry.execute()。
+handle_core(): classify() 返回 (route, confidence) → 高置信且非 event 走 _fast_dispatch；其余走 agent/engine.py（LLM 选工具 + registry.execute()）。纠错输入（extract_slots 的 has_correction 槽位）在记录阶段直接进 correction_store.append，不走 engine。
 
-工具速查：task_query/knowledge_retrieve/profile_query/correction → 快速查询。notification_push/event_record/task_create/task_feedback/org_lookup → 写操作经 Agent 调度。
+工具速查：task_query/knowledge_retrieve/profile_query/correction_feedback → 快速查询。notification_push/event_record/task_create/task_feedback/org_lookup/reminder_set → 写操作经 Agent 调度。
 
 ## 开发纪律
 1) 确定性能用 Python 规则不用 LLM。2) 不动已有的功能。3) 改完必须 `pytest tests/`。
