@@ -8,6 +8,11 @@ sys.path.insert(0, str(ROOT))
 
 os.environ["OP_SKIP_BG"] = "1"
 
+# CI/无密钥环境兜底：llm_client.call 在发请求前校验 key（llm_client.py:88），
+# 缺 key 会直接短路返回"未配置"，传输层 mock 无法拦截。setdefault 保证
+# 已配置 key 的环境（本地/VPS crontab）不受影响，仅填充缺失场景。
+os.environ.setdefault("DEEPSEEK_API_KEY", "test-key")
+
 
 MOCK_LLM_CONTENT = "[Cipher:mock] 测试应答"
 
