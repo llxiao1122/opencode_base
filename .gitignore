@@ -71,6 +71,10 @@ state/
 data/state/worldview/vector/
 data/state/worldview/_ringbuf.json
 data/state/worldview/_backlog/
+data/state/tasks.json
+data/state/push_queue.json
+data/state/decision_log.jsonl
+data/state/team_work.json
 
 # Import history files (user data, large)
 files/*.rtf
