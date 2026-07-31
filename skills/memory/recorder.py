@@ -32,7 +32,7 @@ def _check_dedup(key: str) -> bool:
 
 def record(text: str, source: str = "", obs_type: str = "",
            layer: str = "rule", importance: str = "medium",
-           confidence: float = 0.5):
+           confidence: float = 0.5, skip_learning: bool = False):
     key = text[:80]
     if _check_dedup(key):
         logger.debug("dedup skip: same text within %ds", _DEDUP_WINDOW)
@@ -41,8 +41,9 @@ def record(text: str, source: str = "", obs_type: str = "",
     if len(text.strip()) < 5:
         return
 
-    _ring_append(f"[{source}] {text[:120]}")
-    _increment_pending()
+    if not skip_learning:
+        _ring_append(f"[{source}] {text[:120]}")
+        _increment_pending()
 
     try:
         from skills.memory.observation_store import _write as _obs_write

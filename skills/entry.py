@@ -142,7 +142,8 @@ def handle_core(user_input: str) -> str:
         else:
             from skills.memory.recorder import record as _record
             _record(user_input, source="entry", obs_type="interaction",
-                    layer="rule", confidence=round(confidence or 0.5, 2))
+                    layer="rule", confidence=round(confidence or 0.5, 2),
+                    skip_learning=route in ("task_query", "profile_query", "knowledge_retrieve"))
     except Exception:
         pass
 
