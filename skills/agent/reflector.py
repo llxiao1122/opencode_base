@@ -52,7 +52,10 @@ def reflect(tool_id: str, params: dict, result: str, user_input: str):
         return
 
     _USAGE[tool_id] += 1
-    has_anomaly = "error" in result.lower() or "失败" in result
+    # 权威失败标记为 engine 的 [Cipher:error] 前缀（engine.py 单/多工具失败路径）。
+    # 不可用文本关键字"失败/error"——业务文案本身可能含"失败"（如"尝试旧密码失败"），
+    # 会造成工具成功却被误报为异常。
+    has_anomaly = str(result).lower().startswith("[cipher:error]")
     if has_anomaly:
         preview = result[:150]
         _ANOMALIES[tool_id].append(preview)
