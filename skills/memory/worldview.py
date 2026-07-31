@@ -388,6 +388,8 @@ def update_entity(name: str, new_records: list[str]):
 
 def batch_update(entity_groups: dict[str, list[str]]):
     for name, records in entity_groups.items():
+        if name == "_unknown":
+            continue
         try:
             update_entity(name, records)
         except Exception as e:

@@ -1,136 +1,109 @@
 # 工班 AI 助手 — Cipher
 
-企业工班管理认知系统 — 从钉钉群消息到任务执行、组织认知、知识检索的完整闭环。
+企业工班管理认知系统 — 从消息到任务执行、组织认知、制度问答、纠错学习的完整闭环。
+"一个大脑 + 一个 skill 体系"：数据统一记忆、代码统一入口、查口收敛。
 
 ---
 
-## 架构（v3.0）
+## 架构（一个大脑 + 一个 skill 体系）
 
 ```
-                              消息输入
-                                  │
-                          entry.py (统一入口)
-                                  │
-                          query_router (四路分流)
-                        ┌─────┬──┼──┬─────┐
-                        ▼     ▼  ▼  ▼     ▼
-                     profile task knowledge event
-                                  │
-                    ┌─────────────┼─────────────┐
-                    ▼             ▼             ▼
-              Pipeline 6 层编排                    MCP Server
-          Ingress → Intent → Reasoning            (memory_server.py)
-           → Execution → Response → Reflection    search/save/retrieve/reflect
-                    │
-                    ▼
-          ┌────────┼────────┬────────┐
-          ▼        ▼        ▼        ▼
-       tasks/   events/   memory/  knowledge/
-       manager  recorder  FAISS    index
-
-  持久层:
-    state/team_work.json        · 组织框架源（JSON，人工可编辑）
-    state/entity_index.json     · 人物实体索引（O(1)运行时缓存）
-    state/tasks.json            · 任务持久化
-    state/org_memory.json       · 组织统计记忆
-    state/knowledge/            · 知识索引元数据
-    state/personal/             · 个人认知数据
-    state/reports/              · 报表数据
-    state/flomo_export.html     · flomo 导出数据
-    state/import_batches.json   · 导入批次记录
-    state/import_registry.json  · 导入注册表
+               消息输入
+                   │
+          entry.py (统一入口)
+           classify() 分类
+        ┌───────────┼───────────┐
+    高置信快速路径          Agent 路径
+   (task_query/        (agent/engine.py
+    knowledge_retrieve/   → LLM 选工具
+    profile_query)          → registry.execute)
+                   │
+             统一查口 world_query()
+      ┌────────────┴────────────┐
+   确定性知识层              语义知识层
+   · task_query(规则推算)      · worldview.search(FAISS)
+   · tasks.json(状态)          · entities 实体档案
+   · Knowledge/*.md(权威源)    · 纠错库(成长输入)
 ```
 
----
+## 核心设计
+
+**一个大脑（统一记忆体系）**：
+- **唯一写口** `recorder.record()` → 环形缓冲 → 世界观更新（`worldview.check_and_update`）
+- **纠错独立**：`correction_store.append()` → `data/state/worldview/纠错.md`（系统成长输入，不写人员档案）
+- **制度问答优先世界观 FAISS**（实体档案），Knowledge 保留为只读权威原文源
+- **统一查口** `skills/memory/world_query.py`：任务→规则、人员→档案、制度→知识检索
+
+**一个 skill 体系（代码层）**：
+- `skills/` 唯一入口 `entry.py`，内部按职责分层
+- 确定性知识（任务/日程）走规则路径，**不进向量库**；向量库只服务语义问答
+- 推送统一走 `skills/shared/push_queue.py`（fcntl 文件锁队列）
 
 ## 系统能力
 
 | 层 | 模块 | 功能 |
 |----|------|------|
-| **Ingress** | `core/ingress.py` | 消息预处理、标准化 |
-| **Intent** | `core/intent.py` | 意图分类（profile/task/knowledge/personal/event） |
-| **Reasoning** | `core/reasoning.py` | 认知推理、因果推演、认知反馈环 |
-| **Execution** | `core/execution.py` | pipeline 编排执行 |
-| **Response** | `core/response.py` | LLM 表达合成 |
-| **Reflection** | `core/reflection.py` | 后处理反思（fire-and-forget） |
-| **Event** | `core/event.py` | 纯事实提取，不判断责任 |
-| **Context** | `core/context.py` | 5种责任类型：executor/coordinator/supervisor/audience/observer |
-| **Task** | `task/manager.py` | 任务创建、拆子任务、feedback匹配、状态跟踪 |
-| **Memory** | `memory/retriever.py` | 双索引搜索：语义(FAISS) + 情景(memory_server MCP) |
-| **Knowledge** | `knowledge/` | 增量扫描、结构解析+切块、FAISS索引、版本管理 |
-| **Profile** | `profile/` | 实时画像(user_retriever)、个人认知(personal_retriever) |
-| **Organization** | `organization/` | 团队模型、从 team_work.json 构建、事件统计桥接 |
-| **Routing** | `routing/` | 四路查询路由（profile/task/knowledge/event）、实体解析、builder |
+| **入口** | `entry.py` | 统一入口（单次/--listen/--warm） |
+| **路由** | `router/faiss_router.py` | 两层分类：Worldview 语义 + FAISS 种子 |
+| **Agent** | `agent/engine.py` | LLM 选工具 + registry.execute |
+| **Handler** | `agent/handlers/` | 10 个工具：查询/记录/任务/提醒/纠错/组织 |
+| **记忆** | `memory/worldview.py` | 实体档案 + FAISS 索引 + 增量更新 |
+| **纠错** | `memory/correction_store.py` | 纠错库读写（独立于人员档案） |
+| **查口** | `memory/world_query.py` | 统一对外查询入口 |
+| **任务** | `task/manager.py` | 任务创建/状态/反馈闭环（tasks.json） |
+| **推送** | `shared/push_queue.py` + `trigger/daemon.py` | 队列 + 临期提醒 |
+| **钉钉** | `plugins/dingbot/send_msg.py` | 机器人推送（惰性读 token） |
 
----
+## 工具清单（registry）
 
-## 数据流
-
-```
-消息 → Event（发生了什么）
-       Context（对我意味着什么）
-       Task（我要做什么）
-       Feedback（结果如何）
-       Memory（学到了什么）
-```
+`task_query` / `knowledge_retrieve` / `profile_query` → 快速查询
+`notification_push` / `event_record` / `task_create` / `task_feedback` / `org_lookup` / `correction_feedback` / `reminder_set` → 经 Agent 调度
 
 ---
 
 ## 入口
 
 ```bash
-# 统一入口
+# 单次处理
 python3 -m skills.entry '<消息>'
 
-# 跳转核心管道（跳过路由）
-python3 -m skills.entry --core '<消息>'
+# 持久服务（TCP 长驻）
+python3 -m skills.entry --listen
+
+# 预加载索引后退出
+python3 -m skills.entry --warm
 ```
 
----
-
-## 导入历史
-
-```bash
-# 放入群聊导出文件
-cp *.txt *.rtf files/
-
-# 一键导入
-python3 -c "from skills.commands.import_history import import_history; import_history()"
-
-# 手工粘贴（无时间戳）
-python3 -c "
-from skills.commands.import_history import clipboard_import
-clipboard_import('王亮：请各班组完成消防检查\n苗笑天：已完成')
-"
-```
-
----
-
-## 查询
+## 统一查口
 
 ```python
-# 统一记忆检索
-from skills.memory.retriever import search_memory, search_period
-search_memory("杨梦卓")                          # 全部历史
-search_period("杨梦卓", "2026-07-18")            # 限定日期
-
-# 人物画像
-from skills.profile.user_retriever import format_context
-print(format_context("苗笑天"))                  # LLM 可直接注入
-
-# 知识检索
-from skills.knowledge.retriever import retrieve
-print(retrieve("灭火器检查周期"))                 # 制度查询
+from skills.memory.world_query import query
+query("今天有什么任务")        # → 规则路径（task_query）
+query("交接评审标准是什么")     # → 语义路径（worldview FAISS → Knowledge）
+query("陈红洁")                # → 人员档案（profile_query）
 ```
 
----
+## 记忆与纠错
 
-## 知识索引
+```python
+# 世界观：实体档案 + FAISS 语义检索
+from skills.memory.worldview import search, check_and_update
+
+# 纠错库：系统成长输入（独立于人员档案）
+from skills.memory.correction_store import append, load_recent, count
+```
+
+## 推送链路
 
 ```bash
-# 初次导入 / 增量更新
-python3 -c "from skills.commands.import_knowledge import import_knowledge; import_knowledge()"
+# 08:45 预执行：查当日工作入队
+python3 scripts/prepare_daily.py
+
+# 每分钟扫描队列，到期推送
+python3 scripts/deliver.py
 ```
+
+钉钉 token 在 crontab 中定义（`DINGTALK_BOT_TOKEN`），`send_msg.py` 惰性读取 `_webhook_url()`，不在 shell 环境硬编码。
 
 ---
 
@@ -138,81 +111,36 @@ python3 -c "from skills.commands.import_knowledge import import_knowledge; impor
 
 ```
 skills/
-├── core/                  · 6 层 Pipeline + 认知核心
-│   ├── pipeline.py            · Pipeline 编排器（6层）
-│   ├── ingress.py             · 消息预处理
-│   ├── intent.py              · 意图分类
-│   ├── reasoning.py           · 认知推理
-│   ├── execution.py           · 执行
-│   ├── response.py            · LLM 合成回复
-│   ├── reflection.py          · 后处理反思
-│   ├── cognitive_loop.py      · 认知反馈环（Probe + Simulate）
-│   ├── context.py             · 责任类型判断（5种）
-│   ├── event.py               · 事件事实提取
-│   ├── hierarchy_resolver.py  · 组织层级查询
-│   ├── llm_client.py          · DeepSeek API 封装
-│   ├── event_enricher.py      · 事件富化
-│   └── instruction_resolver.py· 指令解析
-├── ingestion/             · 消息导入管线
-│   ├── batch_importer.py      · 统一导入入口
-│   ├── message_parser.py      · 消息解析
-│   ├── message_classifier.py  · 消息分类
-│   ├── rtf_parser.py          · RTF 格式支持
-│   ├── section_parser.py      · 结构化文档解析
-│   ├── flomo_parser.py        · flomo 导出解析
-│   ├── ai_content_extractor.py· AI 内容提取
-│   └── validator.py           · 质量检查
-├── routing/               · 实时消息路由
-│   ├── entry.py               · 统一入口
-│   ├── query_router.py        · 四路分流
-│   ├── task_handler.py        · 工作查询
-│   ├── knowledge_handler.py   · 知识查询
-│   ├── record_manager.py      · 工作记录管理
-│   ├── builder.py             · entity_index 构建器
-│   └── entity_resolver.py     · 实体解析
-├── task/                  · 任务管理
-│   ├── manager.py             · 创建/匹配/闭环
-│   ├── store.py               · JSON 持久化
-│   ├── priority.py            · 优先级推断
-│   └── analyzer.py            · 统计分析
-├── memory/                · 记忆系统
-│   ├── memory_server.py       · MCP STDIO 服务（search/save/retrieve/reflect）
-│   ├── memory_core.py         · FAISS 双索引（语义/情景）
-│   ├── retriever.py           · 统一记忆检索
-│   ├── event_recorder.py      · event → log.jsonl
-│   ├── event_detector.py      · 信号检测
-│   ├── event_lifecycle.py     · 事件状态迁移
-│   ├── event_search.py        · 事件检索
-│   ├── change_detector.py     · 变化检测
-│   ├── observation_store.py   · 观察持久化（facts/patterns/conclusions）
-│   └── ...
-├── knowledge/             · 知识索引
-│   ├── scanner.py             · 增量扫描
-│   ├── processor.py           · 结构解析+切块
-│   ├── indexer.py             · FAISS 索引
-│   ├── store.py               · 元数据+版本
-│   └── retriever.py           · 知识检索
-├── profile/               · 人物画像
-│   ├── user_retriever.py      · 实时画像+趋势
-│   └── personal_retriever.py  · 个人认知检索
-├── organization/          · 组织认知
-│   ├── model.py               · 团队模型（从 team_work.json 构建）
-│   └── memory_bridge.py       · 事件→统计
-├── shared/                · 共享基础
-│   ├── schema.py             · RequestContext 统一 schema
-│   ├── interfaces.py         · 层接口定义
-│   ├── llm_cache.py          · 带 TTL 的 LLM 调用缓存
-│   ├── semantic.py           · 语义工具
-│   └── time_parse.py         · 时间解析
-├── commands/              · CLI 工具
-│   ├── import_history.py
-│   └── import_knowledge.py
-├── reasoning/             · 因果推演
-│   └── simulator.py
-├── plugins/               · 插件
-│   └── dingbot/              · 钉钉消息推送
-└── cron/                  · 定时任务
-    └── nightly.py
+├── entry.py                  · 统一入口（classify → 快速路径/Agent）
+├── agent/
+│   ├── engine.py             · Agent 核心（LLM 选工具 + 注入记忆）
+│   ├── registry.py           · 10 工具注册 + execute
+│   ├── reflector.py          · 反思（纠错匹配）
+│   └── handlers/             · 10 个工具实现
+├── memory/
+│   ├── worldview.py          · 世界观引擎（实体 + FAISS + 增量）
+│   ├── world_query.py        · 统一查口
+│   ├── correction_store.py   · 纠错库
+│   ├── recorder.py           · record() 统一写口
+│   └── observation_store.py  · 观察存储（内部）
+├── router/
+│   ├── faiss_router.py       · 两层路由（Worldview + FAISS 种子）
+│   ├── entity_resolver.py    · 实体解析
+│   └── route_index.py        · FAISS 种子索引
+├── task/                     · 任务生命周期（tasks.json）
+├── trigger/daemon.py         · 临期提醒
+├── shared/                   · path/schema/push_queue/embedder/entity
+├── core/llm_client.py        · LLM API
+├── plugins/dingbot/          · 钉钉推送
+└── organization/model.py     · 组织查询
+scripts/
+├── prepare_daily.py          · 08:45 预执行
+└── deliver.py                · 队列到期推送
+data/
+├── state/worldview/          · 世界观档案 + FAISS + 纠错库
+├── state/tasks.json          · 任务状态
+└── logs/                     · 运行时日志（.gitignore）
+Knowledge/                    · 制度原文（只读权威源）
 ```
 
 ---
@@ -220,26 +148,15 @@ skills/
 ## 测试
 
 ```bash
-# 全部测试
-python3 -m pytest tests/ -v    # 19/19 通过
+python3 -m pytest tests/ -v    # 44/44 通过
 ```
-
----
-
-## 版本
-
-| 版本 | 内容 |
-|------|------|
-| v3.0 | 6层Pipeline编排、MCP memory_server、entity_index统一缓存、team_work.json组织源、tools→skills重命名、state/数据源统一 |
-| v2.0 | 完整企业认知系统：ingestion管线、knowledge索引、profile层、feedback闭环 |
-| v1.8 | 核心管线：Event→Context→Task + 任务管理 + 记忆层 |
-| v1.5-1.7 | 事件检测、责任解析、工作查询 |
 
 ---
 
 ## 开发纪律
 
-- 6 层 Pipeline 各层职责分离，每层只写自己字段
-- 禁止 LLM 参与 Event/Context/Task 判断
-- 修改前确认：属于哪一层？是否已有模块？是否只是临时规则？
-- 扩展已有模块优先于新建
+- 确定性性能用 Python 规则，不用 LLM
+- 不改动已有功能；改完必须 `pytest tests/`
+- 禁止：为一个规则建 engine / 为一个字段建 manager / 用 LLM 替代 Context / 用 prompt 修架构
+- 优先扩展已有模块 → 其次新增稳定边界模块 → 不做临时规则文件
+- 纠错与人员档案隔离；任务/日程不进向量库

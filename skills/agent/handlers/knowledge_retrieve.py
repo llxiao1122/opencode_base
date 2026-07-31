@@ -4,6 +4,24 @@ ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 KNOWLEDGE_DIR = ROOT_DIR / "Knowledge"
 
 
+def _search_worldview(query: str, top_k: int = 3) -> str:
+    """优先走世界观 FAISS 语义检索（实体档案），命中高分即用。"""
+    try:
+        from skills.memory.worldview import search as wv_search
+        hits = wv_search(query, top_k=top_k, type_filter="process")
+        hits = [h for h in hits if h.get("score", 0) >= 0.6]
+        if not hits:
+            return ""
+        blocks = []
+        for h in hits:
+            snippet = (h.get("content") or "")[:600].strip()
+            if snippet:
+                blocks.append(f"【{h['entity_id']}】（世界观档案）\n{snippet}")
+        return "\n\n".join(blocks[:top_k])
+    except Exception:
+        return ""
+
+
 def _search_knowledge(query: str, top_k: int = 3) -> str:
     if not KNOWLEDGE_DIR.exists():
         return ""
@@ -31,7 +49,9 @@ def _search_knowledge(query: str, top_k: int = 3) -> str:
 def handle(user_input, ctx):
     user_name = (ctx.user or {}).get("name", "未知")
 
-    knowledge_text = _search_knowledge(user_input, top_k=3)
+    knowledge_text = _search_worldview(user_input, top_k=3)
+    if not knowledge_text:
+        knowledge_text = _search_knowledge(user_input, top_k=3)
     if not knowledge_text:
         origin = getattr(ctx, "original_route", "") or ""
         orig_conf = getattr(ctx, "original_confidence", 0.0) or 0.0
