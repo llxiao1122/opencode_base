@@ -26,6 +26,13 @@ def test_detect_scope_week():
     assert _detect_scope("这星期任务") == "week"
 
 
+def test_detect_scope_next_weekday():
+    assert _detect_scope("下周一任务") == "next_0"
+    assert _detect_scope("下周三工作") == "next_2"
+    assert _detect_scope("下周日") == "next_6"
+    assert _detect_scope("下礼拜五") == "next_4"
+
+
 def test_get_daily_work_output_not_empty():
     result = _get_daily_work( date(2026, 7, 24))
     assert result

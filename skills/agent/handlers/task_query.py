@@ -21,6 +21,12 @@ def handle(user_input, ctx):
         target_date = today + timedelta(days=1)
         date_range = (target_date, target_date)
         label = "明天"
+    elif scope.startswith("next_"):
+        wd = int(scope.split("_")[1])
+        days = (wd - today.weekday()) % 7 or 7  # 下X 恒为未来：今天周X查下周X → +7
+        target_date = today + timedelta(days=days)
+        date_range = (target_date, target_date)
+        label = "下" + "一二三四五六日"[wd]
     elif scope == "week":
         target_date = today
         days_ahead = 7 - today.weekday()
@@ -77,11 +83,18 @@ def handle(user_input, ctx):
     return f"[Cipher:task]\n" + "\n".join(lines)
 
 
+_WEEKDAY_MAP = {"一": 0, "二": 1, "三": 2, "四": 3, "五": 4, "六": 5, "日": 6, "天": 6}
+
+
 def _detect_scope(text):
     if "本周" in text or "这周" in text or "这星期" in text:
         return "week"
     if "明天" in text or "明日" in text:
         return "tomorrow"
+    import re
+    m = re.search(r"下(?:周|星期|礼拜)([一二三四五六日天])", text)
+    if m:
+        return f"next_{_WEEKDAY_MAP[m.group(1)]}"
     return "today"
 
 
