@@ -5,11 +5,11 @@ KNOWLEDGE_DIR = ROOT_DIR / "Knowledge"
 
 
 def _search_worldview(query: str, top_k: int = 3) -> str:
-    """优先走世界观 FAISS 语义检索（实体档案），命中高分即用。"""
+    """优先走世界观 FAISS 语义检索（process + topic 实体档案），命中高分即用。"""
     try:
         from skills.memory.worldview import search as wv_search
-        hits = wv_search(query, top_k=top_k, type_filter="process")
-        hits = [h for h in hits if h.get("score", 0) >= 0.6]
+        hits = wv_search(query, top_k=top_k)
+        hits = [h for h in hits if h.get("type") != "person" and h.get("score", 0) >= 0.6]
         if not hits:
             return ""
         blocks = []
