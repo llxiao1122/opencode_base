@@ -81,7 +81,16 @@ def test_correction_store_roundtrip(tmp_corrections):
 
 def test_prepare_daily_idempotent(tmp_queue, monkeypatch):
     import scripts.prepare_daily as pd
+    from datetime import date
     monkeypatch.setattr(pd.sys, "exit", lambda code: (_ for _ in ()).throw(SystemExit(code)))
+    monkeypatch.setattr(pd, "date", date)  # 使用真实日期（避免破坏内部 date.today 调用链）
+    # 若恰逢周末（prepare_daily 会 skip 不入队），用工作日模拟幂等逻辑
+    class FakeDate(date):
+        @classmethod
+        def today(cls):
+            return date(2026, 7, 31)  # 周五工作日，确保入队
+
+    monkeypatch.setattr(pd, "date", FakeDate)
     pd.main()
     assert len(push_queue.read()) == 1
     pd.main()
@@ -137,3 +146,47 @@ def test_deliver_push_mark_retry(tmp_queue, monkeypatch):
                         lambda title, body: {"errcode": 40001, "errmsg": "invalid token"})
     dl.main()
     assert push_queue.read()[0]["pushed"] is False, "失败不应标记，保留重试"
+
+
+# ── Human-in-the-loop 确认门 ────────────────────────────────────
+
+@pytest.fixture
+def tmp_confirm(tmp_path, monkeypatch):
+    from skills.shared import confirm_queue
+    cpath = tmp_path / "confirm_queue.json"
+    monkeypatch.setattr(confirm_queue, "QUEUE_PATH", cpath)
+    return confirm_queue
+
+
+def test_confirm_propose_pending_accept(tmp_confirm, monkeypatch):
+    """confirm 类工具：生成建议 → 待确认 → 确认后执行。"""
+    item = tmp_confirm.propose("task_create", {"summary": "测试确认任务"}, summary="建议创建任务：测试确认任务")
+    assert item["id"]
+    assert item["tool"] == "task_create"
+    assert len(tmp_confirm.pending()) == 1
+
+    executed = []
+    monkeypatch.setattr("skills.agent.registry.execute",
+                        lambda tool, params, ctx=None: executed.append((tool, params)) or "✅ 执行")
+    result = tmp_confirm.execute(item["id"])
+    assert result == "✅ 执行"
+    assert executed == [("task_create", {"summary": "测试确认任务"})]
+    assert tmp_confirm.pending() == [], "执行后不应再有待确认项"
+
+
+def test_confirm_shortid_prefix_match(tmp_confirm):
+    """支持前 6 位短 ID 匹配（钉钉回复场景）。"""
+    item = tmp_confirm.propose("notification_push", {"title": "T"}, summary="建议推送")
+    assert item["id"][:6] != item["id"]
+    got = tmp_confirm.accept(item["id"][:6])
+    assert got is not None
+    assert got["id"] == item["id"]
+
+
+def test_confirm_reject_removes(tmp_confirm):
+    """拒绝建议：从队列移除。"""
+    item = tmp_confirm.propose("correction_feedback", {"content": "C"}, summary="建议采纳纠正")
+    assert len(tmp_confirm.pending()) == 1
+    assert tmp_confirm.reject(item["id"][:6]) is True
+    assert tmp_confirm.pending() == []
+    assert tmp_confirm.reject(item["id"]) is False, "已拒绝的建议不应再次存在"

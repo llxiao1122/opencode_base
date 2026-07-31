@@ -12,7 +12,7 @@ from pathlib import Path
 from skills.shared.path import ensure_paths, root as _root
 from skills.shared.schema import RequestContext, CT
 from skills.shared.entity import resolve_user
-from skills.agent.registry import list_tools, validate_params, execute
+from skills.agent.registry import list_tools, validate_params, execute, action_type
 
 ensure_paths()
 
@@ -118,6 +118,45 @@ def _fallback_search(query: str) -> str:
     except Exception as e:
         logger.error("fallback search failed: %s", e, exc_info=True)
         return f"[Cipher]\n已记录：{query}"
+
+
+def _propose_confirmation(tool_id: str, params: dict, ctx=None) -> dict:
+    """confirm 类工具：生成建议入 confirm_queue，并推送钉钉待主人确认。
+
+    Human-in-the-loop：AI 生成建议，人类确认后执行。返回建议条目。
+    """
+    from skills.shared.confirm_queue import propose as q_propose
+
+    summary = _describe_intent(tool_id, params)
+    item = q_propose(tool_id, dict(params), summary=summary)
+
+    try:
+        from skills.shared.push_queue import append as queue_append
+        from datetime import datetime
+        import uuid
+        queue_append({
+            "id": uuid.uuid4().hex[:12],
+            "channel": "dingtalk",
+            "title": "🤝 待主人确认",
+            "body": (f"{summary}\n\n回复「确认 {item['id'][:6]}」执行，"
+                     f"或「拒绝 {item['id'][:6]}」取消。"),
+            "push_at": datetime.now().isoformat(),
+            "pushed": False,
+        })
+    except Exception as e:
+        logger.warning("confirm push failed: %s", e, exc_info=True)
+    return item
+
+
+def _describe_intent(tool_id: str, params: dict) -> str:
+    """将工具意图转为人可读的一句话建议。"""
+    if tool_id == "task_create":
+        return f"建议创建任务：{params.get('summary', '')}"
+    if tool_id == "notification_push":
+        return f"建议推送通知：{params.get('title', '')}\n{params.get('content', '')}"
+    if tool_id == "correction_feedback":
+        return f"建议采纳纠正：{params.get('content', '')}"
+    return f"建议执行 {tool_id}：{params}"
 
 
 def run(user_input: str, ctx: Optional[RequestContext] = None) -> str:
@@ -228,6 +267,18 @@ def run(user_input: str, ctx: Optional[RequestContext] = None) -> str:
                     results.append(f"[Cipher]\n第{i+1}条命令失败：{err}")
                     continue
                 return f"[Cipher:agent]\n{err}，请补充后重试。"
+
+            # Human-in-the-loop：confirm 类工具生成建议入队列，等主人确认后执行
+            atype = action_type(tool_id)
+            if atype == "confirm":
+                proposal = _propose_confirmation(tool_id, params, ctx)
+                result = (f"[Cipher:confirm]\n{proposal['summary']}\n"
+                          f"建议ID: {proposal['id']}\n"
+                          f"已推送待主人确认，回复「确认 {proposal['id'][:6]}」后执行。")
+                if is_multi:
+                    results.append(result)
+                    continue
+                return result
 
             result = execute(tool_id, params, ctx=ctx)
 

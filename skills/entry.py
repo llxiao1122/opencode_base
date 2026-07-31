@@ -64,6 +64,25 @@ def _fast_dispatch(route: str, user_input: str, ctx) -> str:
     return handler(user_input, ctx)
 
 
+_CONFIRM_RE = re.compile(r"^(确认|同意|批准|拒绝|取消|算了)\s*([0-9a-f]{4,12})")
+
+
+def _handle_confirmation(user_input: str) -> str | None:
+    """拦截主人确认/拒绝指令。返回 None 表示不是确认指令。
+
+    格式：确认 <建议ID前6位> / 拒绝 <建议ID前6位>
+    确认 → 执行 confirm_queue 中对应建议；拒绝 → 移除该建议。
+    """
+    m = _CONFIRM_RE.match((user_input or "").strip())
+    if not m:
+        return None
+    verb, cid = m.group(1), m.group(2)
+    from skills.shared.confirm_queue import execute as q_execute, reject as q_reject
+    if verb in ("确认", "同意", "批准"):
+        return q_execute(cid)
+    return q_reject(cid) and "[Cipher:confirm]\n已拒绝该建议。" or "[Cipher:error]\n建议不存在。"
+
+
 def _search_episodic(user_input: str) -> str:
     """搜索 worldview 档案，返回格式化情景记忆。仅 Agent 路径调用。"""
     try:
@@ -85,6 +104,11 @@ def _search_episodic(user_input: str) -> str:
 
 def handle_core(user_input: str) -> str:
     _build_index_once()
+
+    # Human-in-the-loop：拦截主人确认/拒绝指令（元指令，不走向量分类）
+    confirm_result = _handle_confirmation(user_input)
+    if confirm_result is not None:
+        return confirm_result
 
     from skills.shared.schema import RequestContext, CT
     from skills.router.faiss_router import classify, extract_slots

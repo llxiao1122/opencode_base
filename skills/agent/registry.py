@@ -22,6 +22,7 @@ ROOT = _root()
 TOOL_REGISTRY = {
     "task_query": {
         "description": "查询今日/本周/本月工作安排、待办事项、任务列表",
+        "action_type": "read",
         "params_schema": {
             "scope": {"type": "str", "required": False, "default": "today",
                       "description": "today|tomorrow|week|month"},
@@ -31,6 +32,7 @@ TOOL_REGISTRY = {
     },
     "knowledge_retrieve": {
         "description": "查询制度/流程/规范/操作规程等知识库内容",
+        "action_type": "read",
         "params_schema": {
             "topic": {"type": "str", "required": True,
                       "description": "查询主题，如灭火器更换周期"},
@@ -40,6 +42,7 @@ TOOL_REGISTRY = {
     },
     "profile_query": {
         "description": "查询某位人员的工作画像、能力评价、岗位信息",
+        "action_type": "read",
         "params_schema": {
             "name": {"type": "str", "required": True,
                      "description": "人员姓名"},
@@ -49,6 +52,7 @@ TOOL_REGISTRY = {
     },
     "notification_push": {
         "description": "推送通知消息到钉钉群，用于安全宣贯、通知下达",
+        "action_type": "confirm",
         "params_schema": {
             "title": {"type": "str", "required": True},
             "content": {"type": "str", "required": True},
@@ -59,6 +63,7 @@ TOOL_REGISTRY = {
     },
     "event_record": {
         "description": "记录一条事件信息，包含时间、人员、动作，用于任务创建或日常记录",
+        "action_type": "write",
         "params_schema": {
             "summary": {"type": "str", "required": True},
             "time": {"type": "str", "required": False},
@@ -69,6 +74,7 @@ TOOL_REGISTRY = {
     },
     "task_create": {
         "description": "从事件信息创建任务/待办事项",
+        "action_type": "confirm",
         "params_schema": {
             "summary": {"type": "str", "required": True,
                         "description": "任务摘要"},
@@ -82,6 +88,7 @@ TOOL_REGISTRY = {
     },
     "task_feedback": {
         "description": "反馈任务完成状态，标记完成/取消",
+        "action_type": "write",
         "params_schema": {
             "action": {"type": "str", "required": True,
                        "description": "完成描述"},
@@ -95,6 +102,7 @@ TOOL_REGISTRY = {
     },
     "org_lookup": {
         "description": "查询组织关系、班组结构、人员上下级",
+        "action_type": "read",
         "params_schema": {
             "name": {"type": "str", "required": True,
                      "description": "人员姓名"},
@@ -104,6 +112,7 @@ TOOL_REGISTRY = {
     },
     "correction_feedback": {
         "description": "纠正错误信息：用户发现Cipher回答有误时，提交纠正内容写入知识库",
+        "action_type": "confirm",
         "params_schema": {
             "content": {"type": "str", "required": True,
                         "description": "纠正的内容/正确信息"},
@@ -115,6 +124,7 @@ TOOL_REGISTRY = {
     },
     "reminder_set": {
         "description": "设置定时提醒，到期通过钉钉推送",
+        "action_type": "write",
         "params_schema": {
             "message": {"type": "str", "required": True,
                         "description": "提醒内容"},
@@ -140,6 +150,7 @@ def list_tools() -> list[dict]:
         {
             "id": tid,
             "description": t["description"],
+            "action_type": t.get("action_type", "read"),
             "params": {
                 k: {sk: sv for sk, sv in v.items() if sk in ("type", "required", "description")}
                 for k, v in t["params_schema"].items()
@@ -147,6 +158,15 @@ def list_tools() -> list[dict]:
         }
         for tid, t in TOOL_REGISTRY.items()
     ]
+
+
+def get_tool(tool_id: str) -> Optional[dict]:
+    return TOOL_REGISTRY.get(tool_id)
+
+
+def action_type(tool_id: str) -> str:
+    tool = TOOL_REGISTRY.get(tool_id)
+    return tool.get("action_type", "read") if tool else "read"
 
 
 def validate_params(tool_id: str, params: dict) -> tuple[bool, str]:
