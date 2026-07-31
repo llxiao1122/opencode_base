@@ -89,6 +89,21 @@ def test_prepare_daily_idempotent(tmp_queue, monkeypatch):
     assert push_queue.read()[0]["id"] == "daily_2026-07-31" or push_queue.read()[0]["id"].startswith("daily_")
 
 
+def test_prepare_daily_weekend_skips(tmp_queue, monkeypatch):
+    """周末不预执行：不查询、不入队（避免推送'暂无任务'）"""
+    import scripts.prepare_daily as pd
+    from datetime import date
+    monkeypatch.setattr(pd.sys, "exit", lambda code: (_ for _ in ()).throw(SystemExit(code)))
+    # 2026-08-01 为周六：伪造今天，验证 main 直接 SKIP
+    real_today = pd.date.today
+    pd.date.today = staticmethod(lambda: date(2026, 8, 1))
+    try:
+        pd.main()
+    finally:
+        pd.date.today = real_today
+    assert push_queue.read() == [], "周末不应产生任何待推送项"
+
+
 # ── deliver 推送标记与重试 ──────────────────────────────────────
 
 def test_deliver_push_mark_retry(tmp_queue, monkeypatch):

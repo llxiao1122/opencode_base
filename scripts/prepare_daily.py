@@ -11,6 +11,11 @@ sys.path.insert(0, str(ROOT / "skills"))
 
 
 def main() -> int:
+    # 周六/周日休息日：不预执行、不推送（固定工作周末为空，避免推送"暂无任务"）
+    if date.today().weekday() >= 5:
+        print("SKIP — weekend")
+        return 0
+
     from skills.shared.path import ensure_paths; ensure_paths()
     from skills.router.faiss_router import _get_index; _get_index()
     from skills.shared.schema import RequestContext
