@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 
@@ -26,4 +27,6 @@ def ensure_paths():
 
 
 def root() -> Path:
-    return _ROOT
+    """项目根。测试环境用 CIPHER_ROOT 环境变量重定向到隔离目录（conftest 设置）。"""
+    alt = os.environ.get("CIPHER_ROOT")
+    return Path(alt) if alt else _ROOT

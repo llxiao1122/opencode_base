@@ -1,8 +1,20 @@
-import json, os, sys
+import json, os, shutil, sys, tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 ROOT = Path(__file__).resolve().parent.parent
+
+# ── 数据隔离：测试写入/读取全部落在临时副本，真实 data/ 零污染 ──────
+# 必须在任何 skills 模块 import 之前设置（模块级 ROOT 常量在 import 时固定）。
+# path.root() 识别 CIPHER_ROOT → 各模块 data 路径派生到副本。
+# 基线复制：data（26M）+ Knowledge（2.5M），包含世界观实体/FAISS/任务/制度。
+_TEST_ROOT = Path(tempfile.mkdtemp(prefix="cipher_test_root_"))
+for _sub in ("data", "Knowledge"):
+    _src = ROOT / _sub
+    if _src.exists():
+        shutil.copytree(_src, _TEST_ROOT / _sub, dirs_exist_ok=True)
+os.environ["CIPHER_ROOT"] = str(_TEST_ROOT)
+
 sys.path.insert(0, str(ROOT / "skills"))
 sys.path.insert(0, str(ROOT))
 
@@ -42,6 +54,7 @@ _urlopen_patch.start()
 
 def pytest_unconfigure():
     _urlopen_patch.stop()
+    shutil.rmtree(_TEST_ROOT, ignore_errors=True)
 
 
 def pytest_runtest_setup():

@@ -4,6 +4,8 @@ import time
 from datetime import date
 from pathlib import Path
 
+from skills.shared.path import root as _root
+
 logger = logging.getLogger(__name__)
 
 _DEDUP_WINDOW = 10
@@ -13,7 +15,9 @@ _dedup_lock = threading.Lock()
 _RING_BUF = []
 _RING_BUF_MAX = 100
 _RING_LOCK = threading.Lock()
-_RING_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "state" / "worldview" / "_ringbuf.json"
+# 经 root() 派生而非 __file__：CIPHER_ROOT 测试隔离时 ringbuf 也落到副本，
+# 避免 pytest 记录写入真实 data（历史污染源）。
+_RING_PATH = _root() / "data" / "state" / "worldview" / "_ringbuf.json"
 
 
 def _check_dedup(key: str) -> bool:
