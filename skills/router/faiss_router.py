@@ -109,6 +109,10 @@ def _worldview_classify(text: str) -> Optional[Tuple[str, float]]:
         base_conf = _WV_CONF_DEFAULT.get(entity_type, 0.70)
 
         if entity_type == "person":
+            # 叙述型长文本（>30 字）含事件/任务动词：是"汇报发生了什么"而非
+            # "查询某人档案"，交还 Agent 决断（agent 仍可选 profile_query）。
+            if len(text) > 30 and _NARRATIVE_KW_RE.search(text):
+                return None
             return (route, round(min(score, base_conf), 2))
 
         return (route, round(min(score + 0.05, base_conf), 2))
@@ -117,6 +121,12 @@ def _worldview_classify(text: str) -> Optional[Tuple[str, float]]:
 
 
 _PERSON_NAMES_CACHE = None
+
+# 叙述型文本信号：汇报/安排/跟进类动词，命中即视为"事件叙述"而非"档案查询"
+_NARRATIVE_KW_RE = re.compile(
+    r"安排|完成|负责|发送|钉钉|提醒|回复|上报|运维|联系|咨询|领出|领料|交接|请假|"
+    r"任务|反馈|跟进|执行|安排|处理|办理|询问|试了|显示错误|未读|担心|上报运维"
+)
 
 
 def _load_person_names() -> list[str]:
@@ -140,10 +150,14 @@ def classify(user_input: str) -> Tuple[str, float]:
     if not text:
         return ("unknown", 0.0)
 
-    # 0. 人名预检：worldview index 中已知 person 实体名精确匹配
+    # 0. 人名预检：已知 person 实体名精确匹配 → 仅短查询（≤30 字）短路直返。
+    #    叙述型长文本（事件汇报/任务安排/反馈）交还语义层与 Agent 决断，
+    #    避免"提及人名 ≠ 查询档案"的劫持（如：安排某人完成某事的事件记录）。
     for name in _load_person_names():
         if name in text:
-            return ("profile_query", 0.88)
+            if len(text) <= 30:
+                return ("profile_query", 0.88)
+            break
 
     # 1+2 并行：Worldview + FAISS 种子，选最优
     from concurrent.futures import ThreadPoolExecutor, as_completed

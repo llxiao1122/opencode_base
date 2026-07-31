@@ -50,6 +50,23 @@ def test_faiss_confidence_clamped():
     assert 0.0 <= conf <= 1.0
 
 
+# ── 人名预检：短查询直返 profile，长叙述不被劫持 ──────────────────
+
+def test_person_name_short_query_still_profile():
+    route, conf = classify("苗笑天是什么样的人")
+    assert route == "profile_query"
+    assert conf >= CT.EXECUTE
+
+
+def test_person_name_long_narrative_not_hijacked():
+    msg = ("今天安排谭继衡完成苗笑天负责模块（工班二级库相关工作），从总库库存将去年"
+           "需求计划所提报的物资领出，上午11：30发送他钉钉，下午2：30未读，我担心他"
+           "完成不了，遂即提醒")
+    route, conf = classify(msg)
+    assert route == "event", f"叙述应路由事件层，实际: {route}@{conf}"
+    assert conf < CT.HIGH, f"叙述不应进快路径，实际: {conf}"
+
+
 # ── Group F: Full pipeline end-to-end ──────────────────────────────────
 
 def test_full_pipeline_low_conf_message():
