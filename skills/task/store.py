@@ -7,9 +7,10 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from skills.shared.path import root as _root
 from skills.task.status import IN_PROGRESS
 
-ROOT = Path(__file__).resolve().parent.parent.parent
+ROOT = _root()
 STORE_PATH = ROOT / "data" / "state" / "tasks.json"
 RETENTION_DAYS = 30
 

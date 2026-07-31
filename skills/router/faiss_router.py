@@ -13,12 +13,12 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Tuple, Optional
 
-from skills.shared.path import ensure_paths
+from skills.shared.path import ensure_paths, root as _project_root
 
 ensure_paths()
 
 _SEEDS_PATH = Path(__file__).resolve().parent / "route_seeds.json"
-_STAMP_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "state" / ".seeds_stamp"
+_STAMP_PATH = _project_root() / "data" / "state" / ".seeds_stamp"
 
 _idx_mgr = None
 _idx_lock = threading.Lock()
@@ -58,7 +58,7 @@ def extract_slots(text: str) -> dict:
 def _is_person_entity(name: str) -> bool:
     """检查实体名是否对应 worldview 中的 person 类型"""
     try:
-        idx_path = Path(__file__).resolve().parent.parent.parent / "data" / "state" / "worldview" / "index.json"
+        idx_path = _project_root() / "data" / "state" / "worldview" / "index.json"
         if idx_path.exists():
             idx = json.loads(idx_path.read_text(encoding="utf-8"))
             ent = idx.get("entities", {}).get(name, {})
@@ -134,7 +134,7 @@ def _load_person_names() -> list[str]:
     if _PERSON_NAMES_CACHE is not None:
         return _PERSON_NAMES_CACHE
     try:
-        idx_path = Path(__file__).resolve().parent.parent.parent / "data" / "state" / "worldview" / "index.json"
+        idx_path = _project_root() / "data" / "state" / "worldview" / "index.json"
         if idx_path.exists():
             idx = json.loads(idx_path.read_text(encoding="utf-8"))
             _PERSON_NAMES_CACHE = [n for n, v in idx.get("entities", {}).items() if v.get("type") == "person"]

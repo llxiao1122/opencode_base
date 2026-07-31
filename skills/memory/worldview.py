@@ -14,9 +14,12 @@ from pathlib import Path
 from datetime import date, datetime
 from typing import Optional
 
+from skills.shared.path import root as _project_root
+
 logger = logging.getLogger(__name__)
 
-ROOT = Path(__file__).resolve().parent.parent.parent
+# 经 root() 派生（CIPHER_ROOT 测试隔离）：index/entities/vector 均落副本
+ROOT = _project_root()
 INDEX_PATH = ROOT / "data" / "state" / "worldview" / "index.json"
 ENTITIES_DIR = ROOT / "data" / "state" / "worldview" / "entities"
 VECTOR_DIR = ROOT / "data" / "state" / "worldview" / "vector"

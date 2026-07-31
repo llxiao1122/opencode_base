@@ -11,7 +11,8 @@ sys.path.insert(0, str(ROOT / "skills"))
 def _pending_count():
     try:
         import json
-        p = ROOT / "data" / "state" / "worldview" / "index.json"
+        from skills.shared.path import root
+        p = root() / "data" / "state" / "worldview" / "index.json"
         return json.loads(p.read_text()).get("pending_records", 0)
     except Exception:
         return -1

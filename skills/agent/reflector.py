@@ -9,9 +9,11 @@ import json, logging, os, time
 from pathlib import Path
 from collections import defaultdict
 
+from skills.shared.path import root as _root
+
 logger = logging.getLogger(__name__)
 
-ROOT = Path(__file__).resolve().parent.parent.parent
+ROOT = _root()
 COOLDOWN = 600
 _STATE = {"last_reflect": 0.0}
 
