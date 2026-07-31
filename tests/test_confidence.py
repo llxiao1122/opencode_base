@@ -79,16 +79,20 @@ def test_weekend_has_no_daily_work():
 def test_completed_exercise_filtered():
     from datetime import date
     from skills.agent.handlers.task_query import _get_daily_work
-    work = _get_daily_work(date(2026, 8, 3))
-    assert "演练" not in work, f"已完成演练仍展示: {work}"
+    # 7 月演练已完成 → 7 月查询不展示
+    work_jul = _get_daily_work(date(2026, 7, 27))
+    assert "仓库火灾" not in work_jul, f"7月已完成演练仍展示: {work_jul}"
+    # 8 月演练未完成 → 8 月查询正常展示
+    work_aug = _get_daily_work(date(2026, 8, 3))
+    assert "叉车事故应急演练" in work_aug, f"8月未完成演练缺失: {work_aug}"
 
 
 def test_duty_anchor_monday_tuesday():
     from datetime import date
     from skills.agent.handlers.task_query import _get_duty_person
     md = (ROOT / "Knowledge" / "01-仓储业务" / "00-日常工作指引.md").read_text()
-    assert _get_duty_person(date(2026, 8, 1), md=md) == "陈红洁", "8/1 应为陈红洁（主人 7/31 纠错确认）"
-    assert _get_duty_person(date(2026, 8, 3), md=md) == "杨梦卓", "8/3 周一应为杨梦卓"
+    assert _get_duty_person(date(2026, 8, 1), md=md) == "张志斌", "8/1 应为张志斌（主人确认）"
+    assert _get_duty_person(date(2026, 8, 3), md=md) == "苗笑天", "8/3 周一应为苗笑天"
 
 
 # ── Group F: Full pipeline end-to-end ──────────────────────────────────
