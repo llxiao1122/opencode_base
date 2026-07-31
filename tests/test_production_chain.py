@@ -94,13 +94,14 @@ def test_prepare_daily_weekend_skips(tmp_queue, monkeypatch):
     import scripts.prepare_daily as pd
     from datetime import date
     monkeypatch.setattr(pd.sys, "exit", lambda code: (_ for _ in ()).throw(SystemExit(code)))
-    # 2026-08-01 为周六：伪造今天，验证 main 直接 SKIP
-    real_today = pd.date.today
-    pd.date.today = staticmethod(lambda: date(2026, 8, 1))
-    try:
-        pd.main()
-    finally:
-        pd.date.today = real_today
+
+    class FakeDate(date):
+        @classmethod
+        def today(cls):
+            return date(2026, 8, 1)  # 周六
+
+    monkeypatch.setattr(pd, "date", FakeDate)
+    pd.main()
     assert push_queue.read() == [], "周末不应产生任何待推送项"
 
 
