@@ -45,7 +45,16 @@ def _load_index() -> dict:
 
 
 def _save_index(idx: dict):
-    INDEX_PATH.write_text(json.dumps(idx, ensure_ascii=False, indent=2), encoding="utf-8")
+    """写 index.json，fcntl 独占锁防多线程/多进程并发写坏（对齐 push_queue）。"""
+    import fcntl
+    INDEX_PATH.parent.mkdir(parents=True, exist_ok=True)
+    f = open(INDEX_PATH, "w", encoding="utf-8")
+    try:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        f.write(json.dumps(idx, ensure_ascii=False, indent=2))
+        f.flush()
+    finally:
+        f.close()
 
 
 def _observe_path(name: str) -> Path:
@@ -599,13 +608,24 @@ def _collect_pending(min_records: int = 10) -> dict[str, list[str]]:
     return dict(groups)
 
 
+_CHECK_COOLDOWN = 60.0
+_LAST_CHECK = {"ts": 0.0}
+
+
 def check_and_update():
     """检查 pending_records ≥ 10，是则自动触发 batch_update。
 
-    由 agent/engine.py run() 开头调用。
+    限频 60s（快路径每次查询都会调用）。由 entry.handle_core 与 agent/engine.py run() 开头调用。
     合入成功后清空 ringbuf，避免同一批记录重复合入。
     """
+    import time
+    now = time.time()
+    if now - _LAST_CHECK["ts"] < _CHECK_COOLDOWN:
+        return False
+    _LAST_CHECK["ts"] = now
+
     idx = _load_index()
+    self_heal(idx)
     pending = idx.get("pending_records", 0)
     if pending < 10:
         return False
@@ -620,6 +640,60 @@ def check_and_update():
     _clear_ringbuf()
     logger.info("Worldview auto-update complete (%d entities updated)", len(groups))
     return True
+
+
+def self_heal(idx: dict | None = None):
+    """三方一致性自检修复：index.json ↔ entities/*.md ↔ vector/chunk_map.json。
+
+    - index 有记录但档案缺失 → 重建档案（bootstrap）
+    - 档案存在但 index 缺记录 → 补登（保持 type 推断：PERSON_ENTITIES 为 person 否则 topic）
+    - chunk_map 缺失实体 → 全量重建 FAISS
+    限频 60s，与 check_and_update 共用节流。
+    """
+    import time
+    if idx is None:
+        idx = _load_index()
+    entities = idx.get("entities", {})
+
+    missing_files = [n for n in entities if not (ENTITIES_DIR / f"{n}.md").exists()]
+    if missing_files:
+        logger.warning("self_heal: %d entity files missing, rebuilding via bootstrap", len(missing_files))
+        try:
+            bootstrap()
+            idx = _load_index()
+            entities = idx.get("entities", {})
+        except Exception as e:
+            logger.error("self_heal bootstrap failed: %s", e, exc_info=True)
+
+    orphan_files = [
+        p.stem for p in ENTITIES_DIR.glob("*.md")
+        if p.stem not in entities and p.stem != "_unknown"
+    ]
+    if orphan_files:
+        for name in orphan_files:
+            etype = "person" if name in PERSON_ENTITIES else "topic"
+            entities[name] = {"type": etype, "updated": datetime.now().isoformat()}
+        logger.info("self_heal: registered %d orphan entity files", len(orphan_files))
+        _save_index(idx)
+
+    cm_path = VECTOR_DIR / "chunk_map.json"
+    faiss_path = VECTOR_DIR / "worldview.index"
+    need_rebuild = not (cm_path.exists() and faiss_path.exists())
+    if not need_rebuild:
+        try:
+            cm = json.loads(cm_path.read_text(encoding="utf-8"))
+            indexed = {info["entity_id"] for info in cm.values()}
+            if len(indexed) < len(entities) or not indexed.issuperset(set(entities)):
+                need_rebuild = True
+        except Exception:
+            need_rebuild = True
+    if need_rebuild:
+        logger.info("self_heal: FAISS index inconsistent, rebuilding")
+        try:
+            _rebuild_faiss()
+        except Exception as e:
+            logger.error("self_heal faiss rebuild failed: %s", e, exc_info=True)
+    return idx
 
 
 def _clear_ringbuf():

@@ -147,6 +147,12 @@ def handle_core(user_input: str) -> str:
     except Exception:
         pass
 
+    try:
+        from skills.memory.worldview import check_and_update
+        check_and_update()
+    except Exception:
+        pass
+
     conf_label = rctx.confidence or confidence or 0.0
     result = re.sub(
         r'^\[Cipher:(\w+)\]',
