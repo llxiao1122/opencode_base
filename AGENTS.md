@@ -17,6 +17,8 @@ handle_core(): classify() 返回 (route, confidence) → 高置信且非 event �
 
 工具速查：task_query/knowledge_retrieve/profile_query/correction_feedback → 快速查询。notification_push/event_record/task_create/task_feedback/org_lookup/reminder_set → 写操作经 Agent 调度。
 
+记忆架构（一个大脑）：worldview=知识基线（data/state/worldview 实体档案+FAISS 分节检索，已版本化）；统一查口 skills/memory/world_query.query()；学习回路 recorder→ringbuf/pending（仅事件/纠错进，查询不进）；纠错 correction_store。
+
 ## 开发纪律
 1) 确定性能用 Python 规则不用 LLM。2) 不动已有的功能。3) 改完必须 `pytest tests/`。
 
