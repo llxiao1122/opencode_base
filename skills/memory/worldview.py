@@ -562,7 +562,7 @@ def search(query: str, top_k: int = 3, type_filter: str | None = None) -> list[d
 
 # ── 触发 A：收集待处理记录 ────────────────────────────────────────
 
-def _collect_pending(min_records: int = 50) -> dict[str, list[str]]:
+def _collect_pending(min_records: int = 10) -> dict[str, list[str]]:
     """从环形缓冲区读取最近记录，按实体名分组。
 
     Returns:
@@ -598,23 +598,57 @@ def _collect_pending(min_records: int = 50) -> dict[str, list[str]]:
 
 
 def check_and_update():
-    """检查 pending_records ≥ 50，是则自动触发 batch_update。
+    """检查 pending_records ≥ 10，是则自动触发 batch_update。
 
     由 agent/engine.py run() 开头调用。
+    合入成功后清空 ringbuf，避免同一批记录重复合入。
     """
     idx = _load_index()
     pending = idx.get("pending_records", 0)
-    if pending < 50:
+    if pending < 10:
         return False
 
     logger.info("Worldview auto-update triggered (%d pending records)", pending)
-    groups = _collect_pending(min_records=50)
+    groups = _collect_pending(min_records=10)
     if groups:
         batch_update(groups)
+        _notify_unknown(groups)
     idx["pending_records"] = 0
     _save_index(idx)
+    _clear_ringbuf()
     logger.info("Worldview auto-update complete (%d entities updated)", len(groups))
     return True
+
+
+def _clear_ringbuf():
+    """清空环形缓冲文件，防止已合入记录被重复读取。"""
+    ring_path = ROOT / "data" / "state" / "worldview" / "_ringbuf.json"
+    try:
+        ring_path.write_text("", encoding="utf-8")
+    except Exception as e:
+        logger.debug("ringbuf clear failed: %s", e)
+
+
+def _notify_unknown(groups: dict):
+    """_unknown 记录再次出现时，通过钉钉询问主人归类。"""
+    unknown = groups.get("_unknown", [])
+    if not unknown:
+        return
+    try:
+        import uuid
+        from datetime import datetime
+        from skills.shared.push_queue import append as queue_append
+        lines = [str(u)[:60] for u in unknown[-5:]]
+        queue_append({
+            "id": uuid.uuid4().hex[:12],
+            "channel": "dingtalk",
+            "title": "🌱 世界观学习：有未归类记录待主人判断",
+            "body": "以下记录未命中任何已知实体，请主人告知归属（人员/流程/新实体）：\n" + "\n".join(f"• {l}" for l in lines),
+            "push_at": datetime.now().isoformat(),
+            "pushed": False,
+        })
+    except Exception as e:
+        logger.debug("unknown notify failed: %s", e)
 
 
 # ── CLI ────────────────────────────────────────────────────────────

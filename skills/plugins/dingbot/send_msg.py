@@ -16,9 +16,12 @@ try:
 except ImportError:
     _HTTP_CLIENT = None
 
-TOKEN = os.environ.get("DINGTALK_BOT_TOKEN", "")
-WEBHOOK_URL = f"https://oapi.dingtalk.com/robot/send?access_token={TOKEN}" if TOKEN else ""
 KEYWORD = "助手"
+
+
+def _webhook_url() -> str:
+    token = os.environ.get("DINGTALK_BOT_TOKEN", "")
+    return f"https://oapi.dingtalk.com/robot/send?access_token={token}" if token else ""
 
 
 def send_text(content: str, at_mobiles: list = None, at_all: bool = False) -> dict:
@@ -44,15 +47,16 @@ def send_markdown(title: str, text: str, at_mobiles: list = None, at_all: bool =
 
 
 def _post(payload: dict) -> dict:
-    if not WEBHOOK_URL:
+    url = _webhook_url()
+    if not url:
         return {"errcode": -1, "errmsg": "webhook 未配置"}
     try:
         if _HTTP_CLIENT is not None:
-            resp = _HTTP_CLIENT.post(WEBHOOK_URL, json=payload)
+            resp = _HTTP_CLIENT.post(url, json=payload)
             resp.raise_for_status()
             return resp.json()
         import requests
-        resp = requests.post(WEBHOOK_URL, json=payload, timeout=10)
+        resp = requests.post(url, json=payload, timeout=10)
         resp.raise_for_status()
         return resp.json()
     except Exception as e:

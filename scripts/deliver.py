@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """每分钟扫描 push_queue，到期推送。"""
 
-import json, sys
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -10,16 +10,9 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "skills"))
 
 from skills.shared.path import ensure_paths; ensure_paths()
+from skills.shared.push_queue import read as queue_read, write as queue_write
 
-QUEUE = ROOT / "data" / "state" / "push_queue.json"
-if not QUEUE.exists():
-    sys.exit(0)
-
-try:
-    queue = json.loads(QUEUE.read_text(encoding="utf-8"))
-except Exception:
-    sys.exit(0)
-
+queue = queue_read()
 if not queue:
     sys.exit(0)
 
@@ -55,21 +48,21 @@ for item in queue:
             except Exception:
                 out.append(f"  {m} — 查询失败")
         body = "\n".join(out)
-    elif title == "⏰ 提醒" and len(body) < 200:
-        from skills.entry import handle_core
-        try:
-            reply = handle_core(body)
-            body = f"{body}\n\n{reply[:1500]}"
-        except Exception as e:
-            body = f"{body}\n\n（处理失败: {e}）"
-
     resp = send_markdown(title, body)
     if resp.get("errcode") == 0:
         item["pushed"] = True
         changed = True
         print(f"PUSH_OK: {item['id']} {body[:60]}")
+        try:
+            from skills.memory.recorder import record
+            record(
+                f"通知推送: {title}\n{body[:200]}",
+                source="cron.deliver", obs_type="notification", layer="rule",
+            )
+        except Exception:
+            pass
     else:
         print(f"PUSH_FAIL: {item['id']} {resp.get('errmsg', '未发送')}")
 
 if changed:
-    QUEUE.write_text(json.dumps(queue, ensure_ascii=False, indent=2), encoding="utf-8")
+    queue_write(queue)

@@ -175,6 +175,17 @@ def run(user_input: str, ctx: Optional[RequestContext] = None) -> str:
     except Exception:
         pass
 
+    # 纠错库加载：系统自身成长记忆，应答前全文注入
+    try:
+        from skills.memory.correction_store import load_recent
+        corrections = load_recent(limit=20)
+        if corrections:
+            memory_text += "\n\n## 纠错记忆（系统成长）\n"
+            for c in corrections:
+                memory_text += f"- [{c['date']}] {c['text']}\n"
+    except Exception:
+        pass
+
     sys_prompt = AGENT_SYSTEM_PROMPT.format(
         user_name=user_name,
         tools_desc=tools_desc,

@@ -7,18 +7,19 @@ skills/trigger/daemon.py — 主动巡检守护线程。
 """
 
 import time
+import uuid
 import logging
 from datetime import datetime
-from skills.agent.handlers.notification import handle as send_notification
 from skills.task.store import get_impending_tasks, mark_notified
 from skills.task.priority import THRESHOLD_MAP
 from skills.shared.time_parse import parse_deadline_dt
+from skills.shared.push_queue import append as queue_append
 
 logger = logging.getLogger(__name__)
 
 
 class ProactiveDaemon:
-    def __init__(self, check_interval_sec: int = 300):
+    def __init__(self, check_interval_sec: int = 3600):
         self.interval = check_interval_sec
 
     def start_loop(self):
@@ -53,14 +54,21 @@ class ProactiveDaemon:
                     "---\n"
                     f"回复 `已完成 {action[:20]}` 确认完成。"
                 )
-                send_notification(title=title, content=content)
+                queue_append({
+                    "id": f"daemon_{task['id']}_{threshold}h_{uuid.uuid4().hex[:6]}",
+                    "channel": "dingtalk",
+                    "title": title,
+                    "body": content,
+                    "push_at": datetime.now().isoformat(),
+                    "pushed": False,
+                })
                 mark_notified(task["id"], threshold)
                 logger.info(
-                    "Alert sent: task=%s action=%s deadline=%s threshold=%sh",
+                    "Alert queued: task=%s action=%s deadline=%s threshold=%sh",
                     task["id"], action[:40], dl_str, threshold,
                 )
 
 
 if __name__ == "__main__":
-    daemon = ProactiveDaemon(check_interval_sec=300)
+    daemon = ProactiveDaemon(check_interval_sec=3600)
     daemon.start_loop()

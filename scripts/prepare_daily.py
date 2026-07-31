@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""08:40 预执行 — 查当日工作，写入 push_queue，08:45 准时推。"""
+"""08:45 预执行 — 查当日工作，写入 push_queue，08:50 推送。"""
 
-import json, sys
-from datetime import datetime, date, timedelta
+import sys
+from datetime import datetime, date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -23,12 +23,12 @@ if not text:
     print("SKIP — empty result")
     sys.exit(0)
 
-QUEUE = ROOT / "data" / "state" / "push_queue.json"
-queue = json.loads(QUEUE.read_text(encoding="utf-8")) if QUEUE.exists() else []
-today = date.today()
-push_at = datetime(today.year, today.month, today.day, 8, 45).isoformat()
+from skills.shared.push_queue import append as queue_append
 
-queue.append({
+today = date.today()
+
+push_at = datetime(today.year, today.month, today.day, 8, 50).isoformat()
+queue_append({
     "id": f"daily_{today.isoformat()}",
     "channel": "dingtalk",
     "title": "📋 今日待办",
@@ -36,5 +36,4 @@ queue.append({
     "push_at": push_at,
     "pushed": False,
 })
-QUEUE.write_text(json.dumps(queue, ensure_ascii=False, indent=2), encoding="utf-8")
 print(f"OK — queued for {push_at}")

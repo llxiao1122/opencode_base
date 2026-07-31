@@ -116,12 +116,12 @@ def _filter_tasks(tasks, date_range):
     start, end = date_range
     active = []
     for t in tasks:
-        if t.get("status") == "completed":
+        if t.get("status") in ("completed", "cancelled", "archived"):
             continue
         deadline = t.get("deadline", "")
         if deadline:
             dl_date = _parse_chinese_date(deadline)
-            if dl_date and (dl_date < start or dl_date > end):
+            if dl_date and dl_date > end:
                 continue
         active.append(t)
     return active
@@ -184,30 +184,23 @@ def _parse_duty_cycle(md: str):
 
     for line in md.split("\n"):
         if "→" in line and not line.strip().startswith("|"):
-            cycle = [n.strip() for n in line.strip().split("→")]
+            raw = [n.strip() for n in line.strip().split("→")]
+            cycle = [re.sub(r"[（(].*", "", re.sub(r"^.*[：:]", "", n)).strip() for n in raw]
             break
 
-    anchor_section = md.find("已知排班参照点")
-    if anchor_section < 0 or not cycle:
+    if not cycle:
         return cycle, None, -1
 
-    table = []
-    for line in md[anchor_section:].split("\n")[:15]:
-        line = line.strip()
-        if not line.startswith("|") or not line[1:].strip():
-            continue
-        cells = [c.strip() for c in line.strip("|").split("|")]
-        if len(cells) >= 2 and re.match(r"\d{4}-\d{2}-\d{2}", cells[0][:10]):
-            dt_str = cells[0][:10]
-            name = cells[1].strip()
-            try:
-                d = datetime.strptime(dt_str, "%Y-%m-%d").date()
-                if name in cycle:
-                    anchor_date = d
-                    anchor_idx = cycle.index(name)
-                    break
-            except ValueError:
-                continue
+    m = re.search(r"参考锚点[：:]\s*(\d{4}-\d{2}-\d{2})\s+(\S+?)[，,。\s]", md)
+    if m:
+        try:
+            d = datetime.strptime(m.group(1), "%Y-%m-%d").date()
+            name = m.group(2)
+            if name in cycle:
+                anchor_date = d
+                anchor_idx = cycle.index(name)
+        except (ValueError, IndexError):
+            pass
 
     return cycle, anchor_date, anchor_idx
 

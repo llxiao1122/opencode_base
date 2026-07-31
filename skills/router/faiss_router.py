@@ -92,7 +92,7 @@ _WV_CONF_DEFAULT = _CONFIG.get("_WV_CONF_DEFAULT", {})
 def _worldview_classify(text: str) -> Optional[Tuple[str, float]]:
     """Worldview Layer: 对实体分节做语义匹配，从命中类型推路由。
 
-    Returns (route, confidence) 或 None（匹配 < 0.55）。
+    Returns (route, confidence) 或 None（匹配 < 0.65）。
     """
     try:
         from skills.memory.worldview import search as wv_search
@@ -101,7 +101,7 @@ def _worldview_classify(text: str) -> Optional[Tuple[str, float]]:
             return None
         h = hits[0]
         score = h.get("score", 0.0)
-        if score < 0.60:
+        if score < 0.65:
             return None
 
         entity_type = h.get("type", "")

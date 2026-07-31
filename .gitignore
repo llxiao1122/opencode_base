@@ -15,6 +15,7 @@ Thumbs.db
 # Logs
 logs/*.log
 skills/logs/
+data/logs/
 
 # PID
 *.pid

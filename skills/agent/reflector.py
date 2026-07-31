@@ -29,10 +29,20 @@ def _should_reflect(tool_id: str) -> bool:
 
 
 def _check_corrections(user_input: str) -> list:
-    """从 Knowledge 中搜索相关纠正记录"""
+    """从纠错库检索与本次输入相关的纠正记录"""
     try:
-        from skills.memory.observation_store import search as _obs_search
-        return _obs_search("纠正 反馈 " + user_input[:60], top_k=2)
+        from skills.memory.correction_store import load_recent
+        corrections = load_recent(limit=20)
+        hits = []
+        for c in corrections:
+            text = c.get("text", "")
+            if not text:
+                continue
+            overlap = sum(1 for seg in (user_input[:6], text[:6]) if seg)
+            if user_input[:6] in text or text[:6] in user_input or any(
+                    kw in user_input for kw in text.split() if len(kw) >= 2):
+                hits.append(c)
+        return hits[:3]
     except Exception as e:
         logger.debug("correction check failed: %s", e)
         return []

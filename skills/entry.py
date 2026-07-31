@@ -127,7 +127,7 @@ def handle_core(user_input: str) -> str:
         try:
             from skills.trigger.daemon import ProactiveDaemon
             t = threading.Thread(
-                target=ProactiveDaemon(check_interval_sec=300).start_loop,
+                target=ProactiveDaemon(check_interval_sec=3600).start_loop,
                 daemon=True,
             )
             t.start()
@@ -136,9 +136,13 @@ def handle_core(user_input: str) -> str:
             logger.warning("daemon start failed: %s", e)
 
     try:
-        from skills.memory.recorder import record as _record
-        _record(user_input, source="entry", obs_type="interaction",
-                layer="rule", confidence=round(confidence or 0.5, 2))
+        if (rctx.slots or {}).get("has_correction"):
+            from skills.memory.correction_store import append as _corr_append
+            _corr_append(user_input)
+        else:
+            from skills.memory.recorder import record as _record
+            _record(user_input, source="entry", obs_type="interaction",
+                    layer="rule", confidence=round(confidence or 0.5, 2))
     except Exception:
         pass
 
