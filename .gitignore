@@ -61,6 +61,17 @@ memory/events/index.json
 # Runtime data store
 state/
 
+# Knowledge baseline (versioned): worldview entity profiles + index + corrections
+!data/state/
+!data/state/worldview/
+!data/state/worldview/entities/
+!data/state/worldview/entities/*.md
+!data/state/worldview/index.json
+!data/state/worldview/纠错.md
+data/state/worldview/vector/
+data/state/worldview/_ringbuf.json
+data/state/worldview/_backlog/
+
 # Import history files (user data, large)
 files/*.rtf
 files/*.txt
