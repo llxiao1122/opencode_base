@@ -38,7 +38,6 @@ def _check_corrections(user_input: str) -> list:
             text = c.get("text", "")
             if not text:
                 continue
-            overlap = sum(1 for seg in (user_input[:6], text[:6]) if seg)
             if user_input[:6] in text or text[:6] in user_input or any(
                     kw in user_input for kw in text.split() if len(kw) >= 2):
                 hits.append(c)
