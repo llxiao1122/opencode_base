@@ -37,7 +37,10 @@ def _clean_summary(text):
     for loc in sorted(LOCATIONS, key=len, reverse=True):
         text = text.replace(loc, "")
     text = re.sub(r"[和及与]($|[，。；、])", r"\1", text)
-    text = re.sub(r"，[^，。]+$", "", text)
+    # 规格文本（[...]）为关键信息：不做尾部冗余裁剪（该规则会误删
+    # "…叼扣，带刹车轮] 按通用类走" 整段，导致规格残缺）
+    if "[" not in text or "]" not in text:
+        text = re.sub(r"，[^，。]+$", "", text)
     text = re.sub(r"^[：:，。；、\s]+", "", text)
     text = re.sub(r"[：:，。；、\s]+$", "", text)
     return text
@@ -76,7 +79,9 @@ def build_title(summary, raw_text="", deadline=""):
             clean = clean[len(prefix):].lstrip("一下：:：，。；、 ")
             break
 
-    if len(clean) > 25:
+    # 规格型任务（含 [...] 物资规格）：规格是核心信息，完整保留不截断
+    _has_spec = "[" in clean and "]" in clean and clean.find("[") < clean.find("]")
+    if not _has_spec and len(clean) > 25:
         cut = clean[:25]
         lasts = [cut.rfind(p) for p in "，；。" if p in cut]
         last_punc = max(lasts) if lasts else -1
