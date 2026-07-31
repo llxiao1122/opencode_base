@@ -24,8 +24,8 @@ def _route_rules():
     if _ROUTE_RULES is not None:
         return _ROUTE_RULES
     import re
-    _TIME = re.compile(r"今|明|昨|后|天|本周|这周|下周|周[一二三四五六日]|\d+月\d+日|\d+号")
-    _TASK_KW = ["任务", "工作", "值班", "待办", "安排", "谁值班", "干什么", "台账", "库区责任", "材料棚"]
+    _TIME = re.compile(r"(今|明|昨|后)天|本周|这周|下周|周[一二三四五六日]|\d+月\d+日|\d+号")
+    _TASK_KW = ["任务", "工作", "值班", "待办", "安排", "谁值班", "干什么", "台账", "库区责任"]
     _ROUTE_RULES = (_TIME, _TASK_KW)
     return _ROUTE_RULES
 
