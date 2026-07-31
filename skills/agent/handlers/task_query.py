@@ -264,6 +264,10 @@ def _get_daily_work(target_date):
     target = target_date
     weekday_zh = ["周一","周二","周三","周四","周五","周六","周日"][target.weekday()]
 
+    # 周六/周日休息日：无固定工作、值班、演练等（专项任务由 handle 单独展示）
+    if target.weekday() >= 5:
+        return ""
+
     lines_out = []
 
     duty_person = _get_duty_person(target, md=md)
@@ -324,6 +328,9 @@ def _get_daily_work(target_date):
         if "应急演练" in line and "月份" in line:
             continue
         if f"{mon}月" in line and "应急演练" in line:
+            # 已完成演练（备注列标记"已完成"，主人告知）不再展示
+            if "已完成" in line:
+                continue
             exercise = line.strip().lstrip("|").split("|")
             if len(exercise) >= 3:
                 lines_out.append("")

@@ -67,6 +67,30 @@ def test_person_name_long_narrative_not_hijacked():
     assert conf < CT.HIGH, f"叙述不应进快路径，实际: {conf}"
 
 
+# ── 周末无工作 + 已完成演练过滤 + 值班锚点 ─────────────────────────
+
+def test_weekend_has_no_daily_work():
+    from datetime import date
+    from skills.agent.handlers.task_query import _get_daily_work
+    assert _get_daily_work(date(2026, 8, 1)) == "", "周六不应有固定工作"
+    assert _get_daily_work(date(2026, 8, 2)) == "", "周日不应有固定工作"
+
+
+def test_completed_exercise_filtered():
+    from datetime import date
+    from skills.agent.handlers.task_query import _get_daily_work
+    work = _get_daily_work(date(2026, 8, 3))
+    assert "演练" not in work, f"已完成演练仍展示: {work}"
+
+
+def test_duty_anchor_monday_tuesday():
+    from datetime import date
+    from skills.agent.handlers.task_query import _get_duty_person
+    md = (ROOT / "Knowledge" / "01-仓储业务" / "00-日常工作指引.md").read_text()
+    assert _get_duty_person(date(2026, 8, 1), md=md) == "陈红洁", "8/1 应为陈红洁（主人 7/31 纠错确认）"
+    assert _get_duty_person(date(2026, 8, 3), md=md) == "杨梦卓", "8/3 周一应为杨梦卓"
+
+
 # ── Group F: Full pipeline end-to-end ──────────────────────────────────
 
 def test_full_pipeline_low_conf_message():
