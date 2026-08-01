@@ -211,8 +211,10 @@ def _build_self_status() -> str:
 
     try:
         from skills.agent.registry import list_tools
-        tool_ids = [t["id"] for t in list_tools()]
-        lines.append(f"- 可用工具（{len(tool_ids)} 个）：{', '.join(tool_ids)}")
+        tools = list_tools()
+        read_tools = [t["id"] for t in tools if t.get("action_type") == "read"]
+        direct_tools = [t["id"] for t in tools if t.get("action_type") in ("write", "confirm")]
+        lines.append(f"- 可用工具（{len(tools)} 个）：查询类 {', '.join(read_tools)}；执行类 {', '.join(direct_tools)}（网页对话中直接执行）")
     except Exception:
         pass
 
@@ -550,9 +552,9 @@ def run_stream(sender_id: str, user_input: str):
                         ok, err = validate_params(tool_id, params)
                         if ok:
                             atype = action_type(tool_id)
-                            # Web chat: correction executes directly (no confirm queue)
-                            # Skip if already processed in Step 2 (prevent double-count)
-                            if atype != "confirm" or (tool_id == "correction_feedback" and not correction_processed):
+                            # 网页对话：主人当面下指令即授权，confirm 类型直接执行
+                            # 仅 correction_feedback 若已在 Step 2 处理过则跳过（防双写）
+                            if tool_id != "correction_feedback" or not correction_processed:
                                 try:
                                     tool_result = execute(tool_id, params)
                                 except Exception as e:
