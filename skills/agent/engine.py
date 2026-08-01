@@ -181,6 +181,65 @@ CHAT_SYSTEM_PROMPT = """\
 """
 
 
+def _build_self_status() -> str:
+    lines = []
+    try:
+        from skills.core.llm_client import _resolve_config
+        _, _, model = _resolve_config()
+        lines.append(f"- 后台模型：{model}")
+    except Exception:
+        pass
+
+    try:
+        from skills.memory.behavior import get
+        dc = get("duty_calculation") or {}
+        ct = get("correction_tracking") or {}
+        cf = get("classify") or {}
+        total = ct.get("total_corrections", 0)
+        last = ct.get("last_analysis_count", 0)
+        new_count = dc.get("correction_count", 0)
+        lines.append(f"- 累计纠错：{total} 条（距上次进化分析新增 {new_count} 次）")
+        if last > 0:
+            lines.append(f"- 进化历史：已完成 1 次进化分析（累计 {last} 条时触发），当前参数 prefer_entity={'实体优先' if dc.get('prefer_entity') else 'md 推算'}")
+        else:
+            lines.append("- 进化历史：尚未触发进化分析")
+        lines.append(f"- 快路径置信阈值：{cf.get('high_confidence', 0.70)}（高于此值直接执行，不走 LLM）")
+    except Exception:
+        pass
+
+    lines.append("- 权限边界：负责工班人员安排/库区物资管理/安全管理/工作协调；有权安排班组人员/协调库区工作/反馈问题；无权审批报废/决定危废处置时间/调整处置商计划")
+
+    try:
+        from skills.agent.registry import list_tools
+        tool_ids = [t["id"] for t in list_tools()]
+        lines.append(f"- 可用工具（{len(tool_ids)} 个）：{', '.join(tool_ids)}")
+    except Exception:
+        pass
+
+    try:
+        from skills.memory.observation_store import read as obs_read
+        content = obs_read("system", "Cipher")
+        if content:
+            summaries = []
+            in_detail = False
+            for line in content.splitlines():
+                if line.strip().startswith("source:"):
+                    in_detail = True
+                    continue
+                if in_detail and line.strip():
+                    summaries.append(line.strip()[:120])
+                    in_detail = False
+            if summaries:
+                recent = summaries[-5:]
+                lines.append(f"- 近期观测记忆（{len(summaries)} 条中最近 5 条）：" + "；".join(recent))
+    except Exception:
+        pass
+
+    if not lines:
+        return ""
+    return "## Cipher 自身状态\n" + "\n".join(lines) + "\n\n"
+
+
 def _build_memory_context(user_input: str) -> str:
     memory_text = ""
 
@@ -237,6 +296,8 @@ def _build_memory_context(user_input: str) -> str:
                     memory_text += f"- {sl}\n"
     except Exception:
         pass
+
+    memory_text += _build_self_status()
 
     return memory_text
 
