@@ -165,6 +165,82 @@ def _describe_intent(tool_id: str, params: dict) -> str:
     return f"建议执行 {tool_id}：{params}"
 
 
+CHAT_SYSTEM_PROMPT = """\
+你是 Cipher，{user_name}的企业智能助手。
+
+{identity_style}
+
+## 记忆上下文
+{memory_context}
+
+## 近期对话历史
+{conversation_history}
+
+根据以上记忆和对话历史，用自然流畅的中文回复主人的问题。
+直接回复内容即可，不要加任何前缀标记（如 [Cipher:xxx]）。
+"""
+
+
+def _build_memory_context(user_input: str) -> str:
+    memory_text = ""
+
+    try:
+        from skills.memory.worldview import search as worldview_search
+        wv_hits = worldview_search(user_input, top_k=2)
+        if wv_hits:
+            memory_text += "\n\n## 世界观档案\n"
+            for h in wv_hits:
+                memory_text += f"---\n{h['content'][:1500]}\n"
+    except Exception:
+        pass
+
+    try:
+        from skills.memory.correction_store import load_recent
+        corrections = load_recent(limit=20)
+        if corrections:
+            memory_text += "\n\n## 纠错记忆（系统成长）\n"
+            for c in corrections:
+                memory_text += f"- [{c['date']}] {c['text']}\n"
+    except Exception:
+        pass
+
+    try:
+        from skills.memory.behavior import get
+        dc = get("duty_calculation", "correction_count") or 0
+        if dc >= 2:
+            memory_text += (
+                f"\n\n⚠ 重要提示：近期值班推算已被纠正 {dc} 次，"
+                "回答值班/排班问题时请严格按实体档案事实对话，不要自行推算。\n"
+            )
+    except Exception:
+        pass
+
+    try:
+        from skills.memory.observation_store import read as obs_read
+        content = obs_read("system", "Cipher")
+        if content:
+            style_lines = []
+            in_summary = False
+            for line in content.splitlines():
+                if line.strip().startswith("### Summary"):
+                    in_summary = True
+                    continue
+                if in_summary and line.strip():
+                    t = line.strip()
+                    if ("主人" in t and not t.startswith("通知推送")
+                            and "未归类" not in t):
+                        style_lines.append(t[:120])
+                    in_summary = False
+            if style_lines:
+                memory_text += "\n\n## 风格约束（主人行为偏好）\n"
+                for sl in style_lines[-4:]:
+                    memory_text += f"- {sl}\n"
+    except Exception:
+        pass
+
+    return memory_text
+
+
 def run(user_input: str, ctx: Optional[RequestContext] = None) -> str:
     # 世界观自动更新：pending ≥ 50 时先 batch_update 再处理 query
     try:
@@ -209,63 +285,7 @@ def run(user_input: str, ctx: Optional[RequestContext] = None) -> str:
         context_parts.append("知识查询")
     context_line = "当前语境：" + "，".join(context_parts) + "\n" if context_parts else ""
 
-    # 世界观检索：语义匹配最相关的实体档案
-    try:
-        from skills.memory.worldview import search as worldview_search
-        wv_hits = worldview_search(user_input, top_k=2)
-        if wv_hits:
-            memory_text += "\n\n## 世界观档案\n"
-            for h in wv_hits:
-                memory_text += f"---\n{h['content'][:1500]}\n"
-    except Exception:
-        pass
-
-    # 纠错库加载：系统自身成长记忆，应答前全文注入
-    try:
-        from skills.memory.correction_store import load_recent
-        corrections = load_recent(limit=20)
-        if corrections:
-            memory_text += "\n\n## 纠错记忆（系统成长）\n"
-            for c in corrections:
-                memory_text += f"- [{c['date']}] {c['text']}\n"
-    except Exception:
-        pass
-
-    # 纠错数过量提示：值班等领域频繁被纠正时，LLM 应更谨慎
-    try:
-        from skills.memory.behavior import get
-        dc = get("duty_calculation", "correction_count") or 0
-        if dc >= 2:
-            memory_text += (
-                f"\n\n⚠ 重要提示：近期值班推算已被纠正 {dc} 次，"
-                "回答值班/排班问题时请严格按实体档案事实对话，不要自行推算。\n"
-            )
-    except Exception:
-        pass
-
-    # 风格约束注入：从系统观测库提取主人偏好，影响对话风格
-    try:
-        from skills.memory.observation_store import read as obs_read
-        content = obs_read("system", "Cipher")
-        if content:
-            style_lines = []
-            in_summary = False
-            for line in content.splitlines():
-                if line.strip().startswith("### Summary"):
-                    in_summary = True
-                    continue
-                if in_summary and line.strip():
-                    t = line.strip()
-                    if ("主人" in t and not t.startswith("通知推送")
-                            and "未归类" not in t):
-                        style_lines.append(t[:120])
-                    in_summary = False
-            if style_lines:
-                memory_text += "\n\n## 风格约束（主人行为偏好）\n"
-                for sl in style_lines[-4:]:
-                    memory_text += f"- {sl}\n"
-    except Exception:
-        pass
+    memory_text += _build_memory_context(user_input)
 
     sys_prompt = AGENT_SYSTEM_PROMPT.format(
         user_name=user_name,
@@ -349,6 +369,91 @@ def run(user_input: str, ctx: Optional[RequestContext] = None) -> str:
     except Exception as e:
         logger.error("agent run failed: %s", e, exc_info=True)
         return f"[Cipher:error]\n处理失败: {e}"
+
+
+def run_stream(sender_id: str, user_input: str):
+    """流式对话生成器。先 tool 决策+执行，再流式生成自然回复。
+    用法: for chunk in run_stream(sender_id, text): ..."""
+    from skills.core.llm_client import call as llm_call
+    from skills.core.llm_client import call_stream as llm_stream
+    from skills.memory.conversation import format_for_llm as conv_history
+
+    memory_context = _build_memory_context(user_input)
+    conv_text = conv_history(sender_id, n=10)
+
+    tools_desc = "\n".join(
+        "- {}: {}  -> {}".format(
+            t["id"], t["description"],
+            "; ".join("{}={}".format(k,
+                v.get("description", v.get("default", "required")))
+                for k, v in t["params"].items())
+        )
+        for t in list_tools()
+    )
+
+    # Phase 1: tool decision (non-streaming)
+    tool_result = None
+    try:
+        agent_prompt = AGENT_SYSTEM_PROMPT.format(
+            user_name="主人",
+            tools_desc=tools_desc,
+            memory_context=memory_context,
+            context_line="",
+            identity_style=ID_STYLE,
+        )
+        raw = llm_call(user_input, system_prompt=agent_prompt, max_tokens=800, temperature=0.0)
+        if not isinstance(raw, dict) or "error" not in str(raw):
+            decisions = _parse_decisions(str(raw))
+            if decisions:
+                decision = decisions[0]
+                tool_id = decision.get("tool", "")
+                params = decision.get("params", {})
+                available = {t["id"] for t in list_tools()}
+                if tool_id in available:
+                    ok, err = validate_params(tool_id, params)
+                    if ok:
+                        atype = action_type(tool_id)
+                        if atype != "confirm":
+                            try:
+                                tool_result = execute(tool_id, params)
+                            except Exception as e:
+                                logger.warning("tool exec failed: %s", e)
+    except Exception:
+        pass
+
+    # Phase 2: streaming natural response
+    chat_memory = memory_context
+    if tool_result:
+        chat_memory += f"\n\n## 工具执行结果\n{str(tool_result)[:3000]}"
+
+    chat_prompt = CHAT_SYSTEM_PROMPT.format(
+        user_name="主人",
+        identity_style=ID_STYLE,
+        memory_context=chat_memory,
+        conversation_history=conv_text if conv_text else "（无历史对话）",
+    )
+
+    collected = ""
+    try:
+        for chunk in llm_stream(user_input, system_prompt=chat_prompt, max_tokens=1024, temperature=0.3):
+            if isinstance(chunk, dict) and "error" in chunk:
+                yield f"\n[Cipher]\n处理出错：{chunk['error']}"
+                return
+            collected += str(chunk)
+            yield str(chunk)
+        if not collected:
+            if tool_result:
+                yield f"\n{tool_result}"
+            else:
+                yield "\n[Cipher]\n主人，Cipher 收到了，但目前没有足够的依据来回答。"
+    except Exception as e:
+        logger.error("run_stream error: %s", e, exc_info=True)
+        if collected:
+            return
+        if tool_result:
+            yield f"\n{tool_result}"
+        else:
+            yield "\n[Cipher]\n处理出错，请重试。"
 
 
 

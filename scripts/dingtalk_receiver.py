@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "skills"))
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response, stream_with_context
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO,
@@ -61,6 +61,7 @@ body{background:#1a1a2e;color:#e0e0e0;font-family:-apple-system,BlinkMacSystemFo
 <button id="btn" onclick="send()">发送</button>
 </div>
 <script>
+let streamBubble=null;
 async function send(){
   const inp=document.getElementById('inp'),btn=document.getElementById('btn');
   const text=inp.value.trim();if(!text)return;
@@ -68,11 +69,34 @@ async function send(){
   append('user',text);
   inp.value='';
   try{
-    const r=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
-    const d=await r.json();
-    append('cipher',d.reply||'暂无回复');
-  }catch(e){append('cipher','出错了: '+e)}
+    const r=await fetch('/chat/stream',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
+    if(!r.ok){append('cipher','请求失败: '+r.status);inp.disabled=btn.disabled=false;inp.focus();return;}
+    streamBubble=createStreamBubble();
+    const reader=r.body.getReader();const decoder=new TextDecoder();
+    while(true){
+      const{value,done}=await reader.read();
+      if(done)break;
+      const chunk=decoder.decode(value,{stream:true});
+      streamBubble.innerHTML+=chunk.replace(/\\n/g,'<br>');
+      document.getElementById('msgs').scrollTop=document.getElementById('msgs').scrollHeight;
+    }
+    finishStreamBubble();
+    streamBubble=null;
+  }catch(e){append('cipher','出错了: '+e);finishStreamBubble();streamBubble=null;}
   inp.disabled=btn.disabled=false;inp.focus();
+}
+function createStreamBubble(){
+  const d=document.getElementById('msgs');
+  const el=document.createElement('div');el.className='msg cipher';
+  const bubble=document.createElement('div');bubble.className='bubble';
+  const meta=document.createElement('div');meta.className='meta';meta.textContent='Cipher · 刚刚';
+  el.appendChild(bubble);el.appendChild(meta);
+  d.appendChild(el);d.scrollTop=d.scrollHeight;
+  return bubble;
+}
+function finishStreamBubble(){
+  if(!streamBubble)return;
+  if(!streamBubble.textContent.trim())streamBubble.textContent='Cipher 暂无回复';
 }
 function append(role,text){
   const d=document.getElementById('msgs');
@@ -142,6 +166,39 @@ def chat_api():
     except Exception:
         logger.error("chat error:\n%s", traceback.format_exc())
         return jsonify({"reply": "处理出错，请重试"}), 500
+
+
+@app.route("/chat/stream", methods=["POST"])
+def chat_stream():
+    data = request.get_json(force=True, silent=True) or {}
+    sender = data.get("sender", "web")
+    text = (data.get("text") or "").strip()
+    if not text:
+        return jsonify({"error": "empty"}), 400
+
+    logger.info("💬 网页流式: [%s] %s", sender, text[:80])
+
+    def generate():
+        from skills.agent.engine import run_stream
+        from skills.memory.conversation import add as conv_add
+        full = ""
+        try:
+            for chunk in run_stream(sender, text):
+                full += chunk
+                yield chunk
+        except Exception:
+            logger.error("stream error:\n%s", traceback.format_exc())
+            err_msg = "\n[Cipher]\n处理出错，请重试。"
+            full += err_msg
+            yield err_msg
+        if full:
+            try:
+                conv_add(sender, "user", text)
+                conv_add(sender, "assistant", full)
+            except Exception:
+                pass
+
+    return Response(stream_with_context(generate()), mimetype="text/plain; charset=utf-8")
 
 
 @app.route("/dingtalk/callback", methods=["POST"])

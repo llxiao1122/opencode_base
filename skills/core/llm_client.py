@@ -97,6 +97,7 @@ def call(prompt, system_prompt=None, temperature=0.0, timeout=120, max_tokens=10
         "messages": messages,
         "temperature": temperature,
         "max_tokens": max_tokens,
+        "stream": False,
     }
     provider = os.environ.get("LLM_PROVIDER", "deepseek").lower()
     if provider == "deepseek":
@@ -138,6 +139,70 @@ def call(prompt, system_prompt=None, temperature=0.0, timeout=120, max_tokens=10
         return content
 
     return {"error": "请求失败（限流重试耗尽）"}
+
+
+def call_stream(prompt, system_prompt=None, temperature=0.0, timeout=120, max_tokens=1024):
+    """流式调用 LLM，yield 文本片段。用法: for chunk in call_stream(...): ..."""
+    url, key, model = _resolve_config()
+
+    if not url or not key:
+        yield {"error": "LLM API 未配置"}
+        return
+
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": prompt})
+
+    body_dict = {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+        "stream": True,
+    }
+    provider = os.environ.get("LLM_PROVIDER", "deepseek").lower()
+    if provider == "deepseek":
+        body_dict["thinking"] = {"type": "disabled"}
+
+    body_bytes = json.dumps(body_dict).encode()
+    headers = {"Content-Type": "application/json"}
+    if key:
+        headers["Authorization"] = f"Bearer {key}"
+
+    for attempt in range(3):
+        try:
+            req = urllib.request.Request(url, data=body_bytes, headers=headers)
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                for line in resp:
+                    line = line.decode("utf-8", errors="replace").strip()
+                    if not line or not line.startswith("data:"):
+                        continue
+                    payload = line[5:].strip()
+                    if payload == "[DONE]":
+                        return
+                    try:
+                        data = json.loads(payload)
+                    except json.JSONDecodeError:
+                        continue
+                    delta = data.get("choices", [{}])[0].get("delta", {})
+                    content = delta.get("content", "")
+                    if content:
+                        yield content
+            return
+        except urllib.error.HTTPError as e:
+            if e.code == 429:
+                time.sleep(2 ** attempt)
+                continue
+            yield {"error": f"HTTP {e.code}"}
+            return
+        except Exception as e:
+            if attempt < 2:
+                continue
+            yield {"error": str(e)}
+            return
+
+    yield {"error": "请求失败（限流重试耗尽）"}
 
 
 if __name__ == "__main__":

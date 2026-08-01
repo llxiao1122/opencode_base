@@ -101,3 +101,6 @@ data/traces/
 
 # Runtime observation data
 data/memory/observations/
+
+# Session conversation history
+data/memory/conversations/
