@@ -1,9 +1,5 @@
 import uuid
 from datetime import datetime, timedelta
-from pathlib import Path
-
-ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
-QUEUE_PATH = ROOT_DIR / "data" / "state" / "push_queue.json"
 
 
 def handle(message: str, time: str = "") -> str:
@@ -25,6 +21,11 @@ def handle(message: str, time: str = "") -> str:
 
     until = dt - now
     mins = int(until.total_seconds() // 60)
+    try:
+        from skills.memory.recorder import record
+        record(f"设置提醒: {message}（{mins}分钟后）", source="reminder", obs_type="event", layer="rule")
+    except Exception:
+        pass
     return f"[Cipher:task]\n✅ 已设提醒：{message}（{mins} 分钟后）"
 
 

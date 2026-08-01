@@ -19,7 +19,8 @@ import re
 from pathlib import Path
 from typing import Optional
 
-ROOT = Path(__file__).resolve().parent.parent.parent
+from skills.shared.path import root as _root
+ROOT = _root()
 ENTITIES_DIR = ROOT / "data" / "state" / "worldview" / "entities"
 _WORLDVIEW_INDEX = ROOT / "data" / "state" / "worldview" / "index.json"
 

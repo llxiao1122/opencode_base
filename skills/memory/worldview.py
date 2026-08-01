@@ -31,7 +31,7 @@ PERSON_ENTITIES = [
 ]
 PROCESS_ENTITIES = [
     "值班轮序", "交接评审制度", "紧急发料流程", "危废处置流程",
-    "消防档案管理", "材料棚轮值规则",
+    "消防档案管理", "材料棚轮值规则", "周末巡库制度", "应急演练计划",
 ]
 
 
@@ -398,14 +398,126 @@ def update_entity(name: str, new_records: list[str]):
     logger.info("Entity %s updated", name)
 
 
+def _update_entity_status(name: str, new_status: str):
+    """Replace the - **当前状态**: line in entity's 基本信息 section.
+
+    Called by LLM digest after batch_update. Only replaces one line —
+    does not rebuild FAISS (caller handles that).
+    """
+    path = ENTITIES_DIR / f"{name}.md"
+    if not path.exists():
+        return False
+    content = path.read_text(encoding="utf-8")
+    import re
+    # Check if current status value already matches (before timestamp)
+    m = re.search(r'^- \*\*当前状态\*\*:\s*(.+?)(?:\s*\|\s*上次自诊:.*)?$', content, re.MULTILINE)
+    current_value = m.group(1).strip() if m else ""
+    if current_value == new_status:
+        return False
+    now = datetime.now().isoformat()
+    new_line = f"- **当前状态**: {new_status} | 上次自诊: {now}"
+    updated = re.sub(
+        r'^- \*\*当前状态\*\*:.*$',
+        new_line,
+        content,
+        flags=re.MULTILINE
+    )
+    path.write_text(updated, encoding="utf-8")
+    return True
+
+
+def _llm_digest(name: str, current_status: str | None, new_records: list[str]) -> str | None:
+    """Ask LLM whether the entity's 当前状态 should change based on new events.
+
+    Returns new status string if changed, None if unchanged.
+    """
+    if not new_records:
+        return None
+    try:
+        from skills.core.llm_client import call as llm_call
+    except ImportError:
+        return None
+
+    current = current_status or "（无）"
+    events_text = "\n".join(f"- {r[:200]}" for r in new_records[-10:])
+    prompt = f"""你是系统状态分析器。根据实体的当前状态和新增事件，判断是否需要更新当前状态。
+
+实体名称：{name}
+当前状态：{current}
+
+新增事件（最近{min(10, len(new_records))}条）：
+{events_text}
+
+判断规则：
+- 如果事件中包含"完成/已完成/做完了"等完成语义，对应项的状态应更新为"已完成"
+- 如果事件中包含"未完成/还没做"等未做语义，对应项的状态应更新为"未完成"
+- 如果事件中包含明确的值班/轮值/制度变更信息，更新对应事实
+- 如果事件中无状态变更信息，返回 changed=false
+
+返回 JSON（只返回 JSON，不要其他文字）：
+{{"changed": true/false, "new_status": "新状态文本（保持原格式约定：锚点=xx; 键=值; 键=值的分号分隔列表）", "reason": "简要说明（10字以内）"}}
+
+如果状态无需变更，返回：{{"changed": false, "new_status": "", "reason": "无变更"}}"""
+
+    try:
+        result = llm_call(prompt, temperature=0.0, max_tokens=256, timeout=30)
+        if not result or isinstance(result, dict):
+            return None
+        import json
+        result = result.strip()
+        if result.startswith("```"):
+            result = result.split("```")[1]
+            if result.startswith("json"):
+                result = result[4:]
+        data = json.loads(result)
+        if data.get("changed"):
+            new_status = data.get("new_status", "").strip()
+            if new_status and new_status != current:
+                return new_status
+    except Exception as e:
+        logger.debug("digest LLM call failed for %s: %s", name, e)
+    return None
+
+
 def batch_update(entity_groups: dict[str, list[str]]):
+    import json as _json
+    entities_changed = []
     for name, records in entity_groups.items():
         if name == "_unknown":
             continue
         try:
             update_entity(name, records)
+            entities_changed.append((name, records))
         except Exception as e:
             logger.error("batch_update %s failed: %s", name, e)
+
+    # LLM digest: check if any entity's status line needs update
+    entities_info = _load_index()["entities"]
+    for name, records in entities_changed:
+        try:
+            path = ENTITIES_DIR / f"{name}.md"
+            if not path.exists():
+                continue
+            content = path.read_text(encoding="utf-8")
+            import re as _re
+            m = _re.search(r'^- \*\*当前状态\*\*:\s*(.+)$', content, _re.MULTILINE)
+            current_status = m.group(1).rsplit(" | 上次自诊:", 1)[0].strip() if m else None
+
+            if current_status is None and entities_info.get(name, {}).get("type") in ("process",):
+                continue  # skip entities without status line (not state-tracked)
+
+            new_status = _llm_digest(name, current_status, records)
+            if new_status:
+                if _update_entity_status(name, new_status):
+                    logger.info("digest: %s status updated → %s", name, new_status)
+        except Exception as e:
+            logger.debug("digest skip %s: %s", name, e)
+
+    if any(n for n, _ in entities_changed if n not in ("_unknown",)):
+        try:
+            _rebuild_faiss()
+        except Exception as e:
+            logger.error("digest faiss rebuild failed: %s", e)
 
 
 # ── 疑似新实体发现 ─────────────────────────────────────────────────

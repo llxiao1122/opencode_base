@@ -7,7 +7,8 @@ Loads from worldview entities/*.md (工班成员 flag).
 
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent.parent
+from skills.shared.path import root as _root
+ROOT = _root()
 ENTITIES_DIR = ROOT / "data" / "state" / "worldview" / "entities"
 
 

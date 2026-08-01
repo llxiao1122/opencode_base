@@ -14,7 +14,8 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent.parent
+from skills.shared.path import root as _root
+ROOT = _root()
 QUEUE_PATH = ROOT / "data" / "state" / "confirm_queue.json"
 
 
@@ -117,6 +118,13 @@ def execute(confirm_id: str, ctx=None) -> str:
     if not item:
         return "[Cipher:error]\n建议不存在或已执行"
     try:
-        return tool_execute(item["tool"], item["params"], ctx=ctx)
+        result = tool_execute(item["tool"], item["params"], ctx=ctx)
+        try:
+            from skills.memory.recorder import record
+            record(f"主人确认执行: {item['tool']} {item.get('summary','')[:80]}",
+                   source="confirm_queue", obs_type="event", layer="rule")
+        except Exception:
+            pass
+        return result
     except Exception as e:
         return f"[Cipher:error]\n确认执行失败: {e}"

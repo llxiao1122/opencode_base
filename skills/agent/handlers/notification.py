@@ -10,7 +10,14 @@ def handle(title: str, content: str) -> str:
     from skills.plugins.dingbot.send_msg import send_markdown
     result = send_markdown(title, content)
     if result.get("errcode") != 0:
-        return f"[Cipher:error]\n钉钉推送失败: {result.get('errmsg', '')}"
+        err_msg = f"钉钉推送失败: {result.get('errmsg', '')}"
+        try:
+            from skills.memory.recorder import record
+            record(f"通知推送失败: {title} — {err_msg[:100]}",
+                   source="agent.notification", obs_type="error", layer="rule")
+        except Exception:
+            pass
+        return f"[Cipher:error]\n{err_msg}"
     try:
         from skills.memory.recorder import record
     except ImportError as e:

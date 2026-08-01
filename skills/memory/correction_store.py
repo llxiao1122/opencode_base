@@ -18,7 +18,8 @@ from datetime import date
 
 logger = logging.getLogger(__name__)
 
-ROOT = Path(__file__).resolve().parent.parent.parent
+from skills.shared.path import root as _root
+ROOT = _root()
 CORRECTIONS_PATH = ROOT / "data" / "state" / "worldview" / "纠错.md"
 
 _MAX_ENTRY_CHARS = 120

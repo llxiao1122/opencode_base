@@ -2,7 +2,8 @@ import fcntl
 import json
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent.parent
+from skills.shared.path import root as _root
+ROOT = _root()
 QUEUE_PATH = ROOT / "data" / "state" / "push_queue.json"
 
 

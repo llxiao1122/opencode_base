@@ -1,6 +1,7 @@
 from pathlib import Path
 
-ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
+from skills.shared.path import root as _root
+ROOT_DIR = _root()
 KNOWLEDGE_DIR = ROOT_DIR / "Knowledge"
 INDEX_PATH = KNOWLEDGE_DIR / "INDEX.md"
 

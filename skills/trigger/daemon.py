@@ -67,6 +67,12 @@ class ProactiveDaemon:
                     "Alert queued: task=%s action=%s deadline=%s threshold=%sh",
                     task["id"], action[:40], dl_str, threshold,
                 )
+        try:
+            from skills.memory.recorder import record
+            record(f"daemon 扫描临期任务: 已推送 {sum(1 for t in [24, 2] for _ in get_impending_tasks(t, now_dt=now))} 条提醒",
+                   source="daemon", obs_type="observation", layer="rule")
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":

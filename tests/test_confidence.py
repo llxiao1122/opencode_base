@@ -69,11 +69,18 @@ def test_person_name_long_narrative_not_hijacked():
 
 # ── 周末无工作 + 已完成演练过滤 + 值班锚点 ─────────────────────────
 
-def test_weekend_has_no_daily_work():
+def test_weekend_shows_patrol_duty():
     from datetime import date
     from skills.agent.handlers.task_query import _get_daily_work
-    assert _get_daily_work(date(2026, 8, 1)) == "", "周六不应有固定工作"
-    assert _get_daily_work(date(2026, 8, 2)) == "", "周日不应有固定工作"
+    sat = _get_daily_work(date(2026, 8, 1))
+    assert "周末巡库" in sat, f"周六应展示巡库专项: {sat}"
+    assert "17 点前" in sat, "应包含完成时限"
+    sun = _get_daily_work(date(2026, 8, 2))
+    assert "周末巡库" in sun, "周日也应展示巡库"
+
+    # 非周末不展示巡库
+    mon = _get_daily_work(date(2026, 8, 3))
+    assert "周末巡库" not in mon, "周一不应展示周末巡库"
 
 
 def test_completed_exercise_filtered():

@@ -2,7 +2,8 @@ import json
 from datetime import datetime, timedelta, date
 from pathlib import Path
 
-ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
+from skills.shared.path import root as _root
+ROOT_DIR = _root()
 TASKS_PATH = ROOT_DIR / "data" / "state" / "tasks.json"
 
 WEEKDAY_ZH = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
@@ -189,6 +190,27 @@ def _contact_context(name, action_text):
     return "相关事项"
 
 
+def _read_entity_status(entity_name: str) -> str | None:
+    path = ROOT_DIR / "data" / "state" / "worldview" / "entities" / f"{entity_name}.md"
+    if not path.exists():
+        return None
+    content = path.read_text(encoding="utf-8")
+    import re
+    m = re.search(r'^- \*\*当前状态\*\*:\s*(.+?)(?:\s*\|\s*上次自诊:.*)?$', content, re.MULTILINE)
+    return m.group(1).strip() if m else None
+
+
+def _read_entity_rule_section(entity_name: str, section: str) -> str | None:
+    path = ROOT_DIR / "data" / "state" / "worldview" / "entities" / f"{entity_name}.md"
+    if not path.exists():
+        return None
+    content = path.read_text(encoding="utf-8")
+    import re
+    pattern = rf'##\s+{re.escape(section)}\s*\n(.*?)(?=\n##\s|\Z)'
+    m = re.search(pattern, content, re.DOTALL)
+    return m.group(1).strip() if m else None
+
+
 def _parse_duty_cycle(md: str):
     import re
     cycle = []
@@ -219,13 +241,42 @@ def _parse_duty_cycle(md: str):
 
 
 def _get_duty_person(target: date, md=None) -> str:
-    if md is None:
-        md_path = ROOT_DIR / "Knowledge" / "01-仓储业务" / "00-日常工作指引.md"
-        if not md_path.exists():
-            return "未知"
-        md = md_path.read_text(encoding="utf-8")
+    # 优先从实体当前状态读锚点（LLM digest 维护），实体状态优先于 md 基线推算
+    import re
+    status = _read_entity_status("值班轮序")
+    cycle = None
+    anchor_date = None
+    anchor_idx = -1
 
-    cycle, anchor_date, anchor_idx = _parse_duty_cycle(md)
+    if status:
+        m = re.match(r'锚点=(\d{4}-\d{2}-\d{2})\s+(.+)', status)
+        anchor_name = ""
+        if m:
+            try:
+                anchor_date = datetime.strptime(m.group(1), "%Y-%m-%d").date()
+                anchor_name = m.group(2).strip()
+            except ValueError:
+                anchor_date = None
+    if anchor_date is None:
+        # fallback: parse anchor from Knowledge md
+        if md is None:
+            md_path = ROOT_DIR / "Knowledge" / "01-仓储业务" / "00-日常工作指引.md"
+            if not md_path.exists():
+                return "未知"
+            md = md_path.read_text(encoding="utf-8")
+        cycle_from_parse, anchor_date, anchor_idx = _parse_duty_cycle(md)
+        if cycle_from_parse:
+            cycle = cycle_from_parse
+    else:
+        # extract cycle from md for calculation
+        if md is None:
+            md_path = ROOT_DIR / "Knowledge" / "01-仓储业务" / "00-日常工作指引.md"
+            md = md_path.read_text(encoding="utf-8") if md_path.exists() else ""
+        cycle_from_parse, _, _ = _parse_duty_cycle(md)
+        if cycle_from_parse:
+            cycle = cycle_from_parse
+            if anchor_name in cycle:
+                anchor_idx = cycle.index(anchor_name)
 
     if not cycle or anchor_date is None or anchor_idx < 0:
         return "未知"
@@ -276,9 +327,21 @@ def _get_daily_work(target_date):
 
     target = target_date
     weekday_zh = ["周一","周二","周三","周四","周五","周六","周日"][target.weekday()]
+    is_weekend = target.weekday() >= 5
 
-    # 周六/周日休息日：无固定工作、值班、演练等（专项任务由 handle 单独展示）
-    if target.weekday() >= 5:
+    if is_weekend:
+        # 周末：检查 周末巡库制度 实体状态是否生效
+        patrol_status = _read_entity_status("周末巡库制度")
+        if patrol_status and patrol_status.startswith("生效中"):
+            patrol_rules = _read_entity_rule_section("周末巡库制度", "规则定义")
+            if patrol_rules:
+                rules_clean = []
+                for line in patrol_rules.split("\n"):
+                    line = line.strip()
+                    if line.startswith("- **"):
+                        rules_clean.append(f"  • {line.lstrip('- ')}")
+                return f"【周末巡库专项】\n（{patrol_status}）\n\n" + "\n".join(rules_clean)
+            return f"【周末巡库专项】\n（{patrol_status}，按规则定义执行）"
         return ""
 
     lines_out = []
@@ -337,17 +400,19 @@ def _get_daily_work(target_date):
         lines_out.append("  （无）")
 
     mon = target.month
-    for line in md.split("\n"):
-        if "应急演练" in line and "月份" in line:
-            continue
-        if f"{mon}月" in line and "应急演练" in line:
-            # 已完成演练（备注列标记"已完成"，主人告知）不再展示
-            if "已完成" in line:
-                continue
-            exercise = line.strip().lstrip("|").split("|")
-            if len(exercise) >= 3:
-                lines_out.append("")
-                lines_out.append(f"【本月演练】{exercise[1].strip()} — {exercise[2].strip()}")
+    exercise_status = _read_entity_status("应急演练计划")
+    if exercise_status:
+        mon_str = "1月,2月,3月,4月,5月,6月,7月,8月,9月,10月,11月,12月".split(",")[mon-1]
+        for part in exercise_status.split(";"):
+            part = part.strip()
+            if part.startswith(mon_str):
+                kv = part.split("=", 1)
+                if len(kv) == 2 and kv[1].strip() == "已完成":
+                    break
+                if len(kv) == 2:
+                    lines_out.append("")
+                    lines_out.append(f"【本月演练】{kv[0].strip()} — {kv[1].strip()}")
+                    break
 
     return "\n".join(lines_out)
 

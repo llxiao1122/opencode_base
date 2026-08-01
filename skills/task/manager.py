@@ -7,16 +7,14 @@ No LLM, pure rules.
 
 import logging
 from datetime import datetime
-from pathlib import Path
-
-from skills.shared.path import ensure_paths
+from skills.shared.path import ensure_paths, root as _root
 ensure_paths()
 
 from skills.task.store import save, load, list_all as _list_all, list_by_owner, update_executor_status, get_active_tasks, close as store_close
 from skills.task.status import IN_PROGRESS, EXECUTOR_PENDING, EXECUTOR_DONE
 from skills.task.priority import infer_priority
 
-TOOLS_DIR = Path(__file__).resolve().parent.parent
+...
 
 
 class TaskManager:
@@ -199,7 +197,7 @@ class TaskManager:
             # Person not in 铁炉西工班 — try org-wide search for known persons
             if _is_known_person(executor_name):
                 import json
-                tasks = json.loads((TOOLS_DIR.parent / "data" / "state" / "tasks.json").read_text(encoding="utf-8"))
+                tasks = json.loads((_root() / "data" / "state" / "tasks.json").read_text(encoding="utf-8"))
                 for t in tasks:
                     if t.get("status") != IN_PROGRESS:
                         continue

@@ -2,7 +2,8 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent.parent.parent
+from skills.shared.path import root as _root
+ROOT = _root()
 OBS_DIR = ROOT / "data" / "memory" / "observations" / "people"
 WORLDVIEW_DIR = ROOT / "data" / "state" / "worldview" / "entities"
 
