@@ -372,15 +372,67 @@ def run(user_input: str, ctx: Optional[RequestContext] = None) -> str:
 
 
 def run_stream(sender_id: str, user_input: str):
-    """流式对话生成器。先 tool 决策+执行，再流式生成自然回复。
+    """流式对话生成器，与 handle_core() 功能对齐。
+    流程：slots → 纠错检测 → episodic → 分类 → fast_dispatch/agent → 流式生成 → 记录+进化。
     用法: for chunk in run_stream(sender_id, text): ..."""
     from skills.core.llm_client import call as llm_call
     from skills.core.llm_client import call_stream as llm_stream
     from skills.memory.conversation import format_for_llm as conv_history
 
-    memory_context = _build_memory_context(user_input)
-    conv_text = conv_history(sender_id, n=10)
+    # === Step 1: Slot extraction (Gap 2) ===
+    has_correction = False
+    slots_context = ""
+    try:
+        from skills.router.faiss_router import extract_slots
+        slots = extract_slots(user_input)
+        parts = []
+        if slots.get("has_time"):
+            parts.append("时间指示")
+        if slots.get("person_names"):
+            parts.append("涉及人员 " + "、".join(slots["person_names"]))
+        if slots.get("has_correction"):
+            parts.append("纠错")
+            has_correction = True
+        if slots.get("has_knowledge"):
+            parts.append("知识查询")
+        if parts:
+            slots_context = "当前语境：" + "，".join(parts) + "\n"
+    except Exception:
+        pass
 
+    # === Step 2: Correction detection → direct write (Gap 6, P0) ===
+    correction_processed = False
+    if has_correction:
+        try:
+            from skills.memory.correction_store import append as corr_append
+            corr_append(user_input)
+            from skills.memory.behavior import correction_seen
+            correction_seen()
+            correction_processed = True
+        except Exception:
+            pass
+
+    # === Step 3: Episodic search (Gap 3, P1) ===
+    episodic_text = ""
+    try:
+        from skills.memory.worldview import search as wv_search
+        hits = wv_search(user_input, top_k=2, type_filter="person")
+        hits = [h for h in hits if h.get("score", 0) >= 0.6]
+        if hits:
+            lines = ["[世界观档案]:"]
+            for h in hits:
+                snippet = h.get("content", "")[:300].replace("\n", " ").strip()
+                lines.append(f"  • {h['entity_id']} ({h['type']}) {snippet}")
+            episodic_text = "\n".join(lines) + "\n"
+    except Exception:
+        pass
+
+    # === Step 4: Memory context ===
+    memory_context = _build_memory_context(user_input)
+    if episodic_text:
+        memory_context = episodic_text + "\n" + memory_context
+
+    conv_text = conv_history(sender_id, n=10)
     tools_desc = "\n".join(
         "- {}: {}  -> {}".format(
             t["id"], t["description"],
@@ -391,37 +443,63 @@ def run_stream(sender_id: str, user_input: str):
         for t in list_tools()
     )
 
-    # Phase 1: tool decision (non-streaming)
+    # === Step 5: Classify + Fast dispatch (Gap 1+2+4, P2) ===
     tool_result = None
+    use_fast = False
     try:
-        agent_prompt = AGENT_SYSTEM_PROMPT.format(
-            user_name="主人",
-            tools_desc=tools_desc,
-            memory_context=memory_context,
-            context_line="",
-            identity_style=ID_STYLE,
-        )
-        raw = llm_call(user_input, system_prompt=agent_prompt, max_tokens=800, temperature=0.0)
-        if not isinstance(raw, dict) or "error" not in str(raw):
-            decisions = _parse_decisions(str(raw))
-            if decisions:
-                decision = decisions[0]
-                tool_id = decision.get("tool", "")
-                params = decision.get("params", {})
-                available = {t["id"] for t in list_tools()}
-                if tool_id in available:
-                    ok, err = validate_params(tool_id, params)
-                    if ok:
-                        atype = action_type(tool_id)
-                        if atype != "confirm":
-                            try:
-                                tool_result = execute(tool_id, params)
-                            except Exception as e:
-                                logger.warning("tool exec failed: %s", e)
+        from skills.router.faiss_router import classify as faiss_classify
+        route, confidence = faiss_classify(user_input)
+        from skills.memory.behavior import get as behavior_get
+        threshold = behavior_get("classify", "high_confidence") or 0.70
+        if round(confidence, 2) >= threshold and route != "event":
+            import importlib
+            _FAST_HANDLERS = {
+                "task_query": "skills.agent.handlers.task_query",
+                "knowledge_retrieve": "skills.agent.handlers.knowledge_retrieve",
+                "profile_query": "skills.agent.handlers.profile_query",
+            }
+            mod_path = _FAST_HANDLERS.get(route)
+            if mod_path:
+                mod = importlib.import_module(mod_path)
+                handler = getattr(mod, "handle")
+                tool_result = handler(user_input, None)
+                use_fast = True
     except Exception:
         pass
 
-    # Phase 2: streaming natural response
+    # === Phase 1: LLM tool decision (fallback when not fast-dispatch) ===
+    if not use_fast:
+        try:
+            agent_prompt = AGENT_SYSTEM_PROMPT.format(
+                user_name="主人",
+                tools_desc=tools_desc,
+                memory_context=memory_context,
+                context_line=slots_context,
+                identity_style=ID_STYLE,
+            )
+            raw = llm_call(user_input, system_prompt=agent_prompt, max_tokens=800, temperature=0.0)
+            if not isinstance(raw, dict) or "error" not in str(raw):
+                decisions = _parse_decisions(str(raw))
+                if decisions:
+                    decision = decisions[0]
+                    tool_id = decision.get("tool", "")
+                    params = decision.get("params", {})
+                    available = {t["id"] for t in list_tools()}
+                    if tool_id in available:
+                        ok, err = validate_params(tool_id, params)
+                        if ok:
+                            atype = action_type(tool_id)
+                            # Web chat: correction executes directly (no confirm queue)
+                            # Skip if already processed in Step 2 (prevent double-count)
+                            if atype != "confirm" or (tool_id == "correction_feedback" and not correction_processed):
+                                try:
+                                    tool_result = execute(tool_id, params)
+                                except Exception as e:
+                                    logger.warning("tool exec failed: %s", e)
+        except Exception:
+            pass
+
+    # === Phase 2: Streaming natural response ===
     chat_memory = memory_context
     if tool_result:
         chat_memory += f"\n\n## 工具执行结果\n{str(tool_result)[:3000]}"
@@ -454,6 +532,22 @@ def run_stream(sender_id: str, user_input: str):
             yield f"\n{tool_result}"
         else:
             yield "\n[Cipher]\n处理出错，请重试。"
+
+    # === Post-stream: Observer record (Gap 7, P1) + Evolution (Gap 5, P0) ===
+    if not correction_processed:
+        try:
+            from skills.memory.recorder import record as recorder_record
+            recorder_record(user_input, source="web_chat", obs_type="interaction",
+                          layer="rule", confidence=0.7, skip_learning=False)
+        except Exception:
+            pass
+
+    if correction_processed:
+        try:
+            from skills.agent.reflector import _try_behavior_adjustment
+            _try_behavior_adjustment()
+        except Exception:
+            pass
 
 
 
