@@ -4,6 +4,8 @@ logger = logging.getLogger(__name__)
 
 
 def handle(title: str, content: str) -> str:
+    if not title or not str(title).strip() or not content or not str(content).strip():
+        return "[Cipher:info]\n消息内容不完整（标题和内容不能为空），未推送。"
     import os
     if not os.environ.get("DINGTALK_BOT_TOKEN", ""):
         return "[Cipher:notification]\n⚠ 钉钉未配置（DINGTALK_BOT_TOKEN 为空），通知已记录。"

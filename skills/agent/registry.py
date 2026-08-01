@@ -187,8 +187,10 @@ def validate_params(tool_id: str, params: dict) -> tuple[bool, str]:
         return False, f"tool '{tool_id}' 未注册"
     schema = tool["params_schema"]
     for key, rule in schema.items():
-        if rule.get("required", False) and key not in params:
-            return False, f"缺少必要参数: {key}"
+        if rule.get("required", False):
+            value = params.get(key)
+            if value is None or (isinstance(value, str) and not value.strip()):
+                return False, f"缺少必要参数: {key}"
     return True, ""
 
 

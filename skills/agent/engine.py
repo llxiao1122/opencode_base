@@ -559,6 +559,9 @@ def run_stream(sender_id: str, user_input: str):
                                     tool_result = execute(tool_id, params)
                                 except Exception as e:
                                     logger.warning("tool exec failed: %s", e)
+                        else:
+                            tool_result = f"[Cipher:info]\n{err}，请补充必要信息后重试。"
+                            logger.info("tool param invalid: %s (%s)", tool_id, err)
         except Exception:
             pass
 
