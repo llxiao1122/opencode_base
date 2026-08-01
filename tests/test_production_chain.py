@@ -83,12 +83,11 @@ def test_prepare_daily_idempotent(tmp_queue, monkeypatch):
     import scripts.prepare_daily as pd
     from datetime import date
     monkeypatch.setattr(pd.sys, "exit", lambda code: (_ for _ in ()).throw(SystemExit(code)))
-    monkeypatch.setattr(pd, "date", date)  # 使用真实日期（避免破坏内部 date.today 调用链）
-    # 若恰逢周末（prepare_daily 会 skip 不入队），用工作日模拟幂等逻辑
+
     class FakeDate(date):
         @classmethod
         def today(cls):
-            return date(2026, 7, 31)  # 周五工作日，确保入队
+            return date(2026, 7, 31)  # 工作日（周五），避免周末 SKIP
 
     monkeypatch.setattr(pd, "date", FakeDate)
     pd.main()
