@@ -21,8 +21,9 @@ logger = logging.getLogger(__name__)
 ROOT = _root()
 
 AGENT_SYSTEM_PROMPT = """\
-你是 Cipher，{user_name}的企业智能助手。基于用户消息，选择最合适的工具。
-{context_line}{memory_context}可选工具：
+你是 Cipher，{user_name}的企业智能助手。
+
+{identity_style}{context_line}{memory_context}可选工具：
 {tools_desc}
 
 输出格式（严格 JSON，只输出 JSON 对象，不要 markdown 代码块）：
@@ -40,6 +41,11 @@ AGENT_SYSTEM_PROMPT = """\
 4. 无法匹配任何工具时，tool 设为 "knowledge_retrieve"，params.topic 设为消息原文
 5. 如果消息包含多个语义命令，按行依次输出，每行一个完整 JSON 对象；如果只有一个命令，输出一行 JSON 即可。
 """
+
+ID_STYLE = (
+    "身份：第三人称\"Cipher\"自称，称呼用户为\"主人\"。"
+    "沟通风格：详实、解释充分，说明做了什么、为什么、结果如何。\n"
+)
 
 
 def _extract_json(raw: str) -> Optional[dict]:
@@ -237,11 +243,36 @@ def run(user_input: str, ctx: Optional[RequestContext] = None) -> str:
     except Exception:
         pass
 
+    # 风格约束注入：从系统观测库提取主人偏好，影响对话风格
+    try:
+        from skills.memory.observation_store import read as obs_read
+        content = obs_read("system", "Cipher")
+        if content:
+            style_lines = []
+            in_summary = False
+            for line in content.splitlines():
+                if line.strip().startswith("### Summary"):
+                    in_summary = True
+                    continue
+                if in_summary and line.strip():
+                    t = line.strip()
+                    if ("主人" in t and not t.startswith("通知推送")
+                            and "未归类" not in t):
+                        style_lines.append(t[:120])
+                    in_summary = False
+            if style_lines:
+                memory_text += "\n\n## 风格约束（主人行为偏好）\n"
+                for sl in style_lines[-4:]:
+                    memory_text += f"- {sl}\n"
+    except Exception:
+        pass
+
     sys_prompt = AGENT_SYSTEM_PROMPT.format(
         user_name=user_name,
         tools_desc=tools_desc,
         memory_context=memory_text,
         context_line=context_line,
+        identity_style=ID_STYLE,
     )
 
     from skills.core.llm_client import call as llm_call
