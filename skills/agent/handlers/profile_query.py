@@ -29,6 +29,16 @@ def handle(text: str, ctx=None) -> str:
         for sec in sections:
             lines.append("")
             lines.extend(sec)
+        # 世界观档案"近期事件"为空占位时，补观测库动态
+        event_sections = _extract_sections(content, ["近期事件"])
+        is_placeholder = any(
+            l.strip() in ("（待 bootstrap 更新）", "") for sec in event_sections for l in sec
+        ) if event_sections else True
+        recent = _recent_observations(entity_name)
+        if is_placeholder and recent:
+            lines.append("")
+            lines.append("近期动态：")
+            lines.extend(recent)
         return "[Cipher:profile]\n" + "\n".join(lines)
 
     # 无世界观档案，fallback 到 observations
