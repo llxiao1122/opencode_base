@@ -2,15 +2,15 @@
   "version": 1,
   "last_bootstrap": "2026-07-30T14:56:13.497840",
   "last_update": null,
-  "pending_records": 12,
+  "pending_records": 4,
   "entities": {
     "陈红洁": {
       "type": "person",
-      "updated": "2026-08-01T07:23:06.867626"
+      "updated": "2026-07-31T13:55:27.757478"
     },
     "李林骁": {
       "type": "person",
-      "updated": "2026-08-01T07:23:01.818467"
+      "updated": "2026-07-30T03:53:45.959741"
     },
     "苗笑天": {
       "type": "person",
