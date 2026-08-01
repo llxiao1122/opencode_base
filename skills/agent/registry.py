@@ -134,6 +134,18 @@ TOOL_REGISTRY = {
         "handler": "skills.agent.handlers.reminder_set:handle",
         "param_map": {"message": "message", "time": "time"},
     },
+    "weather_query": {
+        "description": "查询天气和降雨预报，多源交叉验证（中国天气网/Open-Meteo），重点提示降雨",
+        "action_type": "read",
+        "params_schema": {
+            "city": {"type": "str", "required": False, "default": "郑州",
+                     "description": "城市名，如郑州、北京；支持城市代码"},
+            "day": {"type": "str", "required": False,
+                    "description": "查询日期，如今天/明天/周六"},
+        },
+        "handler": "skills.agent.handlers.weather_query:handle",
+        "param_map": {"user_input": "city", "ctx": None},
+    },
 }
 
 

@@ -35,8 +35,8 @@ LLM 选工具 + registry 执行（仅写操作与低置信输入走此路径）�
 | 文件 | 职责 |
 |------|------|
 | **`engine.py`** | `run()`：LLM 调用 → `_parse_decisions` 解析工具决策 → validate → execute；失败降级 `_fallback_search` |
-| **`registry.py`** | 工具注册表（10 个）：task_query/knowledge_retrieve/profile_query（查询类）；notification_push/event_record/task_create/task_feedback/org_lookup/correction_feedback/reminder_set（写操作）；`list_tools()`/`validate_params()`/`execute()` |
-| `handlers/` | 各工具处理函数（task_query/profile_query/knowledge_retrieve/notification_push/event_record/task_create/task_feedback/org_lookup/correction_feedback/reminder_set） |
+| **`registry.py`** | 工具注册表（11 个）：task_query/knowledge_retrieve/profile_query/weather_query（查询类）；notification_push/event_record/task_create/task_feedback/org_lookup/correction_feedback/reminder_set（写操作）；`list_tools()`/`validate_params()`/`execute()` |
+| `handlers/` | 各工具处理函数（task_query/profile_query/knowledge_retrieve/weather_query/notification_push/event_record/task_create/task_feedback/org_lookup/correction_feedback/reminder_set） |
 | `reflector.py` | 异步反思（工具使用后触发，daemon 线程） |
 | `few_shots.json` | LLM 工具决策示例 |
 
@@ -85,7 +85,7 @@ entry.py (handle_core)
    ├─ 高置信且非 event → _fast_dispatch → handlers/*（确定性规则）
    ├─ 其余 → agent/engine.py → LLM 选工具 → registry.execute() → handlers/*
    └─ 记录阶段：has_correction → correction_store；事件 → recorder（学习回路）；
-                查询（task_query/profile_query/knowledge_retrieve）→ recorder(skip_learning=True) 仅留轨迹
+                 查询（task_query/profile_query/knowledge_retrieve/weather_query）→ recorder(skip_learning=True) 仅留轨迹
 
 统一查口 world_query.query(text)
    ├─ 任务/日程 → handlers/task_query（规则路径）
