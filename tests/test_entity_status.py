@@ -134,6 +134,25 @@ def test_behavior_params_cycle():
     assert get("classify", "high_confidence") == 0.65
     set_param("classify", "high_confidence", 0.70)  # restore
 
+    # 值域锁：下限钳位
+    set_param("classify", "high_confidence", 0.30)
+    assert get("classify", "high_confidence") == 0.60, "低于下限应钳位"
+    set_param("classify", "high_confidence", 0.70)
+
+    # 值域锁：上限钳位
+    set_param("classify", "high_confidence", 0.99)
+    assert get("classify", "high_confidence") == 0.85, "超过上限应钳位"
+    set_param("classify", "high_confidence", 0.70)
+
+    # 值域锁：只读拒绝
+    old_total = get("correction_tracking", "total_corrections")
+    set_param("correction_tracking", "total_corrections", 999)
+    assert get("correction_tracking", "total_corrections") == old_total, "只读字段应拒绝"
+
+    # 值域锁：类型拒绝
+    set_param("duty_calculation", "prefer_entity", "yes")
+    assert get("duty_calculation", "prefer_entity") is True, "字符串类型应拒绝"
+
 
 def test_urgent_digest_e2e():
     """端到端验证：关键词→实体映射 + 确定性消化链路贯通"""

@@ -26,6 +26,14 @@ _DEFAULTS = {
     "correction_tracking": {"last_analysis_count": 0, "total_corrections": 0},
 }
 
+_LOCK_RULES = {
+    ("classify", "high_confidence"): {"type": float, "min": 0.60, "max": 0.85},
+    ("duty_calculation", "prefer_entity"): {"type": bool},
+    ("duty_calculation", "correction_count"): {"type": int, "readonly": True},
+    ("correction_tracking", "total_corrections"): {"type": int, "readonly": True},
+    ("correction_tracking", "last_analysis_count"): {"type": int, "readonly": True},
+}
+
 
 def _load() -> dict:
     if not BEHAVIOR_PATH.exists():
@@ -57,14 +65,42 @@ def get(key: str, subkey: str | None = None):
     return section
 
 
+def _validate_param(key: str, subkey: str, value) -> tuple:
+    """校验参数值是否在合法范围内。返回 (allowed_value, warning_message)。"""
+    rule = _LOCK_RULES.get((key, subkey))
+    if not rule:
+        return value, ""  # no rule → allow
+
+    if rule.get("readonly"):
+        return None, f"❌ {key}.{subkey} 只读，禁止 set_param 写入，已拒绝"
+
+    if "type" in rule and not isinstance(value, rule["type"]):
+        return None, f"❌ {key}.{subkey} 类型应为 {rule['type'].__name__}，收到 {type(value).__name__}，已拒绝"
+
+    if "min" in rule and value < rule["min"]:
+        clamped = rule["min"]
+        return clamped, f"⚠ {key}.{subkey}={value} 低于下限 {rule['min']}，已钳位为 {clamped}"
+    if "max" in rule and value > rule["max"]:
+        clamped = rule["max"]
+        return clamped, f"⚠ {key}.{subkey}={value} 超过上限 {rule['max']}，已钳位为 {clamped}"
+
+    return value, ""
+
+
 def set_param(key: str, subkey: str, value):
-    """设置行为参数。set_param('classify', 'high_confidence', 0.65)"""
+    """设置行为参数。自动校验值域——参数字典控制可调范围与数据类型。"""
+    allowed, warning = _validate_param(key, subkey, value)
+    if allowed is None:
+        logger.warning(warning)
+        return
+    if warning:
+        logger.warning(warning)
     data = _load()
     if key not in data:
         data[key] = dict(_DEFAULTS.get(key, {}))
-    data[key][subkey] = value
+    data[key][subkey] = allowed
     _save(data)
-    logger.info("behavior param updated: %s.%s = %s", key, subkey, value)
+    logger.info("behavior param updated: %s.%s = %s", key, subkey, allowed)
 
 
 def increment(key: str, subkey: str, delta: int = 1):
