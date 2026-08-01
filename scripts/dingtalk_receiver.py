@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Cipher 钉钉 Webhook 接收器 —— 接收钉钉消息 → skills.entry() → 回复。
+"""Cipher 独立服务 —— 网页聊天 + 钉钉 Webhook 双通道。
 
 启动:
   python scripts/dingtalk_receiver.py [--port=5000] [--host=0.0.0.0]
 
-钉钉回调 URL 需配置为:
-  http(s)://<host>:<port>/dingtalk/callback
+网页聊天：浏览器打开 http(s)://<host>:<port>/
+钉钉回调：POST http(s)://<host>:<port>/dingtalk/callback
 """
 
 import json
@@ -25,6 +25,64 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("dingtalk_receiver")
+
+CHAT_PAGE = """<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Cipher</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1a2e;color:#e0e0e0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;height:100dvh;display:flex;flex-direction:column}
+.header{background:#16213e;padding:12px 16px;font-size:16px;font-weight:600;border-bottom:1px solid #0f3460;display:flex;align-items:center;gap:8px}
+.header .dot{width:8px;height:8px;background:#4ecca3;border-radius:50%}
+.messages{flex:1;overflow-y:auto;padding:12px}
+.msg{margin-bottom:12px;max-width:90%;line-height:1.5}
+.msg.user{text-align:right;margin-left:auto}
+.msg.user .bubble{background:#0f3460;padding:10px 14px;border-radius:16px 4px 16px 16px;display:inline-block;text-align:left;max-width:100%;word-break:break-word}
+.msg.cipher .bubble{background:#16213e;padding:10px 14px;border-radius:4px 16px 16px 16px;display:inline-block;max-width:100%;word-break:break-word}
+.msg.cipher .bubble pre{background:#1a1a2e;padding:8px;border-radius:4px;overflow-x:auto;font-size:13px;margin:4px 0;white-space:pre-wrap}
+.msg .meta{font-size:11px;color:#888;margin:4px 8px 0}
+.input-area{display:flex;padding:10px;gap:8px;background:#16213e;border-top:1px solid #0f3460}
+.input-area input{flex:1;padding:10px 14px;border:1px solid #0f3460;border-radius:20px;background:#1a1a2e;color:#e0e0e0;font-size:14px;outline:none}
+.input-area input:focus{border-color:#4ecca3}
+.input-area button{background:#4ecca3;color:#1a1a2e;border:none;padding:10px 20px;border-radius:20px;font-size:14px;font-weight:600;cursor:pointer}
+.input-area button:disabled{opacity:.4}
+</style>
+</head>
+<body>
+<div class="header"><span class="dot"></span>Cipher</div>
+<div class="messages" id="msgs">
+<div class="msg cipher"><div class="bubble">主人，Cipher 在线。<br>可以直接问工作安排、查员工、查制度。</div><div class="meta">Cipher · 刚刚</div></div>
+</div>
+<div class="input-area">
+<input id="inp" placeholder="输入消息..." autofocus onkeydown="if(event.key==='Enter')send()">
+<button id="btn" onclick="send()">发送</button>
+</div>
+<script>
+async function send(){
+  const inp=document.getElementById('inp'),btn=document.getElementById('btn');
+  const text=inp.value.trim();if(!text)return;
+  inp.disabled=btn.disabled=true;
+  append('user',text);
+  inp.value='';
+  try{
+    const r=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
+    const d=await r.json();
+    append('cipher',d.reply||'暂无回复');
+  }catch(e){append('cipher','出错了: '+e)}
+  inp.disabled=btn.disabled=false;inp.focus();
+}
+function append(role,text){
+  const d=document.getElementById('msgs');
+  const el=document.createElement('div');el.className='msg '+role;
+  el.innerHTML='<div class="bubble">'+text.replace(/\\n/g,'<br>')+'</div><div class="meta">'+(role==='cipher'?'Cipher':'主人')+' · 刚刚</div>';
+  d.appendChild(el);d.scrollTop=d.scrollHeight;
+}
+</script>
+</body>
+</html>"""
 
 
 def _extract_text(payload: dict) -> str:
@@ -57,6 +115,33 @@ def _extract_sender(payload: dict) -> str:
 @app.route("/ping", methods=["GET"])
 def ping():
     return jsonify({"status": "ok", "time": datetime.now().isoformat()})
+
+
+@app.route("/", methods=["GET"])
+def web_chat():
+    return CHAT_PAGE, 200, {"Content-Type": "text/html; charset=utf-8"}
+
+
+@app.route("/chat", methods=["POST"])
+def chat_api():
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        text = (data.get("text") or data.get("message") or "").strip()
+        if not text:
+            return jsonify({"reply": "消息不能为空"}), 400
+
+        logger.info("💬 网页消息: %s", text[:80])
+
+        import skills.entry
+        result = skills.entry.handle_core(text)
+        reply = (result or "[Cipher]\n已收到，但暂无回复内容。").strip()
+        if len(reply) > 8000:
+            reply = reply[:8000] + "\n\n...（回复过长已截断）"
+
+        return jsonify({"reply": reply}), 200
+    except Exception:
+        logger.error("chat error:\n%s", traceback.format_exc())
+        return jsonify({"reply": "处理出错，请重试"}), 500
 
 
 @app.route("/dingtalk/callback", methods=["POST"])
