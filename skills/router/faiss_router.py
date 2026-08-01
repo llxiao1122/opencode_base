@@ -127,6 +127,10 @@ def _worldview_classify(text: str) -> Optional[Tuple[str, float]]:
 
 _PERSON_NAMES_CACHE = None
 
+# 任务/值班类问句：谁+值班/巡库/干活/当班 → 确定性 task_query 快路径。
+# 匹配"明天谁值班""周末谁巡库""今天谁干活"等，兜住 FAISS 种子未覆盖的表达。
+_TASK_WHO_RE = re.compile(r"谁[^。，,.！？!?]{0,6}(值班|巡库|干活|当班|看库|看守)|(值班|巡库|干活|当班|看库|看守)[^。，,.！？!?]{0,6}谁")
+
 # 叙述型文本信号：汇报/安排/跟进类动词，命中即视为"事件叙述"而非"档案/制度查询"
 _NARRATIVE_KW_RE = re.compile(
     r"安排|完成|负责|发送|钉钉|提醒|回复|上报|运维|联系|咨询|领出|领料|交接|请假|"
@@ -156,6 +160,11 @@ def classify(user_input: str) -> Tuple[str, float]:
     text = user_input.strip()
     if not text:
         return ("unknown", 0.0)
+
+    # 0. 任务类问句预检：谁/值班/巡库/干活 → 确定性 task_query（置于人名与语义层之前，
+    #    防止"周末谁巡库"被制度实体劫持为 knowledge_retrieve）。
+    if _TASK_WHO_RE.search(text):
+        return ("task_query", 0.88)
 
     # 0. 人名预检：已知 person 实体名精确匹配 → 仅短查询（≤30 字）短路直返。
     #    叙述型长文本（事件汇报/任务安排/反馈）交还语义层与 Agent 决断，

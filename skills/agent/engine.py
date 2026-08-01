@@ -40,6 +40,7 @@ AGENT_SYSTEM_PROMPT = """\
 3. params 必须符合工具的参数定义
 4. 无法匹配任何工具时，tool 设为 "knowledge_retrieve"，params.topic 设为消息原文
 5. 如果消息包含多个语义命令，按行依次输出，每行一个完整 JSON 对象；如果只有一个命令，输出一行 JSON 即可。
+6. 查询值班、巡库、待办、任务安排时，必须选择 "task_query"（它内部会推算值班轮序和巡库人员），禁止仅凭制度内容推断人员。
 """
 
 ID_STYLE = (
@@ -525,7 +526,12 @@ def run_stream(sender_id: str, user_input: str):
             if mod_path:
                 mod = importlib.import_module(mod_path)
                 handler = getattr(mod, "handle")
-                tool_result = handler(user_input, None)
+                from skills.shared.schema import RequestContext
+                from skills.shared.entity import resolve_user
+                rctx = RequestContext(message=user_input)
+                rctx.user = resolve_user() or {"name": "李林骁"}
+                rctx.slots = {}
+                tool_result = handler(user_input, rctx)
                 use_fast = True
     except Exception:
         pass
