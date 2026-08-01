@@ -6,18 +6,35 @@ INDEX_PATH = KNOWLEDGE_DIR / "INDEX.md"
 
 
 def _search_worldview(query: str, top_k: int = 3) -> str:
-    """优先走世界观 FAISS 语义检索（process + topic 实体档案），命中高分即用。"""
+    """优先走世界观 FAISS 语义检索（process + topic 实体档案），命中高分即用。
+
+    命中 process 实体时，优先提取该实体的「规则定义」节全文——制度问答
+    的核心规则比相似分节更重要；其他类型返回高分分节。
+    """
     try:
-        from skills.memory.worldview import search as wv_search
+        from skills.memory.worldview import search as wv_search, _get_section_text
         hits = wv_search(query, top_k=top_k)
         hits = [h for h in hits if h.get("type") != "person" and h.get("score", 0) >= 0.6]
         if not hits:
             return ""
         blocks = []
+        seen_entities = set()
         for h in hits:
+            entity_id = h.get("entity_id", "")
+            if entity_id in seen_entities:
+                continue
+            seen_entities.add(entity_id)
+            if h.get("type") == "process":
+                rules = _get_section_text(entity_id, "规则定义")
+                if rules:
+                    rules = rules.strip()
+                    if rules.startswith("## 规则定义"):
+                        rules = rules[len("## 规则定义"):].strip()
+                    blocks.append(f"【{entity_id}】（世界观档案）\n## 规则定义\n{rules[:900]}")
+                    continue
             snippet = (h.get("content") or "")[:600].strip()
             if snippet:
-                blocks.append(f"【{h['entity_id']}】（世界观档案）\n{snippet}")
+                blocks.append(f"【{entity_id}】（世界观档案）\n{snippet}")
         return "\n\n".join(blocks[:top_k])
     except Exception:
         return ""
