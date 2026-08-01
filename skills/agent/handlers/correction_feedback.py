@@ -17,6 +17,9 @@ def handle(content: str, context: str = ""):
     except Exception as e:
         logger.warning("correction store append failed: %s", e, exc_info=True)
         added = False
+    if added:
+        from skills.memory.behavior import correction_seen
+        correction_seen()
     if not added:
         return "[Cipher:correction]\n✅ 已记录（重复，未新增）"
     return "[Cipher:correction]\n✅ 纠正已记录（系统成长库）"

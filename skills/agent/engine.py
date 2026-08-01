@@ -225,6 +225,18 @@ def run(user_input: str, ctx: Optional[RequestContext] = None) -> str:
     except Exception:
         pass
 
+    # 纠错数过量提示：值班等领域频繁被纠正时，LLM 应更谨慎
+    try:
+        from skills.memory.behavior import get
+        dc = get("duty_calculation", "correction_count") or 0
+        if dc >= 2:
+            memory_text += (
+                f"\n\n⚠ 重要提示：近期值班推算已被纠正 {dc} 次，"
+                "回答值班/排班问题时请严格按实体档案事实对话，不要自行推算。\n"
+            )
+    except Exception:
+        pass
+
     sys_prompt = AGENT_SYSTEM_PROMPT.format(
         user_name=user_name,
         tools_desc=tools_desc,

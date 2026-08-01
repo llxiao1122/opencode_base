@@ -1,0 +1,13 @@
+{
+  "duty_calculation": {
+    "prefer_entity": true,
+    "correction_count": 0
+  },
+  "classify": {
+    "high_confidence": 0.7
+  },
+  "correction_tracking": {
+    "last_analysis_count": 0,
+    "total_corrections": 0
+  }
+}

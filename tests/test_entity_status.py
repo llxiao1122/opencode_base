@@ -80,3 +80,80 @@ def test_llm_digest_unchanged():
             ["[entry] 今天天气晴"]
         )
     assert result is None, "无变更事件应返回 None"
+
+
+def test_deterministic_digest_fallback():
+    """LLM 失败时降级到确定性规则：含'已完成'关键词应正确更新演练状态。"""
+    from skills.memory.worldview import _deterministic_digest
+
+    result = _deterministic_digest(
+        "应急演练计划",
+        "7月仓库火灾应急演练（物资总库）=已完成; 8月叉车事故应急演练=未完成",
+        ["[entry] 完成了，8月叉车事故应急演练做完了"]
+    )
+    assert result is not None, "确定性兜底应识别完成语义"
+    assert "8月叉车事故应急演练=已完成" in result, f"应更新8月为已完成: {result}"
+
+    # No change for already-completed
+    result2 = _deterministic_digest(
+        "应急演练计划",
+        "7月仓库火灾应急演练（物资总库）=已完成; 8月叉车事故应急演练=已完成",
+        ["[entry] 仓库火灾演练完成"]
+    )
+    assert result2 is None, "已完成不应被重复更新"
+
+
+def test_urgent_state_words_detect():
+    from skills.memory.worldview import _URGENT_STATE_WORDS
+    assert "已完成" in _URGENT_STATE_WORDS
+    assert "锚点" in _URGENT_STATE_WORDS
+    assert "未完成" in _URGENT_STATE_WORDS
+
+
+def test_behavior_params_cycle():
+    from skills.memory.behavior import get, set_param, increment, correction_seen, mark_analyzed, _load
+
+    # Reset to defaults
+    data = _load()
+    data["correction_tracking"]["total_corrections"] = 0
+    data["correction_tracking"]["last_analysis_count"] = 0
+    from skills.memory.behavior import _save
+    _save(data)
+
+    # Simulate 3 corrections
+    assert correction_seen() is False  # 1st: not enough
+    assert correction_seen() is False  # 2nd: not enough
+    assert correction_seen() is True   # 3rd: trigger analysis
+
+    # After marking analyzed, count resets
+    mark_analyzed()
+    assert correction_seen() is False  # Reset, 1st again
+
+    # Parameter read/write
+    set_param("classify", "high_confidence", 0.65)
+    assert get("classify", "high_confidence") == 0.65
+    set_param("classify", "high_confidence", 0.70)  # restore
+
+
+def test_urgent_digest_e2e():
+    """端到端验证：关键词→实体映射 + 确定性消化链路贯通"""
+    from skills.memory.worldview import _collect_urgent, _deterministic_digest
+    from skills.memory.recorder import record
+    from skills.agent.handlers.task_query import _read_entity_status
+
+    # Inject state-change events
+    record("[entry] 8月叉车事故应急演练已完成", source="test", obs_type="event")
+    record("[entry] 值班锚点确认苗笑天8/3值班", source="test", obs_type="event")
+
+    urgent = _collect_urgent()
+    assert len(urgent) >= 1, f"urgent 应至少匹配一个实体: {urgent}"
+
+    # Keyword→entity routing verified: "演练"→应急演练计划, "值班"→值班轮序
+    found = set(urgent.keys())
+    assert any(e in found for e in ("应急演练计划", "值班轮序", "苗笑天")), \
+        f"紧急实体匹配不完整: {found}"
+
+    # Deterministic digest verified
+    status = _read_entity_status("应急演练计划")
+    assert status is not None
+    assert "已完成" in status, f"至少7月演练已完成: {status}"

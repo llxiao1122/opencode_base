@@ -430,17 +430,18 @@ def _llm_digest(name: str, current_status: str | None, new_records: list[str]) -
     """Ask LLM whether the entity's 当前状态 should change based on new events.
 
     Returns new status string if changed, None if unchanged.
+    Falls back to deterministic pattern matching if LLM call fails.
     """
     if not new_records:
-        return None
-    try:
-        from skills.core.llm_client import call as llm_call
-    except ImportError:
         return None
 
     current = current_status or "（无）"
     events_text = "\n".join(f"- {r[:200]}" for r in new_records[-10:])
-    prompt = f"""你是系统状态分析器。根据实体的当前状态和新增事件，判断是否需要更新当前状态。
+
+    # Primary: LLM digest
+    try:
+        from skills.core.llm_client import call as llm_call
+        prompt = f"""你是系统状态分析器。根据实体的当前状态和新增事件，判断是否需要更新当前状态。
 
 实体名称：{name}
 当前状态：{current}
@@ -459,10 +460,9 @@ def _llm_digest(name: str, current_status: str | None, new_records: list[str]) -
 
 如果状态无需变更，返回：{{"changed": false, "new_status": "", "reason": "无变更"}}"""
 
-    try:
         result = llm_call(prompt, temperature=0.0, max_tokens=256, timeout=30)
         if not result or isinstance(result, dict):
-            return None
+            raise ValueError("LLM call returned error")
         import json
         result = result.strip()
         if result.startswith("```"):
@@ -473,9 +473,48 @@ def _llm_digest(name: str, current_status: str | None, new_records: list[str]) -
         if data.get("changed"):
             new_status = data.get("new_status", "").strip()
             if new_status and new_status != current:
+                logger.info("digest LLM: %s → %s (%s)", name, new_status, data.get("reason", ""))
                 return new_status
     except Exception as e:
-        logger.debug("digest LLM call failed for %s: %s", name, e)
+        logger.debug("digest LLM failed for %s: %s, trying fallback", name, e)
+
+    # Fallback: deterministic pattern matching for high-confidence state changes
+    return _deterministic_digest(name, current, new_records)
+
+
+def _deterministic_digest(name: str, current: str, records: list[str]) -> str | None:
+    """Deterministic fallback when LLM digest fails. Parses high-certainty
+    completion/duty/anchor keywords from event text. Only returns results when
+    confidence is high — otherwise returns None (silent skip).
+
+    This is the safety net, not the primary mechanism. LLM digest is preferred.
+    """
+    import re
+    combined = "\n".join(records)
+
+    # Pattern: "已完成 {exercise_name}" → update exercise status to 已完成
+    if "完成" in combined and "演练" in combined:
+        done_match = re.search(r'(?:已?完成|做完了)[，,。\s:：]*(\S+?)(?:演练|训练)', combined)
+        if done_match and "应急演练" in name:
+            exercise_key = done_match.group(1).strip()
+            month_map = {"仓库火灾": "7月仓库火灾应急演练（物资总库）",
+                        "叉车事故": "8月叉车事故应急演练",
+                        "电梯事故": "9月电梯事故现场应急演练"}
+            for key, full_name in month_map.items():
+                if key in exercise_key or exercise_key in key:
+                    new = re.sub(rf'{re.escape(full_name)}=未完成', f'{full_name}=已完成', current)
+                    if new != current:
+                        logger.info("digest fallback: %s completed → %s", key, name)
+                        return new
+
+    # Pattern: explicit anchor override "锚点=YYYY-MM-DD Name"
+    anchor_match = re.search(r'锚点[=：:]\s*(\d{4}-\d{2}-\d{2})\s*(\S+)', combined)
+    if anchor_match and "值班" in name:
+        new = f"锚点={anchor_match.group(1)} {anchor_match.group(2)}"
+        if new != current:
+            logger.info("digest fallback: duty anchor → %s", new)
+            return new
+
     return None
 
 
@@ -723,8 +762,56 @@ def _collect_pending(min_records: int = 10) -> dict[str, list[str]]:
     return dict(groups)
 
 
+_URGENT_STATE_WORDS = frozenset({"已完成", "做了", "做完了", "未完成", "还没做",
+    "值班", "锚点", "轮值", "改为", "修改为", "更改为", "不再", "以后"})
+
+# keyword → candidate entity names (for urgent digest entity matching)
+_URGENT_ENTITY_KW = {
+    "值班": ["值班轮序"], "锚点": ["值班轮序"], "值班轮序": ["值班轮序"],
+    "巡库": ["周末巡库制度"], "周末": ["周末巡库制度"],
+    "演练": ["应急演练计划"], "训练": ["应急演练计划"],
+    "轮值": ["材料棚轮值规则", "值班轮序"], "材料棚": ["材料棚轮值规则"],
+}
+
 _CHECK_COOLDOWN = 60.0
 _LAST_CHECK = {"ts": 0.0}
+
+
+def _collect_urgent() -> dict[str, list[str]]:
+    """Scan ringbuf for entries containing high-certainty state change keywords.
+    Returns entity→records mapping for urgent digest, even when pending < 10.
+    """
+    from collections import defaultdict
+    ring_path = ROOT / "data" / "state" / "worldview" / "_ringbuf.json"
+    if not ring_path.exists():
+        return {}
+    lines = ring_path.read_text(encoding="utf-8").splitlines()[-30:]
+    idx = _load_index()
+    known = set(idx.get("entities", {}).keys())
+    # Also include entity files not yet in index (e.g., newly created entities)
+    for f in ENTITIES_DIR.glob("*.md"):
+        if f.stem != "_unknown":
+            known.add(f.stem)
+    groups = defaultdict(list)
+    for line in lines:
+        if not line.strip():
+            continue
+        has_urgent = any(w in line for w in _URGENT_STATE_WORDS)
+        if not has_urgent:
+            continue
+        matched = False
+        for name in known:
+            if name in line:
+                groups[name].append(line[:200])
+                matched = True
+        if not matched:
+            # Fallback: keyword → entity mapping
+            for kw, entities in _URGENT_ENTITY_KW.items():
+                if kw in line:
+                    for ent in entities:
+                        if ent in known:
+                            groups[ent].append(line[:200])
+    return dict(groups)
 
 
 def check_and_update():
@@ -732,6 +819,9 @@ def check_and_update():
 
     限频 60s（快路径每次查询都会调用）。由 entry.handle_core 与 agent/engine.py run() 开头调用。
     合入成功后清空 ringbuf，避免同一批记录重复合入。
+
+    紧急触发：ringbuf 中有高确定性状态变更词（已完成/值班/锚点等）时，
+    即使 pending < 10 也会触发目标实体的 digest（不执行完整 batch_update）。
     """
     import time
     now = time.time()
@@ -742,8 +832,39 @@ def check_and_update():
     idx = _load_index()
     self_heal(idx)
     pending = idx.get("pending_records", 0)
+
     if pending < 10:
-        return False
+        urgent = _collect_urgent()
+        if not urgent:
+            return False
+        # Urgent digest only: digest entities with state changes, don't batch_update
+        entities_info = idx.get("entities", {})
+        updated = False
+        for name, records in urgent.items():
+            if name == "_unknown":
+                continue
+            try:
+                path = ENTITIES_DIR / f"{name}.md"
+                if not path.exists():
+                    continue
+                content = path.read_text(encoding="utf-8")
+                import re as _re
+                m = _re.search(r'^- \*\*当前状态\*\*:\s*(.+)$', content, _re.MULTILINE)
+                current_status = m.group(1).rsplit(" | 上次自诊:", 1)[0].strip() if m else None
+                if current_status is None:
+                    continue
+                new_status = _llm_digest(name, current_status, records)
+                if new_status and _update_entity_status(name, new_status):
+                    logger.info("urgent digest: %s → %s", name, new_status)
+                    updated = True
+            except Exception as e:
+                logger.debug("urgent digest skip %s: %s", name, e)
+        if updated:
+            try:
+                _rebuild_faiss()
+            except Exception as e:
+                logger.error("urgent digest faiss rebuild failed: %s", e)
+        return updated
 
     logger.info("Worldview auto-update triggered (%d pending records)", pending)
     groups = _collect_pending(min_records=10)

@@ -102,6 +102,14 @@ def _search_episodic(user_input: str) -> str:
 
 
 
+def _get_high_threshold():
+    try:
+        from skills.memory.behavior import get
+        return get("classify", "high_confidence") or 0.70
+    except Exception:
+        return 0.70
+
+
 def handle_core(user_input: str) -> str:
     _build_index_once()
 
@@ -121,7 +129,7 @@ def handle_core(user_input: str) -> str:
 
     route, confidence = classify(user_input)
 
-    if round(confidence, 2) >= CT.HIGH and route != "event":
+    if round(confidence, 2) >= _get_high_threshold() and route != "event":
         result = _fast_dispatch(route, user_input, rctx)
         tool_id = route
         rctx.route = route
@@ -163,6 +171,8 @@ def handle_core(user_input: str) -> str:
         if (rctx.slots or {}).get("has_correction"):
             from skills.memory.correction_store import append as _corr_append
             _corr_append(user_input)
+            from skills.memory.behavior import correction_seen
+            correction_seen()
         else:
             from skills.memory.recorder import record as _record
             _record(user_input, source="entry", obs_type="interaction",
