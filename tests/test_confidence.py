@@ -75,8 +75,11 @@ def test_weekend_shows_patrol_duty():
     sat = _get_daily_work(date(2026, 8, 1))
     assert "周末巡库" in sat, f"周六应展示巡库专项: {sat}"
     assert "17 点前" in sat, "应包含完成时限"
+    assert "当日值班人员" in sat, f"周末也应展示值班人员: {sat}"
+    assert "张志斌" in sat, f"8/1 应展示张志斌值班: {sat}"
     sun = _get_daily_work(date(2026, 8, 2))
     assert "周末巡库" in sun, "周日也应展示巡库"
+    assert "杨梦卓" in sun, f"8/2 应展示杨梦卓值班: {sun}"
 
     # 非周末不展示巡库
     mon = _get_daily_work(date(2026, 8, 3))

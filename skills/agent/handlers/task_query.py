@@ -332,6 +332,8 @@ def _get_daily_work(target_date):
     if is_weekend:
         # 周末：检查 周末巡库制度 实体状态是否生效
         patrol_status = _read_entity_status("周末巡库制度")
+        duty_person = _get_duty_person(target, md=md)
+        duty_line = f"  当日值班人员: {duty_person}（参照'今日我值班工作提示卡'）"
         if patrol_status and patrol_status.startswith("生效中"):
             patrol_rules = _read_entity_rule_section("周末巡库制度", "规则定义")
             if patrol_rules:
@@ -340,8 +342,12 @@ def _get_daily_work(target_date):
                     line = line.strip()
                     if line.startswith("- **"):
                         rules_clean.append(f"  • {line.lstrip('- ')}")
-                return f"【周末巡库专项】\n（{patrol_status}）\n\n" + "\n".join(rules_clean)
-            return f"【周末巡库专项】\n（{patrol_status}，按规则定义执行）"
+                return (f"【值班】\n{duty_line}\n\n"
+                        f"【周末巡库专项】\n（{patrol_status}）\n\n"
+                        + "\n".join(rules_clean))
+            return f"【值班】\n{duty_line}\n\n【周末巡库专项】\n（{patrol_status}，按规则定义执行）"
+        if duty_person != "未知":
+            return f"【值班】\n{duty_line}"
         return ""
 
     lines_out = []

@@ -2,7 +2,7 @@
   "version": 1,
   "last_bootstrap": "2026-07-30T14:56:13.497840",
   "last_update": null,
-  "pending_records": 19,
+  "pending_records": 2,
   "entities": {
     "陈红洁": {
       "type": "person",
@@ -355,6 +355,10 @@
     "周末巡库制度": {
       "type": "process",
       "updated": "2026-08-01T07:47:04.523602"
+    },
+    "应急演练计划": {
+      "type": "topic",
+      "updated": "2026-08-01T18:47:46.029495"
     }
   }
 }
