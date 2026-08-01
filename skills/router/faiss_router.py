@@ -115,6 +115,11 @@ def _worldview_classify(text: str) -> Optional[Tuple[str, float]]:
                 return None
             return (route, round(min(score, base_conf), 2))
 
+        # 知识/流程类同理：叙述型汇报（火灾报警、任务进展）不得被 knowledge 快路径
+        # 劫持为制度查询——应进事件记录/任务链路。
+        if len(text) > 30 and _NARRATIVE_KW_RE.search(text):
+            return None
+
         return (route, round(min(score + 0.05, base_conf), 2))
     except Exception:
         return None
@@ -122,10 +127,12 @@ def _worldview_classify(text: str) -> Optional[Tuple[str, float]]:
 
 _PERSON_NAMES_CACHE = None
 
-# 叙述型文本信号：汇报/安排/跟进类动词，命中即视为"事件叙述"而非"档案查询"
+# 叙述型文本信号：汇报/安排/跟进类动词，命中即视为"事件叙述"而非"档案/制度查询"
 _NARRATIVE_KW_RE = re.compile(
     r"安排|完成|负责|发送|钉钉|提醒|回复|上报|运维|联系|咨询|领出|领料|交接|请假|"
-    r"任务|反馈|跟进|执行|安排|处理|办理|询问|试了|显示错误|未读|担心|上报运维"
+    r"任务|反馈|跟进|执行|安排|处理|办理|询问|试了|显示错误|未读|担心|上报运维|"
+    r"打电话|电话|报警|火灾|着火|前往|现场|已让|已经|正在|刚[，,。 ]|让我|派[了]?|"
+    r"消防控制室|拿钥匙|确认中|前去"
 )
 
 
