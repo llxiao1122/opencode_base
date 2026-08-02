@@ -28,6 +28,14 @@ def handle(user_input, ctx):
         target_date = today + timedelta(days=days)
         date_range = (target_date, target_date)
         label = "下" + "一二三四五六日"[wd]
+    elif scope == "day_after_tomorrow":
+        target_date = today + timedelta(days=2)
+        date_range = (target_date, target_date)
+        label = "后天"
+    elif scope == "day_after_after_tomorrow":
+        target_date = today + timedelta(days=3)
+        date_range = (target_date, target_date)
+        label = "大后天"
     elif scope == "week":
         target_date = today
         days_ahead = 7 - today.weekday()
@@ -92,6 +100,10 @@ def _detect_scope(text):
         return "week"
     if "明天" in text or "明日" in text:
         return "tomorrow"
+    if "后天" in text or "後天" in text:
+        if "大后天" in text or "大後天" in text:
+            return "day_after_after_tomorrow"
+        return "day_after_tomorrow"
     import re
     m = re.search(r"下(?:周|星期|礼拜)([一二三四五六日天])", text)
     if m:
