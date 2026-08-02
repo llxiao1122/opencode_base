@@ -81,7 +81,8 @@ def _resolve_config():
     return url or prov_cfg["default_url"], key, model or prov_cfg["default_model"]
 
 
-def call(prompt, system_prompt=None, temperature=0.0, timeout=120, max_tokens=1024):
+def call(prompt, system_prompt=None, temperature=0.0, timeout=120, max_tokens=1024,
+         response_format=None):
     url, key, model = _resolve_config()
 
     if not url or not key:
@@ -99,6 +100,8 @@ def call(prompt, system_prompt=None, temperature=0.0, timeout=120, max_tokens=10
         "max_tokens": max_tokens,
         "stream": False,
     }
+    if response_format:
+        body_dict["response_format"] = response_format
     provider = os.environ.get("LLM_PROVIDER", "deepseek").lower()
     if provider == "deepseek":
         body_dict["thinking"] = {"type": "disabled"}
@@ -133,6 +136,15 @@ def call(prompt, system_prompt=None, temperature=0.0, timeout=120, max_tokens=10
 
         msg = data.get("choices", [{}])[0].get("message", {})
         content = msg.get("content", "")
+        # 缓存命中观察：usage.prompt_cache_hit_tokens 反映 KV 缓存效果
+        try:
+            usage = data.get("usage", {})
+            hit = usage.get("prompt_cache_hit_tokens")
+            miss = usage.get("prompt_cache_miss_tokens")
+            if hit is not None or miss is not None:
+                logger.info("LLM cache: hit=%s miss=%s (model=%s)", hit, miss, model)
+        except Exception:
+            pass
         # 当 content 为空但 reasoning_content 有时，说明还在推理阶段
         if not content and msg.get("reasoning_content"):
             return {"error": "模型输出为空（推理未完成）"}
@@ -141,7 +153,8 @@ def call(prompt, system_prompt=None, temperature=0.0, timeout=120, max_tokens=10
     return {"error": "请求失败（限流重试耗尽）"}
 
 
-def call_stream(prompt, system_prompt=None, temperature=0.0, timeout=120, max_tokens=1024):
+def call_stream(prompt, system_prompt=None, temperature=0.0, timeout=120, max_tokens=1024,
+                response_format=None):
     """流式调用 LLM，yield 文本片段。用法: for chunk in call_stream(...): ..."""
     url, key, model = _resolve_config()
 
@@ -161,6 +174,8 @@ def call_stream(prompt, system_prompt=None, temperature=0.0, timeout=120, max_to
         "max_tokens": max_tokens,
         "stream": True,
     }
+    if response_format:
+        body_dict["response_format"] = response_format
     provider = os.environ.get("LLM_PROVIDER", "deepseek").lower()
     if provider == "deepseek":
         body_dict["thinking"] = {"type": "disabled"}

@@ -26,6 +26,9 @@ AGENT_SYSTEM_PROMPT = """\
 {identity_style}{context_line}{memory_context}可选工具：
 {tools_desc}
 
+## 近期对话历史
+{conversation_history}
+
 输出格式（严格 JSON，只输出 JSON 对象，不要 markdown 代码块）：
 {{
   "thought": "简要推理过程",
@@ -357,6 +360,7 @@ def run(user_input: str, ctx: Optional[RequestContext] = None) -> str:
         memory_context=memory_text,
         context_line=context_line,
         identity_style=ID_STYLE,
+        conversation_history="（无历史对话）",
     )
 
     from skills.core.llm_client import call as llm_call
@@ -545,8 +549,10 @@ def run_stream(sender_id: str, user_input: str):
                 memory_context=memory_context,
                 context_line=slots_context,
                 identity_style=ID_STYLE,
+                conversation_history=conv_text if conv_text else "（无历史对话）",
             )
-            raw = llm_call(user_input, system_prompt=agent_prompt, max_tokens=800, temperature=0.0)
+            raw = llm_call(user_input, system_prompt=agent_prompt, max_tokens=800, temperature=0.0,
+                           response_format={"type": "json_object"})
             if not isinstance(raw, dict) or "error" not in str(raw):
                 decisions = _parse_decisions(str(raw))
                 if decisions:
