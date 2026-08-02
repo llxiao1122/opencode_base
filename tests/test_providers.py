@@ -50,10 +50,11 @@ class TestBodyParams:
 
 
 class TestHeaders:
-    def test_gemini_x_goog_api_key(self):
+    def test_gemini_bearer(self):
+        # OpenAI 兼容端点实测：必须 Authorization Bearer
         h = _build_headers("gemini", "gk123")
-        assert h["x-goog-api-key"] == "gk123"
-        assert "Authorization" not in h
+        assert h["Authorization"] == "Bearer gk123"
+        assert "x-goog-api-key" not in h
 
     def test_deepseek_bearer(self):
         h = _build_headers("deepseek", "dk123")

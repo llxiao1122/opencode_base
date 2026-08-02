@@ -33,7 +33,8 @@ PROVIDERS = {
         "env_key": "GEMINI_API_KEY",
         "config_key": "gemini",
         "url_suffix": "/chat/completions",
-        "auth_header": "x-goog-api-key",  # 直接放 key，无 Bearer
+        # OpenAI 兼容端点实测：必须 Authorization Bearer（x-goog-api-key 仅原生 API 支持）
+        "auth_header": "Authorization",
     },
     "zhipu": {
         "default_url": "https://open.bigmodel.cn/api/paas/v4/chat/completions",
