@@ -51,10 +51,10 @@ _FAST_HANDLERS = {
 }
 
 
-def _fast_dispatch(route: str, user_input: str, ctx) -> str:
+def _fast_dispatch(route: str, user_input: str, ctx) -> str | None:
     hit = _FAST_HANDLERS.get(route)
     if not hit:
-        return "[Cipher:error]\n未知路由"
+        return None  # 无对应 fast handler → 交由 Agent 决策
     if callable(hit):
         return hit(user_input, ctx)
     import importlib
@@ -130,10 +130,17 @@ def handle_core(user_input: str) -> str:
     route, confidence = classify(user_input)
 
     if round(confidence, 2) >= _get_high_threshold() and route != "event":
-        result = _fast_dispatch(route, user_input, rctx)
         tool_id = route
         rctx.route = route
         rctx.confidence = confidence
+        result = _fast_dispatch(route, user_input, rctx)
+        if result is None:
+            # 无对应 fast handler（如 notification_push）→ 回退 Agent 决策
+            rctx.original_route = route
+            rctx.original_confidence = confidence
+            from agent.engine import run as agent_run
+            result = agent_run(user_input, rctx)
+            tool_id = rctx.route if rctx.route else route
     else:
         rctx.original_route = route
         rctx.original_confidence = confidence

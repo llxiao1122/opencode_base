@@ -166,9 +166,11 @@ def call(prompt=None, system_prompt=None, temperature=0.0, timeout=120, max_toke
             # 思考模式 + tools：必须回传 reasoning_content，否则 400
             return {"tool_calls": tool_calls, "reasoning_content": msg.get("reasoning_content")}
         content = msg.get("content", "")
-        # 当 content 为空但 reasoning_content 有时，说明还在推理阶段
-        if not content and msg.get("reasoning_content"):
-            return {"error": "模型输出为空（推理未完成）"}
+        # 思考模式 JSON 决策偶发空 content（文档明示已知问题）：重试而非直接失败
+        if not content:
+            if attempt < 2:
+                continue
+            return {"error": "模型输出为空"}
         return content
 
     return {"error": "请求失败（限流重试耗尽）"}
