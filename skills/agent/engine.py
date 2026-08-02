@@ -46,6 +46,21 @@ AGENT_SYSTEM_PROMPT = """\
 6. 查询值班、巡库、待办、任务安排时，必须选择 "task_query"（它内部会推算值班轮序和巡库人员），禁止仅凭制度内容推断人员。
 """
 
+AGENT_LOOP_PROMPT = """\
+你是 Cipher，{user_name}的企业智能助手。
+
+{identity_style}{context_line}{memory_context}
+工具说明：
+{tools_desc}
+
+规则：
+1. 使用工具查询信息或执行操作，参数从主人的消息中提取
+2. 查询值班/巡库/待办/任务安排必须选择 task_query
+3. 无法匹配任何工具时选择 knowledge_retrieve，topic 设为消息原文
+4. 如果一条消息包含多个独立指令，可依次调用多个工具
+5. 工具执行出错时，可调整参数重试或换其他工具
+"""
+
 ID_STYLE = (
     "身份：第三人称\"Cipher\"自称，称呼用户为\"主人\"。"
     "沟通风格：详实、解释充分，说明做了什么、为什么、结果如何。\n"
@@ -308,6 +323,201 @@ def _build_memory_context(user_input: str) -> str:
     return memory_text
 
 
+def run_agent_loop(user_input, ctx=None, max_steps=10, event_sink=None):
+    """Agent 工具调用循环（opencode 同款）。
+
+    Native function calling + 混合文本 JSON 兜底 + 报错回喂重试。
+    仅负责工具调用，不生成自然语言回复。
+
+    Returns:
+        {"type": "ok", "tool_context": str}
+        {"type": "confirm", "content": str, "proposal_id": str}
+        {"type": "error", "content": str}
+    """
+    from skills.core.llm_client import call as llm_call
+    from skills.agent.registry import tools_schema as get_tools_schema
+
+    if ctx is None:
+        ctx = RequestContext(message=user_input)
+        ctx.user = resolve_user()
+
+    slots_context = ""
+    try:
+        from skills.router.faiss_router import extract_slots
+        slots = extract_slots(user_input)
+        parts = []
+        if slots.get("has_time"):
+            parts.append("时间指示")
+        if slots.get("person_names"):
+            parts.append("涉及人员 " + "、".join(slots["person_names"]))
+        if slots.get("has_correction"):
+            parts.append("纠错")
+        if parts:
+            slots_context = "当前语境：" + "，".join(parts) + "\n"
+    except Exception:
+        pass
+
+    episodic_text = ""
+    try:
+        from skills.memory.worldview import search as wv_search
+        hits = wv_search(user_input, top_k=2, type_filter="person")
+        hits = [h for h in hits if h.get("score", 0) >= 0.6]
+        if hits:
+            lines = ["[世界观档案]:"]
+            for h in hits:
+                snippet = h.get("content", "")[:300].replace("\n", " ").strip()
+                lines.append(f"  • {h['entity_id']} ({h['type']}) {snippet}")
+            episodic_text = "\n".join(lines) + "\n"
+    except Exception:
+        pass
+
+    memory_context = _build_memory_context(user_input)
+    if episodic_text:
+        memory_context = episodic_text + "\n" + memory_context
+
+    tools_desc = "\n".join(
+        "- {}: {}  -> {}".format(
+            t["id"], t["description"],
+            "; ".join("{}={}".format(k,
+                v.get("description", v.get("default", "required")))
+                for k, v in t["params"].items())
+        )
+        for t in list_tools()
+    )
+
+    tools = get_tools_schema()
+
+    system_msg = AGENT_LOOP_PROMPT.format(
+        user_name="主人",
+        tools_desc=tools_desc,
+        memory_context=memory_context,
+        context_line=slots_context,
+        identity_style=ID_STYLE,
+    )
+    messages = [
+        {"role": "system", "content": system_msg},
+        {"role": "user", "content": user_input},
+    ]
+
+    tool_outputs = []
+    available = {t["id"] for t in list_tools()}
+
+    for step in range(max_steps):
+        raw = llm_call(messages=messages, tools=tools, max_tokens=800, temperature=0.0)
+
+        if isinstance(raw, dict) and raw.get("tool_calls"):
+            for tc in raw["tool_calls"]:
+                fn = tc.get("function", {})
+                tool_id = fn.get("name", "")
+                try:
+                    params = json.loads(fn.get("arguments", "{}"))
+                except json.JSONDecodeError:
+                    params = {}
+
+                if event_sink:
+                    event_sink({"type": "tool_start", "tool_id": tool_id,
+                               "params": params, "step": step + 1})
+
+                atype = action_type(tool_id)
+                if atype == "confirm":
+                    proposal = _propose_confirmation(tool_id, params, ctx)
+                    messages.append({"role": "assistant", "content": None,
+                                    "tool_calls": [tc]})
+                    messages.append({"role": "tool", "tool_call_id": tc["id"],
+                                    "content": proposal["summary"]})
+                    if event_sink:
+                        event_sink({"type": "tool_done", "tool_id": tool_id,
+                                   "status": "confirm", "step": step + 1})
+                    return {"type": "confirm", "content": proposal["summary"],
+                            "proposal_id": proposal["id"]}
+
+                if tool_id not in available:
+                    result = f"[Cipher:error]\n未知工具: {tool_id}"
+                else:
+                    ok, err = validate_params(tool_id, params)
+                    if not ok:
+                        result = f"[Cipher:error]\n参数校验失败({tool_id}): {err}"
+                    else:
+                        try:
+                            result = execute(tool_id, params, ctx=ctx) or ""
+                        except Exception as e:
+                            logger.warning("tool exec failed: %s", e)
+                            result = f"[Cipher:error]\n工具执行失败({tool_id}): {e}"
+
+                status = "error" if str(result).startswith("[Cipher:error]") else "ok"
+                tool_outputs.append(f"[{tool_id}]:\n{result}")
+
+                if event_sink:
+                    event_sink({"type": "tool_done", "tool_id": tool_id,
+                               "status": status, "step": step + 1})
+
+                messages.append({"role": "assistant", "content": None,
+                                "tool_calls": [tc]})
+                messages.append({"role": "tool", "tool_call_id": tc["id"],
+                                "content": str(result)})
+
+            continue
+
+        elif isinstance(raw, dict) and "error" in raw:
+            return {"type": "error", "content": raw.get("error", "LLM 调用失败")}
+
+        else:
+            content = str(raw).strip() if raw else ""
+            decisions = _parse_decisions(content)
+            if decisions:
+                for decision in decisions:
+                    tool_id = decision.get("tool", "")
+                    params = decision.get("params", {})
+
+                    if tool_id not in available:
+                        messages.append({"role": "assistant", "content": content})
+                        messages.append({"role": "user",
+                                        "content": f"[Cipher:error]\n未知工具 '{tool_id}'"})
+                        continue
+
+                    ok, err = validate_params(tool_id, params)
+                    if not ok:
+                        messages.append({"role": "assistant", "content": content})
+                        messages.append({"role": "user",
+                                        "content": f"[Cipher:error]\n参数校验失败({tool_id}): {err}"})
+                        continue
+
+                    atype = action_type(tool_id)
+                    if atype == "confirm":
+                        proposal = _propose_confirmation(tool_id, params, ctx)
+                        messages.append({"role": "assistant", "content": content})
+                        messages.append({"role": "user", "content": proposal["summary"]})
+                        if event_sink:
+                            event_sink({"type": "tool_done", "tool_id": tool_id,
+                                       "status": "confirm"})
+                        return {"type": "confirm", "content": proposal["summary"],
+                                "proposal_id": proposal["id"]}
+
+                    result = execute(tool_id, params, ctx=ctx) or ""
+                    is_err = str(result).startswith("[Cipher:error]")
+                    tool_outputs.append(f"[{tool_id}]:\n{result}")
+
+                    if event_sink:
+                        event_sink({"type": "tool_start", "tool_id": tool_id,
+                                   "params": params, "step": step + 1})
+                        event_sink({"type": "tool_done", "tool_id": tool_id,
+                                   "status": "error" if is_err else "ok",
+                                   "step": step + 1})
+
+                    messages.append({"role": "assistant", "content": content})
+                    messages.append({"role": "user",
+                                    "content": f"工具 {tool_id} 的执行结果：\n{result}"})
+
+                continue
+
+            # No tool_calls and no JSON decisions — collect as context and stop
+            if content and content not in ("[]", "null", "None"):
+                tool_outputs.append(f"[Cipher 分析]:\n{content}")
+            break
+
+    return {"type": "ok", "tool_context": "\n\n".join(tool_outputs) if tool_outputs else ""}
+
+
 def run(user_input: str, ctx: Optional[RequestContext] = None) -> str:
     # 世界观自动更新：pending ≥ 50 时先 batch_update 再处理 query
     try:
@@ -439,11 +649,10 @@ def run(user_input: str, ctx: Optional[RequestContext] = None) -> str:
         return f"[Cipher:error]\n处理失败: {e}"
 
 
-def run_stream(sender_id: str, user_input: str):
+def run_stream(sender_id: str, user_input: str, event_sink=None):
     """流式对话生成器，与 handle_core() 功能对齐。
     流程：slots → 纠错检测 → episodic → 分类 → fast_dispatch/agent → 流式生成 → 记录+进化。
     用法: for chunk in run_stream(sender_id, text): ..."""
-    from skills.core.llm_client import call as llm_call
     from skills.core.llm_client import call_stream as llm_stream
     from skills.memory.conversation import format_for_llm as conv_history
 
@@ -540,42 +749,21 @@ def run_stream(sender_id: str, user_input: str):
     except Exception:
         pass
 
-    # === Phase 1: LLM tool decision (fallback when not fast-dispatch) ===
+    # === Phase 1: Agent tool loop (fallback when not fast-dispatch) ===
     if not use_fast:
         try:
-            agent_prompt = AGENT_SYSTEM_PROMPT.format(
-                user_name="主人",
-                tools_desc=tools_desc,
-                memory_context=memory_context,
-                context_line=slots_context,
-                identity_style=ID_STYLE,
-                conversation_history=conv_text if conv_text else "（无历史对话）",
-            )
-            raw = llm_call(user_input, system_prompt=agent_prompt, max_tokens=800, temperature=0.0,
-                           response_format={"type": "json_object"})
-            if not isinstance(raw, dict) or "error" not in str(raw):
-                decisions = _parse_decisions(str(raw))
-                if decisions:
-                    decision = decisions[0]
-                    tool_id = decision.get("tool", "")
-                    params = decision.get("params", {})
-                    available = {t["id"] for t in list_tools()}
-                    if tool_id in available:
-                        ok, err = validate_params(tool_id, params)
-                        if ok:
-                            atype = action_type(tool_id)
-                            # 网页对话：主人当面下指令即授权，confirm 类型直接执行
-                            # 仅 correction_feedback 若已在 Step 2 处理过则跳过（防双写）
-                            if tool_id != "correction_feedback" or not correction_processed:
-                                try:
-                                    tool_result = execute(tool_id, params)
-                                except Exception as e:
-                                    logger.warning("tool exec failed: %s", e)
-                        else:
-                            tool_result = f"[Cipher:info]\n{err}，请补充必要信息后重试。"
-                            logger.info("tool param invalid: %s (%s)", tool_id, err)
+            loop_result = run_agent_loop(user_input, max_steps=10,
+                                          event_sink=event_sink)
         except Exception:
-            pass
+            loop_result = None
+        if loop_result and loop_result.get("type") == "ok":
+            tool_result = loop_result.get("tool_context", "") or None
+        elif loop_result and loop_result.get("type") == "confirm":
+            tool_result = (f"[Cipher:confirm]\n{loop_result['content']}\n"
+                           f"建议ID: {loop_result['proposal_id']}\n"
+                           f"已推送待主人确认，回复「确认 {loop_result['proposal_id'][:6]}」后执行。")
+        elif loop_result and loop_result.get("type") == "error":
+            tool_result = f"[Cipher:info]\n{loop_result['content']}"
 
     # === Phase 2: Streaming natural response ===
     chat_memory = memory_context

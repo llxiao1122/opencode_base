@@ -28,21 +28,38 @@ os.environ.setdefault("DEEPSEEK_API_KEY", "test-key")
 
 MOCK_LLM_CONTENT = "[Cipher:mock] 测试应答"
 
+# 序列模式：每个元素为 (content, tool_calls) 元组，按调用顺序弹出
+# tool_calls 非 None 时 content 设为 None（OpenAI 原生 function calling 语义）
+# 序列耗尽后回退到 MOCK_LLM_CONTENT
+MOCK_LLM_SEQUENCE = None
+
+
+def _build_llm_response(content=None, tool_calls=None):
+    msg = {}
+    if tool_calls:
+        msg["tool_calls"] = tool_calls
+        msg["content"] = None
+    else:
+        msg["content"] = content if content is not None else MOCK_LLM_CONTENT
+    return msg
+
 
 def _mock_llm_http(*args, **kwargs):
     """Transport-level mock: intercept urllib.request.urlopen calls.
 
-    唯一真实 urlopen 调用方为 skills/core/llm_client.py（LLM API 统一封装）。
-    返回 OpenAI 响应格式（llm_client 按 choices[0].message.content 取值），
-    内容读模块级 MOCK_LLM_CONTENT —— 测试可临时改写以模拟真实 LLM 输出：
-      - 文本应答（默认）→ knowledge_retrieve 等文本消费路径
-      - JSON 工具决策 → Agent 主路径（engine._parse_decisions）
-    注意：默认文本不应包含 '{'，否则 _parse_decisions 会误提取。
+    序列模式 (MOCK_LLM_SEQUENCE)：按顺序返回多轮 LLM 响应，支持 tool_calls。
+    默认模式：返回 MOCK_LLM_CONTENT 文本，保持现有测试兼容。
     """
+    if MOCK_LLM_SEQUENCE is not None and MOCK_LLM_SEQUENCE:
+        content, tool_calls = MOCK_LLM_SEQUENCE.pop(0)
+        msg = _build_llm_response(content, tool_calls)
+    else:
+        msg = {"content": MOCK_LLM_CONTENT}
+
     mock = MagicMock()
     mock.status = 200
     mock.read.return_value = json.dumps({
-        "choices": [{"message": {"content": MOCK_LLM_CONTENT}}]
+        "choices": [{"message": msg}]
     }).encode()
     mock.__enter__.return_value = mock
     return mock

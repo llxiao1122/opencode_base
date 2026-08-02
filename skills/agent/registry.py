@@ -250,3 +250,40 @@ def execute(tool_id: str, params: dict, ctx: Optional[RequestContext] = None) ->
     args = _apply_param_map(tool_id, params, ctx)
     result = handler(*args)
     return str(result).strip() if result else ""
+
+
+_TYPE_MAP = {"str": "string", "int": "integer", "bool": "boolean", "float": "number"}
+
+
+def tools_schema() -> list[dict]:
+    """从 TOOL_REGISTRY 生成 OpenAI 兼容的 tools 数组（原生 function calling）。"""
+    tools = []
+    for tid, t in TOOL_REGISTRY.items():
+        props = {}
+        required = []
+        for k, v in t["params_schema"].items():
+            prop = {}
+            json_type = _TYPE_MAP.get(v.get("type", "str"), "string")
+            prop["type"] = json_type
+            desc = v.get("description", "")
+            if desc:
+                prop["description"] = desc
+            if "enum" in v:
+                prop["enum"] = v["enum"]
+            props[k] = prop
+            if v.get("required", False):
+                required.append(k)
+        schema = {
+            "type": "function",
+            "function": {
+                "name": tid,
+                "description": t["description"],
+                "parameters": {
+                    "type": "object",
+                    "properties": props,
+                    "required": required,
+                },
+            },
+        }
+        tools.append(schema)
+    return tools

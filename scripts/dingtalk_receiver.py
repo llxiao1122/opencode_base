@@ -182,8 +182,15 @@ def chat_stream():
         from skills.agent.engine import run_stream
         from skills.memory.conversation import add as conv_add
         full = ""
+        tool_events = []
+
+        def event_sink(event):
+            tool_events.append(json.dumps(event, ensure_ascii=False))
+
         try:
-            for chunk in run_stream(sender, text):
+            for chunk in run_stream(sender, text, event_sink=event_sink):
+                while tool_events:
+                    yield tool_events.pop(0) + "\n"
                 full += chunk
                 yield chunk
         except Exception:
@@ -191,6 +198,8 @@ def chat_stream():
             err_msg = "\n[Cipher]\n处理出错，请重试。"
             full += err_msg
             yield err_msg
+        while tool_events:
+            yield tool_events.pop(0) + "\n"
         if full:
             try:
                 conv_add(sender, "user", text)

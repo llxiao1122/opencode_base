@@ -81,17 +81,18 @@ def _resolve_config():
     return url or prov_cfg["default_url"], key, model or prov_cfg["default_model"]
 
 
-def call(prompt, system_prompt=None, temperature=0.0, timeout=120, max_tokens=1024,
-         response_format=None):
+def call(prompt=None, system_prompt=None, temperature=0.0, timeout=120, max_tokens=1024,
+         response_format=None, tools=None, messages=None):
     url, key, model = _resolve_config()
 
     if not url or not key:
         return {"error": "LLM API 未配置"}
 
-    messages = []
-    if system_prompt:
-        messages.append({"role": "system", "content": system_prompt})
-    messages.append({"role": "user", "content": prompt})
+    if messages is None:
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
 
     body_dict = {
         "model": model,
@@ -102,6 +103,8 @@ def call(prompt, system_prompt=None, temperature=0.0, timeout=120, max_tokens=10
     }
     if response_format:
         body_dict["response_format"] = response_format
+    if tools:
+        body_dict["tools"] = tools
     provider = os.environ.get("LLM_PROVIDER", "deepseek").lower()
     if provider == "deepseek":
         body_dict["thinking"] = {"type": "disabled"}
@@ -135,7 +138,6 @@ def call(prompt, system_prompt=None, temperature=0.0, timeout=120, max_tokens=10
             return {"error": str(e)}
 
         msg = data.get("choices", [{}])[0].get("message", {})
-        content = msg.get("content", "")
         # 缓存命中观察：usage.prompt_cache_hit_tokens 反映 KV 缓存效果
         try:
             usage = data.get("usage", {})
@@ -145,6 +147,10 @@ def call(prompt, system_prompt=None, temperature=0.0, timeout=120, max_tokens=10
                 logger.info("LLM cache: hit=%s miss=%s (model=%s)", hit, miss, model)
         except Exception:
             pass
+        tool_calls = msg.get("tool_calls")
+        if tool_calls:
+            return {"tool_calls": tool_calls}
+        content = msg.get("content", "")
         # 当 content 为空但 reasoning_content 有时，说明还在推理阶段
         if not content and msg.get("reasoning_content"):
             return {"error": "模型输出为空（推理未完成）"}
