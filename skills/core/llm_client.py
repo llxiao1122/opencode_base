@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 PROVIDERS = {
     "deepseek": {
         "default_url": "https://api.deepseek.com/v1/chat/completions",
-        "default_model": "deepseek-v4-flash",
+        "default_model": "deepseek-v4-pro",
         "env_key": "DEEPSEEK_API_KEY",
         "config_key": "deepseek",
         "url_suffix": "/chat/completions",
