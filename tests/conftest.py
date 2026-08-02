@@ -30,17 +30,20 @@ MOCK_LLM_CONTENT = "[Cipher:mock] 测试应答"
 
 # 序列模式：每个元素为 (content, tool_calls) 元组，按调用顺序弹出
 # tool_calls 非 None 时 content 设为 None（OpenAI 原生 function calling 语义）
+# 可选第三元素 reasoning_content（思考模式回传验证）
 # 序列耗尽后回退到 MOCK_LLM_CONTENT
 MOCK_LLM_SEQUENCE = None
 
 
-def _build_llm_response(content=None, tool_calls=None):
+def _build_llm_response(content=None, tool_calls=None, reasoning_content=None):
     msg = {}
     if tool_calls:
         msg["tool_calls"] = tool_calls
         msg["content"] = None
     else:
         msg["content"] = content if content is not None else MOCK_LLM_CONTENT
+    if reasoning_content:
+        msg["reasoning_content"] = reasoning_content
     return msg
 
 
@@ -51,8 +54,10 @@ def _mock_llm_http(*args, **kwargs):
     默认模式：返回 MOCK_LLM_CONTENT 文本，保持现有测试兼容。
     """
     if MOCK_LLM_SEQUENCE is not None and MOCK_LLM_SEQUENCE:
-        content, tool_calls = MOCK_LLM_SEQUENCE.pop(0)
-        msg = _build_llm_response(content, tool_calls)
+        item = MOCK_LLM_SEQUENCE.pop(0)
+        content, tool_calls = item[0], item[1]
+        reasoning = item[2] if len(item) > 2 else None
+        msg = _build_llm_response(content, tool_calls, reasoning)
     else:
         msg = {"content": MOCK_LLM_CONTENT}
 

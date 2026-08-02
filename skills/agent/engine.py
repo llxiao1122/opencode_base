@@ -29,6 +29,8 @@ AGENT_SYSTEM_PROMPT = """\
 ## 近期对话历史
 {conversation_history}
 
+今天是 {today}（{weekday}，北京时间）。"昨天/今天/明天/后天/大后天"请以今日为基准推算具体日期。
+
 输出格式（严格 JSON，只输出 JSON 对象，不要 markdown 代码块）：
 {{
   "thought": "简要推理过程",
@@ -50,6 +52,8 @@ AGENT_LOOP_PROMPT = """\
 你是 Cipher，{user_name}的企业智能助手。
 
 {identity_style}{context_line}{memory_context}
+今天是 {{today}}({{weekday}}，北京时间)。"昨天/今天/明天/后天/大后天"请以今日为基准推算具体日期。
+
 工具说明：
 {tools_desc}
 
@@ -195,8 +199,15 @@ CHAT_SYSTEM_PROMPT = """\
 ## 近期对话历史
 {conversation_history}
 
+今天是 {today}（{weekday}，北京时间）。"昨天/今天/明天/后天/大后天"请以今日为基准推算具体日期。
+
 根据以上记忆和对话历史，用自然流畅的中文回复主人的问题。
 直接回复内容即可，不要加任何前缀标记（如 [Cipher:xxx]）。
+
+规则：
+1. 如果提供了「工具执行结果」，必须**以工具结果为准**逐字转述事实（值班人员、日期、任务、天气等），禁止自行推算、改写或"纠正"其中的日期和人员。
+2. 若工具结果含日期而你不确定今日是哪天，直接用工具结果中的日期表述。
+3. 记忆与工具结果冲突时，以工具结果为准。
 """
 
 
@@ -323,6 +334,16 @@ def _build_memory_context(user_input: str) -> str:
     return memory_text
 
 
+def _today_str() -> str:
+    from datetime import date
+    return date.today().strftime("%Y年%m月%d日")
+
+
+def _weekday_str() -> str:
+    from datetime import date
+    return "一二三四五六日"[date.today().weekday()]
+
+
 def run_agent_loop(user_input, ctx=None, max_steps=10, event_sink=None):
     """Agent 工具调用循环（opencode 同款）。
 
@@ -393,6 +414,8 @@ def run_agent_loop(user_input, ctx=None, max_steps=10, event_sink=None):
         memory_context=memory_context,
         context_line=slots_context,
         identity_style=ID_STYLE,
+        today=_today_str(),
+        weekday=_weekday_str(),
     )
     messages = [
         {"role": "system", "content": system_msg},
@@ -402,10 +425,24 @@ def run_agent_loop(user_input, ctx=None, max_steps=10, event_sink=None):
     tool_outputs = []
     available = {t["id"] for t in list_tools()}
 
+    user_id = None
+    try:
+        uname = (ctx.user or {}).get("name", "")
+        import re as _re
+        m = _re.sub(r"[^a-zA-Z0-9\-_]", "", uname)
+        if m:
+            user_id = m[:512]
+    except Exception:
+        pass
+
     for step in range(max_steps):
-        raw = llm_call(messages=messages, tools=tools, max_tokens=800, temperature=0.0)
+        raw = llm_call(messages=messages, tools=tools, max_tokens=800,
+                       thinking={"type": "enabled"}, reasoning_effort="high",
+                       user_id=user_id)
 
         if isinstance(raw, dict) and raw.get("tool_calls"):
+            reasoning_content = raw.get("reasoning_content")
+            tool_results = []
             for tc in raw["tool_calls"]:
                 fn = tc.get("function", {})
                 tool_id = fn.get("name", "")
@@ -421,10 +458,6 @@ def run_agent_loop(user_input, ctx=None, max_steps=10, event_sink=None):
                 atype = action_type(tool_id)
                 if atype == "confirm":
                     proposal = _propose_confirmation(tool_id, params, ctx)
-                    messages.append({"role": "assistant", "content": None,
-                                    "tool_calls": [tc]})
-                    messages.append({"role": "tool", "tool_call_id": tc["id"],
-                                    "content": proposal["summary"]})
                     if event_sink:
                         event_sink({"type": "tool_done", "tool_id": tool_id,
                                    "status": "confirm", "step": step + 1})
@@ -451,10 +484,17 @@ def run_agent_loop(user_input, ctx=None, max_steps=10, event_sink=None):
                     event_sink({"type": "tool_done", "tool_id": tool_id,
                                "status": status, "step": step + 1})
 
-                messages.append({"role": "assistant", "content": None,
-                                "tool_calls": [tc]})
+                tool_results.append((tc, str(result)))
+
+            # 整轮 tool_calls 作为一条 assistant 消息（思考模式必须带 reasoning_content）
+            assistant_msg = {"role": "assistant", "content": None,
+                             "tool_calls": raw["tool_calls"]}
+            if reasoning_content:
+                assistant_msg["reasoning_content"] = reasoning_content
+            messages.append(assistant_msg)
+            for tc, result in tool_results:
                 messages.append({"role": "tool", "tool_call_id": tc["id"],
-                                "content": str(result)})
+                                "content": result})
 
             continue
 
@@ -571,12 +611,15 @@ def run(user_input: str, ctx: Optional[RequestContext] = None) -> str:
         context_line=context_line,
         identity_style=ID_STYLE,
         conversation_history="（无历史对话）",
+        today=_today_str(),
+        weekday=_weekday_str(),
     )
 
     from skills.core.llm_client import call as llm_call
 
     try:
-        raw = llm_call(user_input, system_prompt=sys_prompt, max_tokens=800, temperature=0.0)
+        raw = llm_call(user_input, system_prompt=sys_prompt, max_tokens=800, temperature=0.0,
+                       thinking={"type": "enabled"}, reasoning_effort="high")
         if isinstance(raw, dict) and "error" in raw:
             logger.warning("LLM call returned error: %s", raw.get("error"))
             return _fallback_search(user_input)
@@ -775,11 +818,23 @@ def run_stream(sender_id: str, user_input: str, event_sink=None):
         identity_style=ID_STYLE,
         memory_context=chat_memory,
         conversation_history=conv_text if conv_text else "（无历史对话）",
+        today=_today_str(),
+        weekday=_weekday_str(),
     )
 
     collected = ""
+    uid = None
     try:
-        for chunk in llm_stream(user_input, system_prompt=chat_prompt, max_tokens=1024, temperature=0.3):
+        import re as _re
+        _u = _re.sub(r"[^a-zA-Z0-9\-_]", "", str(sender_id)[:512])
+        if _u:
+            uid = _u
+    except Exception:
+        pass
+    try:
+        for chunk in llm_stream(user_input, system_prompt=chat_prompt, max_tokens=1024,
+                                temperature=0.3, thinking={"type": "enabled"},
+                                reasoning_effort="high", user_id=uid, include_usage=True):
             if isinstance(chunk, dict) and "error" in chunk:
                 yield f"\n[Cipher]\n处理出错：{chunk['error']}"
                 return

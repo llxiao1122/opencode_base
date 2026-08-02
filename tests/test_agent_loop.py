@@ -154,3 +154,42 @@ def test_run_agent_loop_text_fallback():
 
     assert result["type"] == "ok"
     assert "[task_query]" in result.get("tool_context", "")
+
+
+def test_run_agent_loop_thinking_reasoning_content():
+    """思考模式：tool_calls 返回时必须携带 reasoning_content 回传给后续轮次。"""
+    import json
+    from unittest.mock import patch
+    from skills.core import llm_client as lc
+
+    old_seq = conftest.MOCK_LLM_SEQUENCE
+    tc1 = _make_tool_call("task_query", {"scope": "today"})
+    conftest.MOCK_LLM_SEQUENCE = [
+        (None, [tc1], "先思考：需要查询任务"),
+        ("主人，查询完成。", None),
+    ]
+    seen_messages = []
+
+    real_call = lc.call
+
+    def spy_call(*args, **kwargs):
+        if kwargs.get("messages"):
+            seen_messages.append(kwargs["messages"])
+        return real_call(*args, **kwargs)
+
+    try:
+        with patch.object(lc, "call", spy_call):
+            from skills.agent.engine import run_agent_loop
+            result = run_agent_loop("今天有什么任务", max_steps=5)
+    finally:
+        conftest.MOCK_LLM_SEQUENCE = old_seq
+
+    assert result["type"] == "ok"
+    # 第二轮请求的 messages 中，上一轮 assistant 消息必须带 reasoning_content
+    assert len(seen_messages) >= 2, f"应发生多轮调用, 实际 {len(seen_messages)}"
+    second_round = seen_messages[1]
+    assert any(
+        m.get("role") == "assistant" and m.get("reasoning_content") == "先思考：需要查询任务"
+        and m.get("tool_calls") is not None
+        for m in second_round
+    ), "思考模式 assistant 消息必须带 reasoning_content 回传"
