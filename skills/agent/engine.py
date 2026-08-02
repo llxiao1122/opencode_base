@@ -263,7 +263,7 @@ def _build_self_status() -> str:
     lines = []
     try:
         from skills.core.llm_client import _resolve_config
-        _, _, model = _resolve_config()
+        _, _, model, _ = _resolve_config()
         lines.append(f"- 后台模型：{model}")
     except Exception:
         pass

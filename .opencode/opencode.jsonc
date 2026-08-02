@@ -12,6 +12,28 @@
       "models": {
         "deepseek-v4-flash": { "name": "DeepSeek-V4-Flash" }
       }
+    },
+    "openrouter": {
+      "name": "OpenRouter",
+      "options": {
+        "baseURL": "https://openrouter.ai/api/v1",
+        "apiKey": "{env:OPENROUTER_API_KEY}",
+        "model": "openrouter/free"
+      },
+      "models": {
+        "openrouter/free": { "name": "OpenRouter-Free" }
+      }
+    },
+    "gemini": {
+      "name": "Google AI Studio",
+      "options": {
+        "baseURL": "https://generativelanguage.googleapis.com/v1beta/openai",
+        "apiKey": "{env:GEMINI_API_KEY}",
+        "model": "gemini-3.6-flash"
+      },
+      "models": {
+        "gemini-3.6-flash": { "name": "Gemini-3.6-Flash" }
+      }
     }
   }
 }
