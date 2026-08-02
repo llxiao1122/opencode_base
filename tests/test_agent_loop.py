@@ -193,3 +193,27 @@ def test_run_agent_loop_thinking_reasoning_content():
         and m.get("tool_calls") is not None
         for m in second_round
     ), "思考模式 assistant 消息必须带 reasoning_content 回传"
+
+
+def test_fix_notice_dates():
+    """规则校正通知日期：相对词后错误日期替换为正确日期（基于今天）。"""
+    from datetime import date
+    from skills.agent.engine import _fix_notice_dates
+
+    today = date.today()
+    m2 = (today.replace(day=1) + __import__("datetime").timedelta(days=32)).replace(day=1)
+    # 明天正确日
+    tm = today.replace(month=today.month, day=today.day) + __import__("datetime").timedelta(days=1)
+    correct_tm = f"{tm.month}月{tm.day}日"
+    wrong = f"{correct_tm.split('月')[0]}月{int(correct_tm.split('月')[1][:-1]) + 1}日" \
+        if int(correct_tm.split("月")[1][:-1]) < 28 else "8月1日"
+
+    fixed = _fix_notice_dates(f"请于明天（{wrong}）上午开会")
+    assert fixed == f"请于明天（{correct_tm}）上午开会", f"期望 {correct_tm}, 实际 {fixed}"
+
+    # 正确日期不动
+    ok = _fix_notice_dates(f"请于明天（{correct_tm}）上午开会")
+    assert ok == f"请于明天（{correct_tm}）上午开会"
+
+    # 无日期不动
+    assert _fix_notice_dates("明天上午开会") == "明天上午开会"

@@ -149,12 +149,58 @@ def _fallback_search(query: str) -> str:
         return f"[Cipher]\n已记录：{query}"
 
 
+def _fix_notice_dates(text: str) -> str:
+    """规则校正通知内容中的日期（基于今天）。
+
+    LLM 生成通知内容时常把"明天/后天/大后天"对应的具体日期算错一天
+    （例：今天 8/2，"后天下午"写成"8月3日"）。此处用 Python 规则
+    基于 date.today() 校正：识别相对词后紧跟的"X月X日"，若与正确
+    日期不符则替换为正确日期。
+    """
+    import re as _re
+    from datetime import date, timedelta
+
+    today = date.today()
+    rel_map = {
+        "大后天": 3, "大後天": 3,
+        "后天": 2, "後天": 2,
+        "明天": 1, "明日": 1,
+        "今天": 0, "今日": 0,
+    }
+    # 形如：8月3日 / 8月3日（周一）/ 2026年8月3日
+    date_re = _re.compile(r"(20\d{2}年)?(\d{1,2})月(\d{1,2})日")
+
+    out = text
+    for rel, delta in rel_map.items():
+        search_from = 0
+        while True:
+            pos = out.find(rel, search_from)
+            if pos < 0:
+                break
+            tail = out[pos + len(rel):]
+            m = date_re.search(tail)
+            if m and m.start() <= 6:
+                correct = today + timedelta(days=delta)
+                if (int(m.group(2)), int(m.group(3))) != (correct.month, correct.day):
+                    old = m.group(0)
+                    new = f"{correct.year}年{correct.month}月{correct.day}日" if m.group(1) else f"{correct.month}月{correct.day}日"
+                    out = out[:pos + len(rel) + m.start()] + new + out[pos + len(rel) + m.end():]
+                search_from = pos + len(rel) + m.end()
+            else:
+                search_from = pos + len(rel)
+    return out
+
+
 def _propose_confirmation(tool_id: str, params: dict, ctx=None) -> dict:
     """confirm 类工具：生成建议入 confirm_queue，并推送钉钉待主人确认。
 
     Human-in-the-loop：AI 生成建议，人类确认后执行。返回建议条目。
     """
     from skills.shared.confirm_queue import propose as q_propose
+
+    params = dict(params)
+    if tool_id == "notification_push" and params.get("content"):
+        params["content"] = _fix_notice_dates(str(params["content"]))
 
     summary = _describe_intent(tool_id, params)
     item = q_propose(tool_id, dict(params), summary=summary)
@@ -182,7 +228,9 @@ def _describe_intent(tool_id: str, params: dict) -> str:
     if tool_id == "task_create":
         return f"建议创建任务：{params.get('summary', '')}"
     if tool_id == "notification_push":
-        return f"建议推送通知：{params.get('title', '')}\n{params.get('content', '')}"
+        title = params.get('title', '')
+        content = _fix_notice_dates(str(params.get('content', '')))
+        return f"建议推送通知：{title}\n{content}"
     if tool_id == "correction_feedback":
         return f"建议采纳纠正：{params.get('content', '')}"
     return f"建议执行 {tool_id}：{params}"
