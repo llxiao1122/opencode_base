@@ -18,7 +18,7 @@ from skills.router.faiss_router import classify
 EMPTY_CASES = ["", "  ", "\t\n"]
 SEED_QUERIES = [
     ("今天有什么任务", "task_query"),
-    ("通知各班组明天开会", "event"),
+    ("通知各班组明天开会", "notification_push"),
     ("苗笑天是什么样的人", "profile_query"),
     ("灭火器检查周期是多久", "knowledge_retrieve"),
 ]

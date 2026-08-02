@@ -130,6 +130,9 @@ _PERSON_NAMES_CACHE = None
 # 任务/值班类问句：谁+值班/巡库/干活/当班 → 确定性 task_query 快路径。
 # 匹配"明天谁值班""周末谁巡库""今天谁干活"等，兜住 FAISS 种子未覆盖的表达。
 _TASK_WHO_RE = re.compile(r"谁[^。，,.！？!?]{0,6}(值班|巡库|干活|当班|看库|看守)|(值班|巡库|干活|当班|看库|看守)[^。，,.！？!?]{0,6}谁")
+# 通知指令预检：通知大家/通知X/发个通知/群里说一声 + 具体内容 → notification_push
+# 防止"通知大家清理废旧物资"被制度实体劫持为 knowledge_retrieve
+_NOTIFY_RE = re.compile(r"^(通知|通告|知会|告诉|发个通知|群里说一声|群里通知|发通知|发个消息|转告|提醒大家|告诉大家)")
 
 # 叙述型文本信号：汇报/安排/跟进类动词，命中即视为"事件叙述"而非"档案/制度查询"
 _NARRATIVE_KW_RE = re.compile(
@@ -165,6 +168,11 @@ def classify(user_input: str) -> Tuple[str, float]:
     #    防止"周末谁巡库"被制度实体劫持为 knowledge_retrieve）。
     if _TASK_WHO_RE.search(text):
         return ("task_query", 0.88)
+
+    # 0. 通知指令预检：以"通知/告诉/发个通知…"开头且有内容 → notification_push，
+    #    防止被制度实体/FAISS 种子劫持为 knowledge_retrieve。
+    if _NOTIFY_RE.match(text) and len(text) > 6:
+        return ("notification_push", 0.88)
 
     # 0. 人名预检：已知 person 实体名精确匹配 → 仅短查询（≤30 字）短路直返。
     #    叙述型长文本（事件汇报/任务安排/反馈）交还语义层与 Agent 决断，
